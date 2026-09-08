@@ -1,0 +1,71 @@
+{
+  "id": "builder-16",
+  "number": 16,
+  "title": "Truy xuất kho lưu trữ lạnh",
+  "subtitle": "Việc thu hồi bằng chứng lịch sử chỉ mất vài phút",
+  "objective": "Thiết kế đường dẫn truy xuất kết hợp cho dữ liệu blob nguội và chỉ mục siêu dữ liệu nóng.",
+  "constraints": [
+    "Sử dụng bộ nhớ chính xác cho mỗi loại dữ liệu",
+    "Tra cứu lặp đi lặp lại Cache",
+    "Bảo toàn siêu dữ liệu index"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "cache",
+    "database",
+    "blobStorage",
+    "cdn"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Lưu trữ kết hợp",
+      "description": "Kết hợp lưu trữ blob cho các tệp và database cho siêu dữ liệu.",
+      "requiredAll": [
+        "blobStorage",
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "blobStorage"
+        },
+        {
+          "from": "api",
+          "to": "database"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Tra cứu tăng tốc",
+      "description": "Sử dụng cache để tìm kiếm siêu dữ liệu lặp lại.",
+      "requiredAll": [
+        "cache"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "cache"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Lớp truy cập của khách hàng",
+      "description": "Các yêu cầu phải đi qua ranh giới API.",
+      "requiredAll": [
+        "client",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        }
+      ]
+    }
+  ]
+}

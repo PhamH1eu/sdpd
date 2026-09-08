@@ -1,0 +1,226 @@
+{
+  "id": "case-15",
+  "number": 15,
+  "title": "Trận tuyết lở Cache",
+  "subtitle": "Tất cả các mục cache hết hạn đồng thời, phá hủy database",
+  "brief": {
+    "narrative": "Bây giờ là nửa đêm ở Distributia và database vừa chạm sàn. Vào lúc nửa đêm Thứ Bảy hàng tuần, công việc khởi động cache sẽ chạy và tải dữ liệu tội phạm của cả tuần vào Redis với TTL 7 ngày thống nhất. Điều đó có nghĩa là vào lúc nửa đêm Thứ Bảy hàng tuần, tất cả các mục đó đều hết hạn vào cùng một thời điểm. database vừa bị tấn công với 2,8 triệu truy vấn trong vòng chưa đầy 60 giây vì mỗi lần cache bỏ lỡ sẽ kích hoạt database read. connection pool của máy chủ DB đã cạn kiệt, các truy vấn hết thời gian chờ và toàn bộ bộ phận thực sự bị mù. Điều này đã xảy ra 3 ngày thứ Bảy liên tiếp. Cảnh sát trưởng Partition muốn nó được sửa chữa vĩnh viễn, thám tử.",
+    "symptoms": [
+      "Database connection pool cạn kiệt vào lúc nửa đêm Thứ Bảy hàng tuần",
+      "2,8 triệu lỗi cache xảy ra trong khoảng thời gian 60 giây",
+      "Redis cache tăng từ tỷ lệ trúng 99% xuống 0% ngay lập tức vào nửa đêm",
+      "Tất cả các dịch vụ đều hết thời gian chờ trong cửa sổ xây dựng lại cache"
+    ],
+    "objective": "Xác định lý do tại sao việc hết hạn cache hàng loạt lại gây ra tình trạng quá tải database và đề xuất chiến lược ngăn chặn việc hết hạn đồng bộ hóa."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "redis-cache",
+        "type": "server",
+        "label": "Redis Cache",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Redis Cache Cluster",
+          "logs": [
+            "[00:00:00] INFO: TTL expiry triggered for batch-loaded keys",
+            "[00:00:01] WARN: 2,847,000 keys expired simultaneously",
+            "[00:00:02] INFO: Cache hit rate dropped from 99.2% to 0.1%",
+            "[00:00:03] WARN: All incoming requests are cache MISSes"
+          ],
+          "data": {
+            "Status": "EMPTY (hết hạn hàng loạt)",
+            "Keys Before Midnight": "2.847.000",
+            "Keys After Midnight": "312",
+            "Hit Rate": "0,1% (là 99,2%)",
+            "TTL Policy": "Thống nhất 7 ngày cho tất cả các phím",
+            "Cache Warm Job": "00:00 Thứ Bảy — tải tất cả các khóa có cùng TTL"
+          },
+          "status": "Tất cả các khóa hết hạn cùng một lúc do TTL giống hệt nhau. Cache thực sự trống rỗng."
+        }
+      },
+      {
+        "id": "crime-db",
+        "type": "database",
+        "label": "Tội phạm Database",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 220
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Tội phạm Database",
+          "logs": [
+            "[00:00:02] WARN: Connection pool at 100% (500/500)",
+            "[00:00:03] ERROR: Connection pool exhausted — rejecting new connections",
+            "[00:00:05] ERROR: 47,000 queries queued, avg response time > 30s",
+            "[00:00:10] FATAL: Query timeout cascade — system unresponsive"
+          ],
+          "data": {
+            "Status": "choáng ngợp",
+            "Connection Pool": "500/500 (cạn kiệt)",
+            "Queued Queries": "47.000+",
+            "Normal Query Rate": "~400/giây",
+            "Current Query Rate": "~47.000/giây",
+            "CPU": "100%"
+          },
+          "status": "Database bị nghiền nát bởi hàng loạt truy vấn lỗi bộ nhớ đệm."
+        }
+      },
+      {
+        "id": "api-services",
+        "type": "server",
+        "label": "Dịch vụ API",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 380
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hạm đội API Service",
+          "logs": [
+            "[00:00:03] ERROR: Cache MISS — falling through to database",
+            "[00:00:04] ERROR: Database connection timeout",
+            "[00:00:05] ERROR: 503 Service Unavailable returned to clients"
+          ],
+          "data": {
+            "Status": "THẤT ​​BẠI",
+            "Cache Miss Rate": "99,9%",
+            "Error Rate": "87%"
+          },
+          "status": "Mọi yêu cầu đều bỏ sót cache và áp đảo database."
+        }
+      },
+      {
+        "id": "dispatch",
+        "type": "client",
+        "label": "Trung tâm điều phối",
+        "status": "thất bại",
+        "position": {
+          "x": 550,
+          "y": 380
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Điều phối miền Trung",
+          "logs": [
+            "[00:00:10] ERROR: Unable to retrieve case data",
+            "[00:00:15] ERROR: Dispatch system unresponsive"
+          ],
+          "data": {
+            "Status": "NGOẠI TUYẾN",
+            "Pending Dispatches": "34",
+            "Occurrence": "Thứ bảy thứ 3 liên tiếp"
+          },
+          "status": "Điều phối bị ngừng hoạt động do tầng thượng nguồn bị lỗi."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-api-cache",
+        "source": "api-services",
+        "target": "redis-cache",
+        "label": "cache bỏ lỡ",
+        "animated": true,
+        "style": "broken"
+      },
+      {
+        "id": "e-api-db",
+        "source": "api-services",
+        "target": "crime-db",
+        "label": "truy vấn dự phòng",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-cache-db",
+        "source": "redis-cache",
+        "target": "crime-db",
+        "label": "Xây dựng lại cache",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-dispatch-api",
+        "source": "dispatch",
+        "target": "api-services",
+        "label": "yêu cầu",
+        "animated": false,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của database đang bị choáng ngợp vào lúc nửa đêm Thứ Bảy hàng tuần là gì?",
+      "options": [
+        {
+          "id": "rc-1",
+          "text": "database có kích thước nhỏ hơn và cần dung lượng connection pool lớn hơn để xử lý các đột biến query",
+          "correct": false,
+          "feedback": "database xử lý tải bình thường ở mức ~400 truy vấn/giây. Vấn đề là mức tăng đột biến lên 47.000 truy vấn/giây do tất cả các mục nhập cache hết hạn đồng thời. Một connection pool lớn hơn sẽ chỉ trì hoãn điều không thể tránh khỏi."
+        },
+        {
+          "id": "rc-2",
+          "text": "Tất cả các mục nhập cache đều được đặt cùng một TTL, khiến chúng hết hạn đồng thời và tạo ra một loạt truy vấn database như sấm sét",
+          "correct": true,
+          "feedback": "Chính xác! Đây là trận tuyết lở cache (còn gọi là cache stampede). Khi tất cả các khóa chia sẻ cùng một TTL và được đặt cùng lúc, tất cả chúng đều hết hạn cùng nhau. Trận lũ cache bất ngờ tràn ngập database. Cách khắc phục là thêm các giá trị jitter ngẫu nhiên vào TTL để thời gian hết hạn được dàn trải theo thời gian."
+        },
+        {
+          "id": "rc-3",
+          "text": "Redis gặp sự cố vào nửa đêm Thứ Bảy hàng tuần do rò rỉ memory hoặc tình trạng OOM chưa được giải quyết",
+          "correct": false,
+          "feedback": "Redis không gặp sự cố — nó hoạt động chính xác như thiết kế. Các khóa sắp hết hạn theo lịch trình vì tất cả chúng đều có cùng TTL. Vấn đề là mẫu hết hạn chứ không phải độ ổn định của Redis."
+        },
+        {
+          "id": "rc-4",
+          "text": "Công việc khởi động cache lúc nửa đêm Thứ Bảy hàng tuần đang xung đột trực tiếp với hoạt động giao thông vào giờ cao điểm thông thường",
+          "correct": false,
+          "feedback": "Công việc khởi động cache thực sự là nguyên nhân gây ra sự cố TTL thống nhất - nó tải tất cả các phím cùng lúc với cùng một TTL. Nhưng root cause là mẫu TTL giống hệt nhau, bản thân nó không phải là tác vụ làm nóng."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để ngăn chặn trận tuyết lở cache là gì?",
+      "options": [
+        {
+          "id": "fix-1",
+          "text": "Thêm jitter ngẫu nhiên vào TTL cache để các mục hết hạn vào các thời điểm khác nhau thay vì tất cả cùng một lúc",
+          "correct": true,
+          "feedback": "Chính xác! Bằng cách thêm offset ngẫu nhiên vào TTL của mỗi khóa (ví dụ: 7 ngày + ngẫu nhiên 0-60 phút), thời gian hết hạn sẽ được dàn trải theo thời gian thay vì xảy ra đồng thời. Điều này ngăn chặn tiếng ồn ào và giữ cho database tải trơn tru. Đây là cách phòng thủ tiêu chuẩn chống lại trận tuyết lở cache."
+        },
+        {
+          "id": "fix-2",
+          "text": "Nhân đôi kích thước database connection pool để xử lý sự gia tăng đồng thời các truy vấn xây dựng lại lỗi bộ nhớ đệm",
+          "correct": false,
+          "feedback": "Ngay cả việc tăng gấp đôi số lượng truy vấn (lên 1.000) cũng không thể xử lý hơn 47.000 truy vấn đồng thời. Bạn cần tăng gấp 100 lần, điều này sẽ gây lãng phí tài nguyên 99,9% thời gian. Tốt hơn hết là ngăn chặn sự tăng đột biến ngay từ đầu bằng các TTL so le."
+        },
+        {
+          "id": "fix-3",
+          "text": "Đặt tất cả các TTL của mục nhập cache thành vô hạn để chúng không bao giờ tự động hết hạn và phải được vô hiệu hóa theo cách thủ công trên mỗi bản cập nhật",
+          "correct": false,
+          "feedback": "Các mục nhập cache không bao giờ hết hạn dẫn đến dữ liệu cũ và sự tăng trưởng memory không giới hạn. Hết hạn là một cơ chế cache lành mạnh - vấn đề là hết hạn được đồng bộ hóa chứ không phải bản thân hết hạn."
+        },
+        {
+          "id": "fix-4",
+          "text": "Chạy công việc khởi động cache hàng tuần thường xuyên hơn — một lần mỗi ngày thay vì hàng tuần — để giảm khoảng thời gian dữ liệu cũ",
+          "correct": false,
+          "feedback": "Chạy công việc sưởi ấm hàng ngày với cùng một bộ đồng phục TTL chỉ khiến trận tuyết lở xảy ra hàng đêm thay vì hàng tuần. Vấn đề cốt lõi – các TTL giống hệt nhau gây ra sự hết hạn đồng bộ – vẫn không thay đổi."
+        }
+      ]
+    }
+  },
+  "conceptId": "cache-expiry-strategies",
+  "badge": {
+    "name": "bảo vệ tuyết lở",
+    "icon": "🏔️"
+  }
+}

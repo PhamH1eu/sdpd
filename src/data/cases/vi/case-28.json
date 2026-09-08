@@ -1,0 +1,223 @@
+{
+  "id": "case-28",
+  "number": 28,
+  "title": "Circuit Breaker",
+  "subtitle": "Một quân domino đổ làm lật đổ toàn bộ trung tâm điều phối",
+  "brief": {
+    "narrative": "Hệ thống điều phối Distributia PD 911 là một kiệt tác của kiến ​​trúc microservice — hoặc họ nghĩ vậy. Khi Xác thực Địa chỉ Service ngừng hoạt động để bảo trì định kỳ, không ai mong đợi dòng thác tiếp theo. Dispatch Service gọi Xác thực địa chỉ cho mọi cuộc gọi 911 đến. Nếu không có circuit breaker, mỗi lần thực hiện cuộc gọi sẽ bị treo trong 30 giây để chờ đợi một response không bao giờ đến. Nhóm Dispatch Service thread chứa đầy các chuỗi bị chặn. Sau đó, Định tuyến cuộc gọi Service, phụ thuộc vào Điều phối, cũng bắt đầu hết thời gian chờ. Sau đó là Phân công Sĩ quan Service. Trong vòng ba phút, một cửa sổ bảo trì duy nhất trên service không quan trọng đã ngừng hoạt động toàn bộ đường ống điều phối khẩn cấp. Trung úy Cascade đang chứng kiến ​​các cuộc gọi 911 thực sự không được trả lời vì mọi service đều bị kẹt khi chờ trên một chiếc service đã bị tắt có chủ ý.",
+    "symptoms": [
+      "Xác thực địa chỉ Service đang ngoại tuyến (bảo trì theo kế hoạch)",
+      "Tất cả các luồng Service gửi đi bị chặn đang chờ xác thực địa chỉ - Sử dụng 100% thread",
+      "Định tuyến cuộc gọi Service hết thời gian chờ vì Dispatch Service không phản hồi",
+      "Các cuộc gọi 911 không được trả lời - toàn bộ đường truyền điều phối bị đóng băng"
+    ],
+    "objective": "Xác định cách lỗi của một microservice lan truyền khắp toàn bộ hệ thống và xác định mẫu chính xác để cách ly lỗi và ngăn chặn tình trạng ngừng hoạt động theo tầng."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "call-routing",
+        "type": "client",
+        "label": "Định tuyến cuộc gọi Service",
+        "status": "thất bại",
+        "position": {
+          "x": 80,
+          "y": 180
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Định tuyến cuộc gọi Service",
+          "logs": [
+            "[09:00:15] INFO: Incoming 911 call — routing to Dispatch Service",
+            "[09:00:45] ERROR: Dispatch Service timeout after 30s",
+            "[09:01:16] ERROR: Dispatch Service timeout after 30s — call #2 lost",
+            "[09:01:50] ERROR: All outbound connections to Dispatch blocked",
+            "[09:02:00] ERROR: 14 calls in queue — no dispatch capacity available"
+          ],
+          "data": {
+            "Status": "THẤT ​​BẠI",
+            "Pending Calls": "14 (tất cả bị chặn)",
+            "Timeout to Dispatch": "30 tuổi",
+            "Calls Dropped": "9 trong 3 phút qua",
+            "Circuit Breaker": "KHÔNG THỰC HIỆN"
+          },
+          "status": "Không thể định tuyến cuộc gọi vì Dispatch Service không phản hồi. Không có hành vi dự phòng nào được định cấu hình."
+        }
+      },
+      {
+        "id": "dispatch-service",
+        "type": "server",
+        "label": "Điều phối Service",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Điều phối Service",
+          "logs": [
+            "[09:00:01] INFO: Processing 911 call — validating address via Address Validation Service",
+            "[09:00:31] ERROR: Address Validation timeout after 30s",
+            "[09:00:31] INFO: Retrying address validation...",
+            "[09:01:01] ERROR: Address Validation timeout — retry failed",
+            "[09:01:05] WARN: Thread pool exhausted — 50/50 threads blocked on Address Validation",
+            "[09:01:05] ERROR: Cannot accept new requests — all threads occupied"
+          ],
+          "data": {
+            "Thread Pool": "50/50 (tất cả đều bị chặn)",
+            "Blocked On": "Xác thực địa chỉ Service",
+            "Timeout Setting": "30 giây mỗi request",
+            "Circuit Breaker": "KHÔNG THỰC HIỆN",
+            "Fallback": "KHÔNG - cần xác thực địa chỉ cho tất cả các điều phối"
+          },
+          "status": "Tất cả các chuỗi bị chặn đang chờ phản hồi Xác thực Địa chỉ sẽ không bao giờ đến."
+        }
+      },
+      {
+        "id": "address-validation",
+        "type": "server",
+        "label": "Xác thực địa chỉ",
+        "status": "thất bại",
+        "position": {
+          "x": 620,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Xác thực địa chỉ Service",
+          "logs": [
+            "[08:59:00] INFO: Shutting down for scheduled maintenance",
+            "[08:59:01] INFO: Service stopped — maintenance window: 09:00 - 09:30",
+            "[09:00:01] INFO: Incoming connection refused — service offline"
+          ],
+          "data": {
+            "Status": "NGOẠI TUYẾN (bảo trì theo kế hoạch)",
+            "Maintenance Window": "09:00 - 09:30",
+            "Notification Sent": "Có — email đã được gửi tới nhóm vận hành 24h trước",
+            "Expected Downtime": "30 phút"
+          },
+          "status": "Cố ý ngoại tuyến để bảo trì theo lịch trình. Không chấp nhận kết nối."
+        }
+      },
+      {
+        "id": "officer-assignment",
+        "type": "server",
+        "label": "Nhiệm vụ của sĩ quan",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 320
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Nhiệm vụ sĩ quan Service",
+          "logs": [
+            "[09:01:10] INFO: Waiting for dispatch instructions...",
+            "[09:01:40] WARN: No dispatches received in 90s — unusual",
+            "[09:02:00] ERROR: Dispatch Service connection timed out",
+            "[09:02:05] ERROR: Cannot assign officers — no dispatch data available"
+          ],
+          "data": {
+            "Status": "BỊ ĐÓI",
+            "Dispatches Received": "0 (3 phút cuối)",
+            "Officers Available": "34 (nhàn rỗi, chờ phân công)",
+            "Depends On": "Điều phối Service"
+          },
+          "status": "Không có sĩ quan nào được điều động vì Dispatch Service bị đóng băng. Cán bộ ngồi nhàn rỗi trong các cuộc gọi khẩn cấp đang hoạt động."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-routing-dispatch",
+        "source": "call-routing",
+        "target": "dispatch-service",
+        "label": "bị chặn (30 giây timeout)",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-dispatch-address",
+        "source": "dispatch-service",
+        "target": "address-validation",
+        "label": "kết nối bị từ chối",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-dispatch-officer",
+        "source": "dispatch-service",
+        "target": "officer-assignment",
+        "label": "không có điều phối",
+        "animated": false,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của toàn bộ hệ thống điều phối đang gặp sự cố là gì?",
+      "options": [
+        {
+          "id": "rc-1",
+          "text": "Nhóm bảo trì đã bất ngờ tắt Xác thực Địa chỉ service mà không tuân theo quy trình liên lạc và quản lý thay đổi thích hợp",
+          "correct": false,
+          "feedback": "Việc bảo trì đã được lên kế hoạch và truyền đạt. Dịch vụ ngừng hoạt động - đó là điều được mong đợi trong các hệ thống phân tán. Vấn đề không phải là Xác thực Địa chỉ ngoại tuyến, mà là không có service nào trong chuỗi có thể xử lý một cách khéo léo sự vắng mặt của nó. Một hệ thống được thiết kế tốt sẽ chấp nhận được các lỗi service riêng lẻ."
+        },
+        {
+          "id": "rc-3",
+          "text": "timeout 30 giây được định cấu hình trên các lệnh gọi Xác thực Địa chỉ quá dài và khiến các luồng bị chặn chờ response trong một khoảng thời gian quá dài",
+          "correct": false,
+          "feedback": "timeout ngắn hơn sẽ giúp giải phóng các luồng nhanh hơn, nhưng nếu không có circuit breaker, bạn vẫn sẽ làm cạn kiệt nhóm thread — chỉ chậm hơn một chút. Vấn đề cơ bản là hệ thống liên tục gọi service mà nó biết là không hoạt động, request sau request. circuit breaker cầm máu hoàn toàn."
+        },
+        {
+          "id": "rc-4",
+          "text": "Nhóm thread của Dispatch Service quá nhỏ và được định cấu hình không đúng cách để xử lý khối lượng lớn yêu cầu đến đồng thời trong giờ cao điểm",
+          "correct": false,
+          "feedback": "Nhóm thread lớn hơn sẽ chỉ trì hoãn điều không thể tránh khỏi. Nếu mỗi thread chặn trong 30 giây trên một service đã chết thì thậm chí 500 luồng cuối cùng cũng sẽ được lấp đầy. Cách khắc phục không phải là nhiều luồng hơn - nó dừng các lệnh gọi vô ích tới service đã chết thông qua circuit breaker."
+        },
+        {
+          "id": "rc-2",
+          "text": "Dispatch Service không có circuit breaker nên chặn tất cả các thread đang chờ trên service đã chết, gây ra lỗi ở thượng nguồn và hạ lưu",
+          "correct": true,
+          "feedback": "Chính xác! Nếu không có circuit breaker, Dispatch Service tiếp tục cố gắng gọi Xác thực Địa chỉ với timeout dài 30 giây cho mỗi lần thử. Điều này liên kết mọi thread, khiến bản thân Dispatch Service không phản hồi. Sau đó, lỗi sẽ chuyển sang Định tuyến cuộc gọi và Phân công nhân viên. circuit breaker sẽ nhanh chóng phát hiện lỗi, ngừng gọi service đã chết và trả về response dự phòng hoặc lỗi nhanh - giữ cho phần còn lại của hệ thống vẫn hoạt động."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách tiếp cận tốt nhất để ngăn chặn thất bại xếp tầng là gì?",
+      "options": [
+        {
+          "id": "fix-3",
+          "text": "Loại bỏ hoàn toàn sự phụ thuộc vào Xác thực Địa chỉ bằng cách nhúng trực tiếp dữ liệu tra cứu địa chỉ của nó vào cơ sở dữ liệu nội bộ của Dispatch Service",
+          "correct": false,
+          "feedback": "Giảm sự phụ thuộc không cần thiết là một phương pháp hay, nhưng trong kiến ​​trúc microservice, bạn sẽ luôn có các lệnh gọi liên dịch vụ. Kiểu lỗi xếp tầng tương tự sẽ xảy ra với bất kỳ phần phụ thuộc nào. Bạn cần một giải pháp chung (circuit breaker) hoạt động cho tất cả các cuộc gọi xuôi tuyến."
+        },
+        {
+          "id": "fix-2",
+          "text": "Làm cho Xác thực Địa chỉ trở nên khả dụng cao với việc triển khai màu xanh lam không có thời gian ngừng hoạt động để service không bao giờ ngoại tuyến bất ngờ trong quá trình bảo trì",
+          "correct": false,
+          "feedback": "Việc triển khai không có thời gian ngừng hoạt động giúp giảm tình trạng ngừng hoạt động theo kế hoạch nhưng các dịch vụ vẫn có thể bị lỗi ngoài dự kiến ​​(lỗi, cạn kiệt tài nguyên, sự cố network). Dù thế nào đi nữa, hệ thống của bạn phải xử lý các lỗi ở hạ lưu một cách khéo léo. circuit breaker là biện pháp bảo vệ cần thiết cho mọi kiến ​​trúc microservice."
+        },
+        {
+          "id": "fix-1",
+          "text": "Triển khai circuit breaker mở sau khi phát hiện lỗi lặp lại, trả về lỗi nhanh hoặc phản hồi dự phòng thay vì chặn",
+          "correct": true,
+          "feedback": "Chính xác! circuit breaker giám sát các cuộc gọi đến service xuôi dòng. Sau một ngưỡng lỗi (ví dụ: 5 trong 10 giây), nó sẽ 'ngắt' và ngừng gọi hoàn toàn service đã chết. Các yêu cầu tiếp theo ngay lập tức nhận được lỗi nhanh hoặc response dự phòng (chẳng hạn như gửi đi mà không xác thực địa chỉ). Định kỳ, nó cho phép request kiểm tra để kiểm tra xem service đã phục hồi chưa. Điều này ngăn chặn lỗi của một service tiêu tốn tất cả tài nguyên trong cuộc gọi service."
+        },
+        {
+          "id": "fix-4",
+          "text": "Thêm hàng đợi tin nhắn đáng tin cậy giữa tất cả các dịch vụ để chúng giao tiếp không đồng bộ và tách rời các hệ thống mà không chặn các dịch vụ gọi điện",
+          "correct": false,
+          "feedback": "Giao tiếp Async qua hàng đợi giúp tách rời các dịch vụ, nhưng điều phối 911 yêu cầu phản hồi theo thời gian thực — bạn không thể xếp hàng cuộc gọi 911 và process sau đó. Đối với chuỗi cuộc gọi đồng bộ, bộ ngắt mạch là mẫu tiêu chuẩn để ngăn ngừa lỗi xếp tầng."
+        }
+      ]
+    }
+  },
+  "conceptId": "circuit-breakers",
+  "badge": {
+    "name": "Circuit Breaker",
+    "icon": "⚡"
+  }
+}

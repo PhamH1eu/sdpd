@@ -1,0 +1,240 @@
+{
+  "id": "case-05",
+  "number": 5,
+  "title": "Cuộc bỏ phiếu ma quái",
+  "subtitle": "Việc khóa phòng bằng chứng không thành công khi nhiều nút tuyên bố lãnh đạo",
+  "brief": {
+    "narrative": "Phòng chứng cứ Distributia PD sử dụng lock service được phân phối để đảm bảo mỗi lần chỉ có một thư ký có thể kiểm tra một phần bằng chứng. Tối nay, lock service leader node của lock đã gặp sự cố trong một thời điểm quan trọng - ngay giữa cuộc bầu cử leader. Giờ đây, mỗi nút đều tin rằng họ là leader mới và ba nhân viên khác nhau đã được cấp quyền truy cập đồng thời vào cùng một vũ khí giết người (Bằng chứng #7781). Chuỗi quyền giám hộ bị xâm phạm. Luật sư bào chữa đã nộp đơn xin bác bỏ. Thám tử, hãy giải quyết thảm họa bầu cử này trước khi vụ án sụp đổ.",
+    "symptoms": [
+      "Ba nút lock service, mỗi nút đều tự nhận là leader",
+      "Bằng chứng số 7781 đã được kiểm tra đồng thời bởi ba nhân viên khác nhau",
+      "Chuỗi quyền giám sát toàn vẹn đã bị vi phạm",
+      "Lock service đang cấp các khóa xung đột trên cùng các mục bằng chứng"
+    ],
+    "objective": "Xác định cuộc bầu cử leader thất bại như thế nào và xác định cơ chế thích hợp để đảm bảo chính xác một leader được bầu."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "lock-node-1",
+        "type": "server",
+        "label": "Lock Node 1",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Lock Service Node 1",
+          "logs": [
+            "[21:30:00] INFO: Leader (Node 0) heartbeat received",
+            "[21:30:05] WARN: Leader heartbeat missed",
+            "[21:30:08] WARN: Leader heartbeat missed (2nd)",
+            "[21:30:10] INFO: Election timeout reached — starting election for term 4",
+            "[21:30:10] INFO: Voted for SELF in term 4",
+            "[21:30:11] INFO: Received vote from Node 3 for term 4",
+            "[21:30:11] INFO: Received 2/5 votes — declaring self LEADER",
+            "[21:30:12] WARN: Node 2 also claims leadership for term 4"
+          ],
+          "data": {
+            "Role": "LEADER (tự khai)",
+            "Term": "4",
+            "Votes Received": "2 trên 5 (bản thân + Node 3)",
+            "Quorum Required": "3 trên 5",
+            "Quorum Met": "KHÔNG",
+            "Locks Granted": "Bằng chứng #7781 → Thư ký Adams"
+          },
+          "status": "Tuyên bố lãnh đạo chỉ với 2/5 phiếu bầu - quorum trên 3 KHÔNG được đáp ứng."
+        }
+      },
+      {
+        "id": "lock-node-2",
+        "type": "server",
+        "label": "Lock Node 2",
+        "status": "xuống cấp",
+        "position": {
+          "x": 400,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Lock Service Node 2",
+          "logs": [
+            "[21:30:00] INFO: Leader (Node 0) heartbeat received",
+            "[21:30:06] WARN: Leader heartbeat missed",
+            "[21:30:09] INFO: Election timeout reached — starting election for term 4",
+            "[21:30:09] INFO: Voted for SELF in term 4",
+            "[21:30:10] INFO: Received vote from Node 4 for term 4",
+            "[21:30:10] INFO: Received 2/5 votes — declaring self LEADER",
+            "[21:30:11] WARN: Node 1 also claims leadership for term 4"
+          ],
+          "data": {
+            "Role": "LEADER (tự khai)",
+            "Term": "4",
+            "Votes Received": "2 trên 5 (bản thân + Node 4)",
+            "Quorum Required": "3 trên 5",
+            "Quorum Met": "KHÔNG",
+            "Locks Granted": "Bằng chứng #7781 → Thư ký Baker"
+          },
+          "status": "Tuyên bố lãnh đạo chỉ với 2/5 phiếu bầu - quorum trên 3 KHÔNG được đáp ứng."
+        }
+      },
+      {
+        "id": "lock-node-0",
+        "type": "server",
+        "label": "Lock Node 0 (Leader cũ)",
+        "status": "thất bại",
+        "position": {
+          "x": 250,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Lock Service Node 0 (Leader cũ)",
+          "logs": [
+            "[21:29:55] INFO: Operating as LEADER for term 3",
+            "[21:29:58] INFO: Sending heartbeat to followers",
+            "[21:30:00] ERROR: Out of memory — process killed by OOM killer",
+            "[21:30:00] FATAL: Lock service process terminated"
+          ],
+          "data": {
+            "Role": "NGOẠI TUYẾN (trước đây là leader)",
+            "Term": "3",
+            "Cause of Death": "Kẻ giết người OOM - Rò rỉ memory trong bảng lock",
+            "Locks Held at Crash": "12 khóa hoạt động",
+            "Status": "NGOẠI TUYẾN"
+          },
+          "status": "Bị hỏng do OOM. Là leader cho học kỳ 3 trước khi ngoại tuyến."
+        }
+      },
+      {
+        "id": "evidence-room",
+        "type": "client",
+        "label": "Hệ thống phòng chứng cứ",
+        "status": "xuống cấp",
+        "position": {
+          "x": 250,
+          "y": 370
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Kiểm soát truy cập phòng bằng chứng",
+          "logs": [
+            "[21:30:12] INFO: Lock granted for Evidence #7781 by Node 1 → Clerk Adams",
+            "[21:30:13] INFO: Lock granted for Evidence #7781 by Node 2 → Clerk Baker",
+            "[21:30:15] WARN: CONFLICT — Evidence #7781 checked out by 2 clerks simultaneously",
+            "[21:30:15] ERROR: Chain of custody violation detected"
+          ],
+          "data": {
+            "Evidence #7781": "XUNG ĐỘT - 2 lần thanh toán đồng thời",
+            "Clerk Adams": "Đã thanh toán qua Node 1",
+            "Clerk Baker": "Đã thanh toán qua Node 2",
+            "Chain of Custody": "bị xâm phạm",
+            "Total Active Conflicts": "3 vật chứng"
+          },
+          "status": "Nhiều nút lock cấp các khóa xung đột. Chuỗi quyền nuôi con bị phá vỡ."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-node1-evidence",
+        "source": "lock-node-1",
+        "target": "evidence-room",
+        "label": "Cấp lock",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-node2-evidence",
+        "source": "lock-node-2",
+        "target": "evidence-room",
+        "label": "Cấp lock",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-node0-node1",
+        "source": "lock-node-0",
+        "target": "lock-node-1",
+        "label": "nhịp tim",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-node0-node2",
+        "source": "lock-node-0",
+        "target": "lock-node-2",
+        "label": "nhịp tim",
+        "animated": false,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Điều gì khiến nhiều nút cùng lúc khẳng định quyền lãnh đạo?",
+      "options": [
+        {
+          "id": "rc-4",
+          "text": "network giữa Node 1 và Node 2 bị phân vùng khiến mỗi bên không biết về tuyên bố lãnh đạo của bên kia",
+          "correct": false,
+          "feedback": "Nhật ký cho thấy cả hai nút đều biết về tuyên bố lãnh đạo của nhau (log cảnh báo về điều đó). Các nút có thể giao tiếp - chúng chỉ không có quy tắc ngăn chặn nhiều nút lãnh đạo. Việc khắc phục yêu cầu đa số quorum, điều này ngăn cản về mặt toán học hai nhà lãnh đạo."
+        },
+        {
+          "id": "rc-1",
+          "text": "leader Node 0 cũ bị lỗi bất ngờ và gửi dữ liệu nhịp tim bị hỏng khiến các nút cluster khác nhầm lẫn",
+          "correct": false,
+          "feedback": "Node 0 đã bị hỏng hoàn toàn do bị tắt OOM — nó không gửi dữ liệu bị hỏng. Vấn đề là các nút còn sống đã bắt đầu một cuộc bầu cử nhưng không yêu cầu đa số thích hợp (quorum) trước khi tự tuyên bố là leader."
+        },
+        {
+          "id": "rc-2",
+          "text": "Cuộc bầu cử process không thực thi đa số nghiêm ngặt quorum — các nút tuyên bố lãnh đạo mà không nhận được phiếu bầu từ đa số cluster",
+          "correct": true,
+          "feedback": "Chính xác! Cả Node 1 và Node 2 đều tự tuyên bố mình là leader với chỉ 2 trên 5 phiếu bầu cho mỗi người. Một giao thức bầu cử leader chính xác (như Raft) yêu cầu đa số nghiêm ngặt - ít nhất 3 trên 5 phiếu bầu. Vì mỗi node chỉ có thể bỏ phiếu một lần trong mỗi nhiệm kỳ nên đa số nghiêm ngặt đảm bảo tối đa một leader cho mỗi nhiệm kỳ. Lỗi ở đây là các nút chấp nhận quyền lãnh đạo mà không đạt được quorum."
+        },
+        {
+          "id": "rc-3",
+          "text": "Cả Node 1 và Node 2 đều bắt đầu cuộc bầu cử của họ ở cùng một phần nghìn giây, gây ra cuộc bỏ phiếu đồng thời race condition",
+          "correct": false,
+          "feedback": "Việc bắt đầu bầu cử đồng thời được mong đợi trong các hệ thống phân tán — đó là lý do tại sao các giao thức như Raft sử dụng thời gian chờ bầu cử ngẫu nhiên để giảm nguy cơ chia phiếu bầu. Nhưng vấn đề thực sự là các nút chấp nhận quyền lãnh đạo chỉ với 2/5 phiếu bầu thay vì yêu cầu đa số (3/5)."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cuộc bầu cử leader process nên được khắc phục như thế nào?",
+      "options": [
+        {
+          "id": "fix-4",
+          "text": "Thêm độ trễ có thể định cấu hình sau sự cố leader trước khi cho phép bất kỳ ứng cử viên bầu cử mới nào bắt đầu lấy phiếu bầu",
+          "correct": false,
+          "feedback": "Sự chậm trễ làm giảm cơ hội bầu cử đồng thời nhưng không ngăn được vấn đề cơ bản - nhiều nhà lãnh đạo do thiếu quorum. Bạn vẫn cần quy tắc quorum. Ngoài ra, độ trễ dài hơn có nghĩa là thời gian ngừng hoạt động sẽ lâu hơn khi cần failover thực sự."
+        },
+        {
+          "id": "fix-2",
+          "text": "Sử dụng dấu thời gian trên đồng hồ treo tường để xác định node nào bắt đầu chiến dịch bầu cử trước và tự động trao quyền lãnh đạo cho nó",
+          "correct": false,
+          "feedback": "Đồng bộ hóa đồng hồ trong các hệ thống phân tán là không đáng tin cậy - các nút có thể không đồng ý về thời gian (điều này sẽ được đề cập trong trường hợp tương lai!). Cuộc bầu cử Leader không được phụ thuộc vào đồng hồ được đồng bộ hóa. Việc bỏ phiếu dựa trên số đại biểu hoàn toàn không cần đồng hồ."
+        },
+        {
+          "id": "fix-1",
+          "text": "Yêu cầu đa số nghiêm ngặt quorum (3 trong 5 nút) để giành chiến thắng trong cuộc bầu cử và đảm bảo mỗi node chỉ bỏ phiếu một lần mỗi nhiệm kỳ",
+          "correct": true,
+          "feedback": "Chính xác! Đa số nghiêm ngặt quorum đảm bảo tối đa một leader mỗi học kỳ vì phần lớn của một tập hợp chỉ có thể chồng lên nhau - không được phân chia hoàn toàn. Nếu Node 1 nhận được 3 phiếu bầu thì không còn đủ phiếu bầu để Node 2 nhận được 3 phiếu bầu. Kết hợp với quy tắc mỗi node chỉ bầu chọn một lần trong mỗi học kỳ, đây chính là nền tảng của thuật toán đồng thuận Raft."
+        },
+        {
+          "id": "fix-3",
+          "text": "Chỉ định trước node dự phòng cố định là leader để không cần lựa chọn khi sự cố chính",
+          "correct": false,
+          "feedback": "Bản sao lưu cố định tạo ra một điểm lỗi duy nhất mới - điều gì sẽ xảy ra khi cả bản sao lưu chính và bản sao lưu được chỉ định đều ngừng hoạt động? Các cuộc bầu cử dựa trên số đại biểu cho phép bất kỳ node nào trở thành leader, mang lại sự linh hoạt và khả năng chịu lỗi."
+        }
+      ]
+    }
+  },
+  "conceptId": "leader-election",
+  "badge": {
+    "name": "Cán bộ bầu cử",
+    "icon": "🗳️"
+  }
+}

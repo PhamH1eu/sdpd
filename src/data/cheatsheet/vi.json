@@ -1,0 +1,988 @@
+{
+  "schemaVersion": 1,
+  "cards": [
+    {
+      "id": "spof",
+      "category": "replication",
+      "title": "Loại bỏ một điểm thất bại",
+      "when": "Bất kỳ lỗi của một thành phần nào cũng làm ảnh hưởng đến toàn bộ hệ thống",
+      "options": [
+        {
+          "use": "Leader-follower replication",
+          "why": "Một bản sao trực tiếp trên phần cứng riêng biệt có thể được nâng cấp khi bị lỗi. Bước đi tiêu chuẩn đầu tiên cho cơ sở dữ liệu."
+        },
+        {
+          "use": "Cặp hoạt động tích cực đằng sau load balancer",
+          "why": "Cả hai nút đều phục vụ lưu lượng truy cập, vì vậy failover hoạt động ngay lập tức — nhưng chỉ hoạt động đối với khối lượng công việc không có trạng thái hoặc không có xung đột."
+        }
+      ],
+      "tradeoff": "Tốc độ của Failover so với độ phức tạp của consistency: hoạt động tích cực loại bỏ độ trễ promote replica nhưng gây ra xung đột write.",
+      "interviewerProbe": "Làm thế nào để bạn phát hiện ra rằng leader thực sự đã chết và không chỉ chậm?",
+      "relatedCaseIds": [
+        "case-01"
+      ],
+      "conceptId": null
+    },
+    {
+      "id": "sync-vs-async-replication",
+      "category": "replication",
+      "title": "Đồng bộ so với asynchronous replication",
+      "when": "Bạn phải quyết định liệu các bài viết được xác nhận có thể bị mất hay không",
+      "options": [
+        {
+          "use": "Synchronous replication",
+          "why": "write nằm trên replica trước khi khách hàng nhận được xác nhận - mất leader không mất gì."
+        },
+        {
+          "use": "Asynchronous replication",
+          "why": "write latency thấp nhất và leader không bao giờ chặn trên replica chậm — nhưng các thao tác ghi gần đây có thể biến mất trong failover."
+        },
+        {
+          "use": "Bán đồng bộ (một đồng bộ replica)",
+          "why": "Giới hạn rủi ro durability ở mức một replica bị mất trong khi vẫn giữ latency ở giới hạn."
+        }
+      ],
+      "tradeoff": "Durability vs write latency - chọn theo lớp dữ liệu, không phải theo hệ thống.",
+      "interviewerProbe": "Điều gì xảy ra với các bài viết đang bay khi failover khởi động?",
+      "relatedCaseIds": [
+        "case-03"
+      ],
+      "conceptId": "sync-vs-async-replication"
+    },
+    {
+      "id": "failover-strategy",
+      "category": "replication",
+      "title": "Tự động và thủ công failover",
+      "when": "Lỗi chính và thứ gì đó phải thúc đẩy replica",
+      "options": [
+        {
+          "use": "failover tự động thông qua sự đồng thuận",
+          "why": "Phục hồi trong vài giây mà không cần nhắn tin cho con người; cuộc bầu cử ngăn cản hai nút tuyên bố lãnh đạo."
+        },
+        {
+          "use": "Hướng dẫn sử dụng failover",
+          "why": "Con người xác nhận thiết bị chính thực sự đã chết — chậm hơn nhưng miễn nhiễm với các kết quả dương tính giả gây ra split brain."
+        }
+      ],
+      "tradeoff": "Thời gian phục hồi so với rủi ro phân chia não: failover tự động kém còn tệ hơn failover thủ công chậm.",
+      "interviewerProbe": "Sau khi network partition lành lại, làm cách nào để ngăn leader cũ chấp nhận ghi?",
+      "relatedCaseIds": [
+        "case-04"
+      ],
+      "conceptId": null
+    },
+    {
+      "id": "read-scaling",
+      "category": "replication",
+      "title": "Tỷ lệ đọc: bản sao so với cache",
+      "when": "Lưu lượng Read đang áp đảo database chính",
+      "options": [
+        {
+          "use": "Bản sao Read",
+          "why": "Phục vụ toàn bộ bề mặt query (bất kỳ SQL nào) với độ cứng vừa phải; chia tỷ lệ tuyến tính bằng cách thêm các bản sao."
+        },
+        {
+          "use": "Một lớp cache",
+          "why": "Rẻ hơn nhiều lần trên mỗi read để tra cứu nhanh, lặp lại — nhưng chỉ dành cho các mẫu truy cập có thể khóa."
+        }
+      ],
+      "tradeoff": "Tính linh hoạt của Query so với chi phí trên mỗi read; cả hai đều gây ra sự cứng nhắc mà bạn phải lập ngân sách một cách rõ ràng.",
+      "interviewerProbe": "Đường dẫn read nào của bạn có thể chấp nhận dữ liệu cũ và chính xác thì cũ như thế nào?",
+      "relatedCaseIds": [
+        "case-02"
+      ],
+      "conceptId": null
+    },
+    {
+      "id": "multi-region",
+      "category": "replication",
+      "title": "Đa vùng: chủ động-chủ động và chủ động-thụ động",
+      "when": "Người dùng ở nhiều châu lục cần latency thấp và khả năng sống sót khi xảy ra lỗi khu vực",
+      "options": [
+        {
+          "use": "Chủ động-thụ động (vùng write đơn)",
+          "why": "Không bao giờ có xung đột write; người dùng từ xa trả tiền write latency nhưng đọc ở địa phương thông qua các bản sao."
+        },
+        {
+          "use": "Tích cực-tích cực (đa lãnh đạo)",
+          "why": "write latency cục bộ ở mọi nơi và không có sự kiện failover — phải trả giá bằng máy giải quyết xung đột."
+        }
+      ],
+      "tradeoff": "Write latency dành cho người dùng từ xa so với sự phức tạp thường trực của việc giải quyết việc ghi đồng thời giữa các vùng.",
+      "interviewerProbe": "Hai vùng cập nhật cùng một hàng trong cùng một giây — hãy hướng dẫn tôi điều gì sẽ xảy ra.",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "strong-vs-eventual",
+      "category": "consistency",
+      "title": "Mạnh so với eventual consistency",
+      "when": "Chọn bảo đảm consistency cho một hoạt động",
+      "options": [
+        {
+          "use": "Strong consistency",
+          "why": "Các lần đọc luôn thấy write mới nhất - cần thiết cho số dư, khoảng không quảng cáo, quyền, bất kỳ thứ gì có invariant."
+        },
+        {
+          "use": "Eventual consistency",
+          "why": "availability cao hơn và latency thấp hơn — phù hợp với nguồn cấp dữ liệu, bộ đếm, hồ sơ, nơi không thể nhìn thấy sự bất đồng ngắn hạn."
+        }
+      ],
+      "tradeoff": "Đảm bảo tính chính xác so với availability và latency - quyết định theo từng thao tác, không bao giờ theo mỗi hệ thống.",
+      "interviewerProbe": "Điểm cuối cụ thể nào trong thiết kế của bạn thực sự cần strong consistency và tại sao?",
+      "relatedCaseIds": [
+        "case-23"
+      ],
+      "conceptId": null
+    },
+    {
+      "id": "consensus",
+      "category": "consistency",
+      "title": "Khi bạn cần sự đồng thuận phân tán",
+      "when": "cluster phải đồng ý về một giá trị: leader là ai, cấu hình, lock",
+      "options": [
+        {
+          "use": "service đồng thuận (etcd/ZooKeeper, dựa trên Raft)",
+          "why": "Máy móc quorum đã được thử nghiệm trong chiến đấu; bạn kế thừa cuộc bầu cử và đấu kiếm leader chính xác thay vì phát minh lại nó."
+        },
+        {
+          "use": "Ủy quyền cho database của bạn",
+          "why": "Một cửa hàng nhất quán mạnh mẽ với khả năng ghi có điều kiện (so sánh và đặt) bao gồm việc khóa đơn giản mà không cần cơ sở hạ tầng mới."
+        }
+      ],
+      "tradeoff": "Bề mặt vận hành và độ chính xác dưới các vách ngăn — sự phối hợp thủ công là nơi sinh ra sự cố ngừng hoạt động.",
+      "interviewerProbe": "Với 5 nút, kích thước quorum của bạn là bao nhiêu và tại sao số lẻ lại tốt hơn?",
+      "relatedCaseIds": [
+        "case-05"
+      ],
+      "conceptId": "leader-election"
+    },
+    {
+      "id": "conflict-resolution",
+      "category": "consistency",
+      "title": "Giải quyết việc ghi đồng thời",
+      "when": "Hai người viết có thể cập nhật cùng một dữ liệu mà không cần gặp nhau (multi-leader, offline client)",
+      "options": [
+        {
+          "use": "Chiến thắng ghi cuối cùng (LWW)",
+          "why": "Việc triển khai không hề đơn giản — nhưng âm thầm loại bỏ một write và độ lệch đồng hồ sẽ quyết định người chiến thắng."
+        },
+        {
+          "use": "CRDT",
+          "why": "Các loại dữ liệu hợp nhất tự động và xác định — hoàn hảo cho bộ đếm, bộ, chỉnh sửa cộng tác."
+        },
+        {
+          "use": "Hợp nhất cấp ứng dụng",
+          "why": "Hiển thị cả hai phiên bản và để logic miền (hoặc người dùng) quyết định - tùy chọn duy nhất khi mất write là không thể chấp nhận được."
+        }
+      ],
+      "tradeoff": "Mất dữ liệu im lặng và độ phức tạp hợp nhất.",
+      "interviewerProbe": "Đồng hồ máy chủ của bạn trôi đi 200 mili giây — LWW làm gì với dữ liệu của bạn?",
+      "relatedCaseIds": [
+        "case-06",
+        "case-07"
+      ],
+      "conceptId": "multi-leader-replication"
+    },
+    {
+      "id": "read-your-writes",
+      "category": "consistency",
+      "title": "Đọc-của-bạn-viết",
+      "when": "Người dùng cập nhật nội dung nào đó và phải thấy ngay sự thay đổi của họ, nhưng lại đọc các bản sao cũ",
+      "options": [
+        {
+          "use": "Định tuyến các bài đọc của tác giả tới leader",
+          "why": "Quy tắc phiên đơn giản: sau write, người dùng đó sẽ đọc từ phiên chính trong một cửa sổ ngắn."
+        },
+        {
+          "use": "Tiếng vang phía máy khách",
+          "why": "Hiển thị cục bộ thay đổi đã gửi một cách tối ưu — không có thay đổi phụ trợ, nhưng sự phân kỳ cho biết liệu write có thực sự thất bại hay không."
+        }
+      ],
+      "tradeoff": "Độ phức tạp của định tuyến phụ trợ so với việc tin tưởng khách hàng giả mạo nó một cách trung thực.",
+      "interviewerProbe": "Phiên của bạn có được đảm bảo khi người dùng có hai tab hoặc điện thoại và máy tính xách tay không?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "cap-under-partition",
+      "category": "consistency",
+      "title": "Chọn hành vi trong partition",
+      "when": "network partition xảy ra (nó sẽ xảy ra) và mỗi bên phải quyết định phải làm gì",
+      "options": [
+        {
+          "use": "CP: từ chối viết về phía thiểu số",
+          "why": "Không có sự khác biệt để sửa chữa sau đó - chính xác về tiền bạc, hàng tồn kho, đảm bảo tính độc đáo."
+        },
+        {
+          "use": "AP: tiếp tục chấp nhận viết, đối chiếu sau",
+          "why": "Người dùng không bao giờ thấy tình trạng ngừng hoạt động - đúng đối với giỏ hàng, lượt thích, đo từ xa, trong đó việc hợp nhất sau này có thể chấp nhận được."
+        }
+      ],
+      "tradeoff": "Hiện tại không có sẵn so với công việc hòa giải (và có thể xảy ra xung đột) sau này.",
+      "interviewerProbe": "Đối với mỗi đường dẫn write trong thiết kế của bạn, nó nằm ở phía nào của đường này?",
+      "relatedCaseIds": [
+        "case-04"
+      ],
+      "conceptId": "network-partitions"
+    },
+    {
+      "id": "distributed-transactions",
+      "category": "consistency",
+      "title": "Giao dịch trên các dịch vụ",
+      "when": "Một hoạt động kinh doanh phải cập nhật nhiều dịch vụ hoặc cơ sở dữ liệu một cách nguyên tử",
+      "options": [
+        {
+          "use": "Saga có đền bù",
+          "why": "Mỗi bước cam kết cục bộ; thất bại kích hoạt các hành động bù đắp. Không có khóa toàn cầu, hoạt động ở quy mô lớn."
+        },
+        {
+          "use": "Cam kết hai pha (2PC)",
+          "why": "Tính nguyên tử thực sự - nhưng điều phối viên là một điểm lỗi duy nhất bị chặn, vì vậy hãy giữ nó trong các trường hợp hiếm gặp, ngắn, trong nội bộ trung tâm dữ liệu."
+        }
+      ],
+      "tradeoff": "Thiết kế logic bù cho từng bước so với việc chặn thế giới trên một điều phối viên.",
+      "interviewerProbe": "Điều gì xảy ra khi việc bồi thường không thành công?",
+      "relatedCaseIds": [
+        "case-32"
+      ],
+      "conceptId": null
+    },
+    {
+      "id": "lb-algorithm",
+      "category": "loadBalancing",
+      "title": "Chọn thuật toán cân bằng tải",
+      "when": "Phân phối yêu cầu trên một nhóm máy chủ",
+      "options": [
+        {
+          "use": "Vòng tròn",
+          "why": "Đơn giản và tốt đẹp khi các yêu cầu và máy chủ đồng nhất."
+        },
+        {
+          "use": "Ít kết nối nhất",
+          "why": "Thích ứng khi chi phí request thay đổi lớn — các yêu cầu chậm sẽ ngừng thu hút thêm lưu lượng truy cập."
+        },
+        {
+          "use": "Băm nhất quán",
+          "why": "Cùng một khóa nằm trên cùng một máy chủ — được yêu cầu khi máy chủ giữ trạng thái mỗi khóa hoặc cache cục bộ."
+        }
+      ],
+      "tradeoff": "Mức độ lây lan đồng đều so với mối quan hệ: hàm băm mang lại vị trí nhưng khiến các phím nóng chạm vào một máy chủ.",
+      "interviewerProbe": "Một loại phiên bản trong nhóm chậm gấp đôi — thuật toán nào xuống cấp tệ nhất?",
+      "relatedCaseIds": [
+        "case-09",
+        "case-11"
+      ],
+      "conceptId": "data-partitioning"
+    },
+    {
+      "id": "l4-vs-l7",
+      "category": "loadBalancing",
+      "title": "L4 vs L7 load balancing",
+      "when": "Chọn lớp nào bộ cân bằng hoạt động",
+      "options": [
+        {
+          "use": "L7 (nhận biết ứng dụng)",
+          "why": "Các tuyến đường trên đường dẫn, tiêu đề, cookie; chấm dứt TLS; cho phép các chính sách chim hoàng yến và mỗi tuyến đường."
+        },
+        {
+          "use": "L4 (vận chuyển)",
+          "why": "throughput cao hơn, latency thấp hơn, không phụ thuộc vào giao thức — phù hợp với TCP thô hoặc các cấp quy mô cực lớn."
+        }
+      ],
+      "tradeoff": "Định tuyến thông minh so với hiệu suất thô; nhiều hệ thống thực stack L4 trước L7.",
+      "interviewerProbe": "TLS kết thúc ở đâu trong thiết kế của bạn và điều gì có thể kiểm tra lưu lượng truy cập sau thời điểm đó?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "session-state",
+      "category": "loadBalancing",
+      "title": "Phiên cố định so với máy chủ không trạng thái",
+      "when": "Máy chủ giữ trạng thái phiên của mỗi người dùng và bất kỳ máy chủ nào cũng có thể nhận được request tiếp theo",
+      "options": [
+        {
+          "use": "Ngoại hóa trạng thái, không trạng thái",
+          "why": "Phiên trực tiếp trong Redis hoặc mã thông báo đã ký; mọi máy chủ đều xử lý mọi request, việc triển khai và mở rộng quy mô đều dễ dàng."
+        },
+        {
+          "use": "Phiên dính",
+          "why": "Không tái cấu trúc - LB ghim người dùng vào máy chủ. Được chấp nhận như một cây cầu chứ không phải một điểm đến."
+        }
+      ],
+      "tradeoff": "Thêm một sự phụ thuộc vào cơ sở hạ tầng so với tải không đồng đều và các phiên ngừng hoạt động với máy chủ của họ.",
+      "interviewerProbe": "Người dùng của bạn trải nghiệm điều gì trong quá trình triển khai luân phiên trong các phiên cố định?",
+      "relatedCaseIds": [
+        "case-13"
+      ],
+      "conceptId": "stateless-services"
+    },
+    {
+      "id": "health-checks",
+      "category": "loadBalancing",
+      "title": "Kiểm tra sức khỏe chủ động và thụ động",
+      "when": "Bộ cân bằng phải ngừng định tuyến đến các phiên bản không lành mạnh",
+      "options": [
+        {
+          "use": "Kiểm tra tích cực",
+          "why": "Các đầu dò chuyên dụng trong một khoảng thời gian — thời gian phát hiện có thể dự đoán được và /sức khỏe endpoint mà bạn kiểm soát."
+        },
+        {
+          "use": "Bị động (phát hiện ngoại lệ)",
+          "why": "Theo dõi các lỗi request thực sự — phát hiện các vấn đề mà đầu dò tổng hợp bỏ sót, không có lưu lượng đầu dò."
+        }
+      ],
+      "tradeoff": "Phát hiện latency so với dương tính giả; thiết lập cấp sản xuất thường chạy cả hai.",
+      "interviewerProbe": "Một phiên bản hoạt động khỏe mạnh/không khỏe mạnh cứ sau vài giây - làm cách nào để bạn ngăn nó đập vào bể bơi?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "rate-limiting",
+      "category": "loadBalancing",
+      "title": "Chiến lược Rate limiting",
+      "when": "Bảo vệ hệ thống khỏi các máy khách lạm dụng hoặc bùng nổ",
+      "options": [
+        {
+          "use": "Token bucket",
+          "why": "Cho phép bùng nổ trong thời gian ngắn trong khi thực thi tỷ lệ trung bình - phù hợp với cách hành xử thực sự của khách hàng hợp pháp."
+        },
+        {
+          "use": "Quầy cửa sổ trượt",
+          "why": "Các giới hạn mượt mà, chính xác với chi phí memory cực nhỏ — tốt hơn khi bản thân các vụ nổ xảy ra."
+        }
+      ],
+      "tradeoff": "Bùng nổ sự thân thiện và nghiêm khắc; cũng quyết định nó chạy ở ĐÂU - ở rìa (rẻ, thô) hoặc trong service (bối cảnh phong phú).",
+      "interviewerProbe": "Bộ giới hạn của bạn chạy trên 20 nút cổng — làm cách nào để bạn thực thi một giới hạn chung cho mỗi người dùng?",
+      "relatedCaseIds": [
+        "case-33"
+      ],
+      "conceptId": "rate-limiting"
+    },
+    {
+      "id": "scaling-direction",
+      "category": "loadBalancing",
+      "title": "Chia tỷ lệ ngang và dọc",
+      "when": "Công suất hiện tại đã cạn kiệt",
+      "options": [
+        {
+          "use": "Ngang (nhiều máy hơn)",
+          "why": "Không có mức trần thực tế và lỗi isolation miễn phí — nhưng yêu cầu các dịch vụ không trạng thái hoặc trạng thái phân vùng."
+        },
+        {
+          "use": "Dọc (máy lớn hơn)",
+          "why": "Không thay đổi mã và không có sự phức tạp về phân phối — hãy dành thời gian với nó, nhưng mức trần và SPOF vẫn còn."
+        }
+      ],
+      "tradeoff": "Công việc kiến ​​trúc bây giờ vs giới hạn cứng sau này.",
+      "interviewerProbe": "Điều trạng thái đầu tiên bị hỏng khi bạn đi từ 1 máy chủ đến 10 máy chủ là gì?",
+      "relatedCaseIds": [
+        "case-12"
+      ],
+      "conceptId": "horizontal-scaling"
+    },
+    {
+      "id": "cache-read-strategy",
+      "category": "caching",
+      "title": "Bộ nhớ đệm sang một bên so với đọc qua",
+      "when": "Đọc chiếm ưu thế và một số độ cứng có thể chấp nhận được",
+      "options": [
+        {
+          "use": "Bộ nhớ đệm sang một bên",
+          "why": "Ứng dụng kiểm tra cache, quay trở lại DB, điền vào cache. Đơn giản, lỗi cache sẽ giảm dần xuống DB."
+        },
+        {
+          "use": "Đọc qua",
+          "why": "Bản thân cache tải các lỗi — tập trung logic tải và loại bỏ các lỗi trùng lặp đồng thời, nhưng bổ sung thêm phần phụ thuộc thư viện/proxy."
+        }
+      ],
+      "tradeoff": "Tính đơn giản của ứng dụng so với việc xử lý sai sót tập trung.",
+      "interviewerProbe": "Điều gì tác động đến database của bạn trong phút đầu tiên sau khi bạn xả cache khi lưu lượng truy cập cao điểm?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "cache-write-strategy",
+      "category": "caching",
+      "title": "Viết qua và viết lại",
+      "when": "Việc ghi phải tương tác với cache cũng phục vụ việc đọc",
+      "options": [
+        {
+          "use": "Viết qua",
+          "why": "Write cache và DB cùng nhau — cache không bao giờ cũ đối với các phím viết và durability là của DB."
+        },
+        {
+          "use": "Viết lại",
+          "why": "Xác nhận sau khi chỉ ghi cache, chuyển sang DB sau — hấp thụ các đợt bùng phát write, nhưng sự cố cache sẽ mất khả năng ghi được xác nhận."
+        },
+        {
+          "use": "Viết xung quanh",
+          "why": "Chỉ Write DB, cho phép đọc lại - tránh làm ô nhiễm cache với dữ liệu ghi một lần."
+        }
+      ],
+      "tradeoff": "Durability so với write latency; ghi lại là cách duy nhất có thể làm mất dữ liệu.",
+      "interviewerProbe": "Lớp dữ liệu nào của bạn có thể tồn tại sau 30 giây ghi được xác nhận?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "cache-invalidation",
+      "category": "caching",
+      "title": "TTL và vô hiệu hóa theo hướng sự kiện",
+      "when": "Các thay đổi của dữ liệu được lưu trong bộ nhớ đệm tại nguồn và độ cũ phải được giới hạn",
+      "options": [
+        {
+          "use": "TTL hết hạn",
+          "why": "Không cần hệ thống ống nước và tự phục hồi - độ cứng bị giới hạn bởi TTL bạn chọn."
+        },
+        {
+          "use": "Vô hiệu hóa theo hướng sự kiện",
+          "why": "Độ cũ gần như bằng 0 — trình ghi (hoặc luồng CDC) sẽ loại bỏ các khóa bị ảnh hưởng — với cái giá phải trả là hệ thống ống nước vô hiệu thực sự."
+        }
+      ],
+      "tradeoff": "Độ cứng có giới hạn nhưng được đảm bảo so với độ mới với máy móc có thể tự hỏng hóc.",
+      "interviewerProbe": "Đối với mỗi thực thể được lưu trong bộ nhớ đệm, độ ổn định tối đa mà sản phẩm thực sự có thể chịu được là bao nhiêu?",
+      "relatedCaseIds": [
+        "case-14"
+      ],
+      "conceptId": "cache-invalidation"
+    },
+    {
+      "id": "cache-stampede",
+      "category": "caching",
+      "title": "Ngăn chặn vụ giẫm đạp cache",
+      "when": "hot key hết hạn và hàng nghìn yêu cầu đồng thời đạt đến nguồn gốc cùng một lúc",
+      "options": [
+        {
+          "use": "Request coalescing (lock chuyến bay đơn)",
+          "why": "Một request xây dựng lại giá trị; phần còn lại hãy đợi - nguồn gốc thấy một lần trượt thay vì hàng nghìn."
+        },
+        {
+          "use": "Cũ-khi-xác nhận lại/làm mới sớm",
+          "why": "Phục vụ giá trị cũ trong khi làm mới ở chế độ nền — người dùng không bao giờ chờ đợi việc xây dựng lại."
+        }
+      ],
+      "tradeoff": "Một sự tăng đột biến ngắn gọn của latency đối với người phục vụ so với việc cung cấp dữ liệu cố ý cũ trong quá trình làm mới.",
+      "interviewerProbe": "Bạn triển khai và cache bắt đầu trống - điều đó khác với một hot key hết hạn như thế nào và điều gì sẽ xảy ra?",
+      "relatedCaseIds": [
+        "case-10",
+        "case-16"
+      ],
+      "conceptId": "cache-locking"
+    },
+    {
+      "id": "cache-placement",
+      "category": "caching",
+      "title": "cache ở đâu: CDN vs ứng dụng cache vs database",
+      "when": "Quyết định nên giải quyết vấn đề caching ở lớp nào",
+      "options": [
+        {
+          "use": "CDN / trình duyệt cache",
+          "why": "Gần gũi nhất với người dùng, hấp thụ lưu lượng truy cập trước khi nó chạm tới bạn — dành cho nội dung tĩnh và được chia sẻ ẩn danh."
+        },
+        {
+          "use": "Ứng dụng cache (Redis/Memcached)",
+          "why": "Toàn quyền kiểm soát, dữ liệu theo từng người dùng, các khóa phức tạp — công cụ chính cho các kết quả được tính toán và cá nhân hóa."
+        },
+        {
+          "use": "caching nội bộ cơ sở dữ liệu / chế độ xem cụ thể hóa",
+          "why": "Tăng tốc mọi consumer của cùng một query mà không cần cơ sở hạ tầng mới."
+        }
+      ],
+      "tradeoff": "Khoảng cách từ người dùng so với quyền kiểm soát việc vô hiệu hóa và cá nhân hóa.",
+      "interviewerProbe": "Lớp nào có thể cache nguồn cấp dữ liệu tại nhà của người dùng đã đăng nhập một cách an toàn và tại sao?",
+      "relatedCaseIds": [
+        "case-17"
+      ],
+      "conceptId": "cdn-caching"
+    },
+    {
+      "id": "cache-eviction",
+      "category": "caching",
+      "title": "Lựa chọn chính sách trục xuất",
+      "when": "cache bị giới hạn bộ nhớ và phải loại bỏ các mục nhập",
+      "options": [
+        {
+          "use": "LRU",
+          "why": "Lần truy cập gần đây là công cụ dự đoán mặc định tốt nhất về khả năng truy cập lại; giá rẻ và ở khắp mọi nơi."
+        },
+        {
+          "use": "LFU",
+          "why": "Bảo vệ các mặt hàng nóng ổn định khỏi bị trục xuất bởi các vụ nổ một lần — tốt hơn cho khối lượng công việc ổn định, sai lệch."
+        }
+      ],
+      "tradeoff": "Tốc độ thích ứng so với khả năng chống bùng nổ: LRU tuân theo các ca thay đổi nhanh nhưng quét hàng loạt có thể xóa toàn bộ bộ nóng của bạn.",
+      "interviewerProbe": "Công việc phân tích hàng đêm sẽ đọc mỗi bản ghi một lần — điều đó có tác dụng gì với LRU cache của bạn và bạn bảo vệ nó như thế nào?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "queue-vs-pubsub",
+      "category": "messaging",
+      "title": "Hàng đợi công việc so với pub/sub",
+      "when": "Tách rời người sản xuất khỏi người tiêu dùng",
+      "options": [
+        {
+          "use": "Hàng đợi công việc",
+          "why": "Mỗi tin nhắn được xử lý bởi chính xác một worker — dành cho các công việc phải diễn ra một lần (email, thanh toán, kết xuất)."
+        },
+        {
+          "use": "Người hâm mộ xuất bản/sub",
+          "why": "Mỗi người đăng ký nhận được mọi sự kiện — để phát đi các sự kiện mà nhiều hệ thống phản ứng độc lập."
+        }
+      ],
+      "tradeoff": "Phân phối nhiệm vụ và phát sóng sự kiện - trộn lẫn chúng là một mùi thiết kế cổ điển.",
+      "interviewerProbe": "Người đăng ký không hoạt động trong một giờ - điều gì xảy ra với các sự kiện của người đăng ký trong mỗi mô hình?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "delivery-guarantees",
+      "category": "messaging",
+      "title": "Delivery đảm bảo và idempotency",
+      "when": "Quyết định cách hệ thống hoạt động khi thông báo delivery không chắc chắn",
+      "options": [
+        {
+          "use": "Người tiêu dùng At-least-once + idempotent",
+          "why": "Câu trả lời của ngành: chấp nhận các bản sao, giúp việc xử lý lặp lại an toàn thông qua các khóa idempotency hoặc loại bỏ trùng lặp."
+        },
+        {
+          "use": "Nhiều nhất một lần",
+          "why": "Bắn và quên - chỉ được chấp nhận khi việc mất tin nhắn rẻ hơn bất kỳ máy móc loại bỏ trùng lặp nào (số liệu, đo từ xa)."
+        }
+      ],
+      "tradeoff": "\"Exactly-once delivery\" là một huyền thoại trên mạng — những gì tồn tại là at-least-once delivery cộng với quá trình xử lý exactly-once do bạn tự xây dựng.",
+      "interviewerProbe": "Trạng thái loại bỏ trùng lặp của bạn tồn tại ở đâu và bạn giữ nó trong bao lâu?",
+      "relatedCaseIds": [
+        "case-19"
+      ],
+      "conceptId": "idempotency"
+    },
+    {
+      "id": "message-ordering",
+      "category": "messaging",
+      "title": "Bảo quản trật tự sự kiện",
+      "when": "Các sự kiện cho cùng một thực thể phải được áp dụng theo thứ tự (di chuyển tài khoản, chuyển đổi trạng thái)",
+      "options": [
+        {
+          "use": "log được phân vùng được khóa theo id thực thể",
+          "why": "Thứ tự trong partition được đảm bảo trong khi các phân vùng process song song - thứ tự ở nơi quan trọng, throughput ở mọi nơi khác."
+        },
+        {
+          "use": "consumer đơn / partition đơn",
+          "why": "Trật tự toàn cầu tầm thường — và trần throughput cứng nhắc. Tốt cho các luồng âm lượng thấp."
+        }
+      ],
+      "tradeoff": "Tính song song và phạm vi đặt hàng; trật tự toàn cầu và quy mô theo chiều ngang về cơ bản là mâu thuẫn với nhau.",
+      "interviewerProbe": "Một khách hàng tạo ra 100× sự kiện của những người khác - điều gì xảy ra với partition của họ?",
+      "relatedCaseIds": [
+        "case-21"
+      ],
+      "conceptId": "message-ordering"
+    },
+    {
+      "id": "backpressure",
+      "category": "messaging",
+      "title": "Xử lý nhà sản xuất vượt xa người tiêu dùng",
+      "when": "Hàng đợi đang tăng nhanh hơn tốc độ công nhân thoát khỏi nó",
+      "options": [
+        {
+          "use": "Hàng đợi bị giới hạn + từ chối/rút ra khi tiếp nhận",
+          "why": "Lỗi nhanh ở biên — người gọi hiện nhận được lỗi trung thực thay vì timeout sau độ trễ vô hạn."
+        },
+        {
+          "use": "Bộ đệm + người tiêu dùng tự động chia tỷ lệ",
+          "why": "Hấp thụ các đợt tăng trưởng và thêm công nhân vào độ sâu hàng đợi — ngay khi tồn đọng tạm thời và công việc không được bỏ qua."
+        }
+      ],
+      "tradeoff": "Giảm công việc rõ ràng so với độ trễ không giới hạn và memory một cách lặng lẽ.",
+      "interviewerProbe": "Độ trễ hàng đợi tối đa có thể chấp nhận được của bạn tính bằng giây là bao nhiêu và điều gì thực thi nó?",
+      "relatedCaseIds": [
+        "case-20"
+      ],
+      "conceptId": "backpressure"
+    },
+    {
+      "id": "sync-vs-async-processing",
+      "category": "messaging",
+      "title": "Cuộc gọi đồng bộ và công việc async",
+      "when": "Người gọi không thực sự cần kết quả trong cùng một request",
+      "options": [
+        {
+          "use": "Async qua hàng đợi",
+          "why": "Hấp thụ các đột biến, cách ly các lỗi xuôi dòng, thử lại một cách vô hình — response chỉ thông báo \"được chấp nhận\"."
+        },
+        {
+          "use": "Cuộc gọi đồng bộ",
+          "why": "Điều đúng đắn đơn giản nhất khi người gọi thực sự cần câu trả lời ngay bây giờ; lỗi xuất hiện ngay lập tức."
+        }
+      ],
+      "tradeoff": "Khả năng phục hồi và độ đàn hồi so với sự xác nhận ngay lập tức và một mô hình tinh thần đơn giản hơn.",
+      "interviewerProbe": "Công việc được chấp nhận và thất bại sau 5 phút - làm thế nào khách hàng có thể phát hiện ra?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "retries-dlq",
+      "category": "messaging",
+      "title": "Số lần thử lại và hàng đợi thư chết",
+      "when": "Quá trình xử lý tin nhắn không thành công và có thể thành công sau này - hoặc có thể không bao giờ",
+      "options": [
+        {
+          "use": "Số lần thử lại bị giới hạn với backoff, sau đó là DLQ",
+          "why": "Thất bại thoáng qua tự chữa lành; những thất bại vĩnh viễn sẽ xuất hiện ở một nơi nào đó có thể nhìn thấy được thay vì đầu độc hàng đợi."
+        },
+        {
+          "use": "retry vô hạn",
+          "why": "Chỉ dành cho những tin nhắn cuối cùng phải thành công và sự tắc nghẽn mà bạn chủ động theo dõi - nếu không, một tin nhắn độc hại sẽ khiến cả thế giới phải dừng lại."
+        }
+      ],
+      "tradeoff": "Từ bỏ một cách rõ ràng và ngăn chặn trong im lặng.",
+      "interviewerProbe": "Ai xem DLQ, họ được cảnh báo như thế nào và quy trình phát lại là gì?",
+      "relatedCaseIds": [
+        "case-18",
+        "case-27"
+      ],
+      "conceptId": null
+    },
+    {
+      "id": "sql-vs-nosql",
+      "category": "storage",
+      "title": "Quan hệ so với NoSQL là cửa hàng chính",
+      "when": "Chọn hệ thống bản ghi cho service mới",
+      "options": [
+        {
+          "use": "Quan hệ (PostgreSQL/MySQL)",
+          "why": "Giao dịch, kết nối, ràng buộc, truy vấn đặc biệt — mặc định an toàn nhất cho đến khi đạt đến giới hạn cụ thể."
+        },
+        {
+          "use": "Kho lưu trữ tài liệu/khóa-giá trị",
+          "why": "Thang đo write theo chiều ngang và schema linh hoạt - khi truy cập bằng phím, âm lượng rất lớn và hiếm khi tham gia."
+        }
+      ],
+      "tradeoff": "Sức mạnh và tính toàn vẹn của Query so với khả năng mở rộng quy mô dễ dàng; sai lầm là chọn NoSQL cho thang đo mà bạn không có.",
+      "interviewerProbe": "Liệt kê 3 truy vấn hàng đầu mà sản phẩm của bạn cần - những truy vấn nào không thể thực hiện được sau shard?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "partition-key",
+      "category": "storage",
+      "title": "Phân vùng băm và phạm vi",
+      "when": "Dữ liệu phát triển nhanh hơn một node và phải được phân chia bằng một khóa",
+      "options": [
+        {
+          "use": "Phân vùng băm",
+          "why": "Đồng đều theo cách xây dựng - các điểm nóng yêu cầu hot key chứ không chỉ các phím liền kề."
+        },
+        {
+          "use": "Phân vùng phạm vi",
+          "why": "Quét phạm vi hiệu quả (cửa sổ thời gian, tiền tố) — nhưng các khóa tuần tự được xếp chồng lên shard mới nhất."
+        }
+      ],
+      "tradeoff": "Tải thống nhất so với địa phương quét; mẫu query chiếm ưu thế của bạn quyết định.",
+      "interviewerProbe": "Khóa của bạn là dấu thời gian - partition nhận được 100% số lần ghi tối nay?",
+      "relatedCaseIds": [
+        "case-22"
+      ],
+      "conceptId": null
+    },
+    {
+      "id": "indexing",
+      "category": "storage",
+      "title": "index thứ cấp so với denormalization",
+      "when": "Mẫu read quá chậm so với bố cục hiện tại",
+      "options": [
+        {
+          "use": "Thêm index thứ cấp",
+          "why": "Sửa chữa rẻ nhất bên trong một database — với chi phí khuếch đại write bổ sung trên mỗi index."
+        },
+        {
+          "use": "Chế độ xem không chuẩn hóa/vật chất hóa",
+          "why": "Tính toán trước hình dạng read — read latency không thể đánh bại được, nhưng bây giờ hai bản sao phải được giữ nhất quán."
+        }
+      ],
+      "tradeoff": "Write có giá trên cùng một bảng so với trách nhiệm của consistency trên các bản sao.",
+      "interviewerProbe": "Bảng này yêu cầu ghi nhiều - mỗi index được thêm vào sẽ làm gì với p99 write latency của bạn?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "lsm-vs-btree",
+      "category": "storage",
+      "title": "Cây LSM và cây B",
+      "when": "Việc chọn công cụ lưu trữ và khối lượng công việc của bạn sẽ nghiêng hẳn về một phía",
+      "options": [
+        {
+          "use": "Cây LSM (RocksDB, Cassandra)",
+          "why": "Biến việc ghi ngẫu nhiên thành ghi tuần tự — write throughput tuyệt vời; đọc có thể kiểm tra một số cấp độ."
+        },
+        {
+          "use": "Cây B (InnoDB, Postgres)",
+          "why": "latency đọc điểm có thể dự đoán được và hành vi giao dịch hoàn thiện — mặc định cho OLTP đọc nhiều."
+        }
+      ],
+      "tradeoff": "Khuếch đại Write so với khuếch đại read — cộng với nén LSM cạnh tranh với lưu lượng truy cập của bạn để có I/O.",
+      "interviewerProbe": "Điều gì xảy ra với p99 read latency của bạn khi quá trình nén chính đang chạy?",
+      "relatedCaseIds": [
+        "case-25"
+      ],
+      "conceptId": "write-amplification"
+    },
+    {
+      "id": "blob-storage",
+      "category": "storage",
+      "title": "Tệp: lưu trữ đối tượng so với các đốm màu database",
+      "when": "Lưu trữ hình ảnh, video hoặc tài liệu cùng với dữ liệu có cấu trúc",
+      "options": [
+        {
+          "use": "Lưu trữ đối tượng + URL/khóa trong DB",
+          "why": "durability và throughput được thiết kế có mục đích, thân thiện với CDN, giúp database nhỏ gọn và nhanh chóng."
+        },
+        {
+          "use": "Các đốm màu trong database",
+          "why": "Một transaction bảo vệ dữ liệu và tệp — chỉ có thể bảo vệ được đối với các tệp nhỏ, hiếm khi đọc trong đó tính nguyên tử quan trọng nhất."
+        }
+      ],
+      "tradeoff": "Hai hệ thống để duy trì sự nhất quán và một hệ thống đang thực hiện công việc kém.",
+      "interviewerProbe": "Một hàng bị xóa nhưng đối tượng S3 của nó vẫn tồn tại — bạn làm cách nào để ngăn chặn, phát hiện hoặc dọn sạch các hàng mồ côi?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "hot-partition",
+      "category": "storage",
+      "title": "Sống sót sau partition nóng bỏng",
+      "when": "Một shard nhận được lưu lượng truy cập không cân xứng (người nổi tiếng, mặt hàng lan truyền)",
+      "options": [
+        {
+          "use": "Chìa khóa muối hoặc hợp chất",
+          "why": "Trải một khóa logic trên N phân vùng vật lý (key#1..key#N) và hợp nhất trên read."
+        },
+        {
+          "use": "Cô lập + cache thực thể nóng",
+          "why": "Phát hiện các ngoại lệ và phục vụ chúng từ cache chuyên dụng hoặc công suất riêng của chúng - giữ nguyên sơ đồ chung."
+        }
+      ],
+      "tradeoff": "Độ phức tạp hợp nhất bên đọc vĩnh viễn so với máy móc có trường hợp đặc biệt phải phát hiện nhiệt nhanh chóng.",
+      "interviewerProbe": "Làm cách nào để phát hiện partition bị nóng trước khi nó xảy ra sự cố?",
+      "relatedCaseIds": [
+        "case-11"
+      ],
+      "conceptId": null
+    },
+    {
+      "id": "realtime-transport",
+      "category": "network",
+      "title": "WebSockets vs SSE vs bỏ phiếu",
+      "when": "Máy chủ phải đẩy các bản cập nhật tới các máy khách được kết nối",
+      "options": [
+        {
+          "use": "WebSockets",
+          "why": "Song công hoàn toàn — giải pháp khi khách hàng cũng gửi thường xuyên (trò chuyện, trò chơi, chỉnh sửa cộng tác)."
+        },
+        {
+          "use": "Sự kiện do máy chủ gửi (SSE)",
+          "why": "Đẩy một chiều trên HTTP đơn giản với tính năng tự động kết nối lại tích hợp — các hoạt động đơn giản hơn đối với nguồn cấp dữ liệu, mã đánh dấu, thông báo."
+        },
+        {
+          "use": "Bỏ phiếu ngắn/dài",
+          "why": "Hoạt động thông qua mọi proxy và tường lửa mà không có cơ sở hạ tầng trạng thái — ổn khi độ trễ vài giây có thể chấp nhận được."
+        }
+      ],
+      "tradeoff": "Nguồn điện hai chiều và tính đơn giản trong vận hành — và ở quy mô lớn, một triệu ổ cắm nhàn rỗi là vấn đề về kiến ​​trúc của chính nó.",
+      "interviewerProbe": "Máy khách kết nối lại sau 30 giây ngoại tuyến — làm cách nào để máy khách nhận được các sự kiện đã bỏ lỡ?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "timeouts-retries",
+      "category": "network",
+      "title": "Hết thời gian chờ, thử lại và backoff",
+      "when": "Gọi một phần phụ thuộc đôi khi bị lỗi hoặc bị treo",
+      "options": [
+        {
+          "use": "Timeout + thử lại với backoff và jitter hàm mũ",
+          "why": "Những thất bại thoáng qua biến mất; jitter ngăn các sóng retry được đồng bộ hóa tác động lên service đang phục hồi."
+        },
+        {
+          "use": "Thất bại nhanh, không có retry",
+          "why": "Bắt buộc đối với các hoạt động không bình thường (thanh toán!) trừ khi có khóa idempotency — khoản phí được thử lại là một sự cố."
+        }
+      ],
+      "tradeoff": "Availability thông qua tính bền bỉ và khả năng khuếch đại tải lên một thứ vốn đang gặp khó khăn.",
+      "interviewerProbe": "Mỗi service thử lại ở độ sâu 3×, năm lớp — có bao nhiêu yêu cầu đạt đến service dưới cùng trên mỗi lần nhấp chuột của người dùng?",
+      "relatedCaseIds": [
+        "case-26",
+        "case-27"
+      ],
+      "conceptId": "retry-strategies"
+    },
+    {
+      "id": "grpc-vs-rest",
+      "category": "network",
+      "title": "gRPC và REST giữa các dịch vụ",
+      "when": "Lựa chọn giao thức cho giao tiếp giữa các dịch vụ",
+      "options": [
+        {
+          "use": "gRPC",
+          "why": "Hợp đồng đã nhập, phát trực tuyến, ghép kênh HTTP/2, ít băng thông hơn — mạnh mẽ cho các cuộc gọi nội bộ có âm lượng lớn."
+        },
+        {
+          "use": "phần còn lại/JSON",
+          "why": "Công cụ phổ quát, con người có thể gỡ lỗi, bộ nhớ đệm và thân thiện với trình duyệt — mặc định cho các API công khai và các nhóm nhỏ."
+        }
+      ],
+      "tradeoff": "Hiệu suất và tính chặt chẽ của hợp đồng so với tính phổ biến và khả năng gỡ lỗi.",
+      "interviewerProbe": "Trình duyệt cần gọi đây là API - điều đó tác động gì đến lựa chọn gRPC của bạn?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "cdn-when",
+      "category": "network",
+      "title": "Khi CDN giành được vị trí của mình",
+      "when": "Cung cấp nội dung tĩnh hoặc có thể lưu trong bộ nhớ đệm cho đối tượng trải rộng về mặt địa lý",
+      "options": [
+        {
+          "use": "CDN trước nguồn gốc",
+          "why": "Edge latency, giảm tải nguồn gốc lớn và hấp thụ DDoS miễn phí — một chiến thắng gần như tự động dành cho nội dung và trang công khai."
+        },
+        {
+          "use": "Chỉ phục vụ từ nguồn gốc khu vực",
+          "why": "Có thể phòng thủ khi đối tượng ở một khu vực hoặc mọi response đều được cá nhân hóa và không thể lưu vào bộ nhớ đệm."
+        }
+      ],
+      "tradeoff": "Một cấp cache khác sẽ vô hiệu hóa so với việc trả latency và thoát ra trên mọi request.",
+      "interviewerProbe": "Bạn triển khai các gói JS mới — làm cách nào để người dùng ngừng nhận phiên bản cũ từ biên?",
+      "relatedCaseIds": [
+        "case-17"
+      ],
+      "conceptId": null
+    },
+    {
+      "id": "connection-management",
+      "category": "network",
+      "title": "Kết nối tổng hợp và duy trì",
+      "when": "Âm lượng request cao cho cùng một phụ thuộc sẽ tạo ra tình trạng gián đoạn kết nối",
+      "options": [
+        {
+          "use": "Kết nối liên tục gộp",
+          "why": "Giảm dần số lần bắt tay TCP/TLS theo yêu cầu — tiết kiệm latency và CPU theo mức độ lớn."
+        },
+        {
+          "use": "Kết nối trên mỗi request",
+          "why": "Không có trạng thái chia sẻ và không có điều chỉnh nhóm — chỉ có thể chấp nhận được ở mức âm lượng thấp hoặc trong thời gian chạy không có máy chủ vốn cấm tổng hợp."
+        }
+      ],
+      "tradeoff": "Kích thước nhóm và lỗi vòng đời so với thuế bắt tay trên mỗi cuộc gọi.",
+      "interviewerProbe": "Nhóm đã cạn kiệt và yêu cầu phải xếp hàng đợi - người dùng thấy lỗi gì và điều gì hạn chế hàng đợi?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "distributed-tracing",
+      "category": "advanced",
+      "title": "Khi bạn cần phân phối tracing",
+      "when": "request vượt qua nhiều dịch vụ và không có log nào giải thích latency của nó",
+      "options": [
+        {
+          "use": "distributed tracing (OpenTelemetry)",
+          "why": "Một trace hiển thị toàn bộ cây request với thời gian trên mỗi bước nhảy — công cụ duy nhất bản địa hóa latency dịch vụ chéo."
+        },
+        {
+          "use": "Nhật ký có cấu trúc + ID tương quan",
+          "why": "80% giá trị với công cụ quen thuộc: truyền bá một ID và grep — bước đầu tiên thực dụng."
+        }
+      ],
+      "tradeoff": "Đầu tư vào thiết bị và lưu trữ so với tham chiếu chéo thủ công trong các sự cố.",
+      "interviewerProbe": "Với tốc độ 100 nghìn yêu cầu/giây, bạn không thể trace mọi thứ — chiến lược lấy mẫu của bạn cho các yêu cầu quan trọng là gì?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "cascading-failure",
+      "category": "advanced",
+      "title": "Dừng các thất bại xếp tầng",
+      "when": "Một sự phụ thuộc chậm là kéo mọi service ngược dòng xuống cùng với nó",
+      "options": [
+        {
+          "use": "Circuit breaker + dự phòng",
+          "why": "Sau đủ thất bại, hãy ngừng gọi và giảm dần - phần phụ thuộc sẽ có không khí để phục hồi."
+        },
+        {
+          "use": "Vách ngăn (bể cách ly)",
+          "why": "Các luồng/kết nối Partition trên mỗi phần phụ thuộc để một cuộc gọi chậm không thể làm cạn kiệt tài nguyên được chia sẻ."
+        }
+      ],
+      "tradeoff": "Phục vụ các kết quả xuống cấp một cách có chủ ý thay vì để cho sự bão hòa chọn những gì không thành công cho bạn. Sử dụng cả hai; hết thời gian thôi chỉ xếp hàng đau đớn.",
+      "interviewerProbe": "Bộ ngắt đang mở - chính xác thì người dùng nhìn thấy gì và nó quyết định đóng lại như thế nào?",
+      "relatedCaseIds": [
+        "case-28"
+      ],
+      "conceptId": "circuit-breakers"
+    },
+    {
+      "id": "orchestration-vs-choreography",
+      "category": "advanced",
+      "title": "Quy trình làm việc: dàn nhạc và vũ đạo",
+      "when": "Một doanh nghiệp gồm nhiều bước process bao gồm nhiều dịch vụ",
+      "options": [
+        {
+          "use": "Bộ điều phối (công cụ xử lý công việc trung tâm)",
+          "why": "Một nơi sở hữu máy trạng thái — khả năng hiển thị, số lần thử lại và logic bù được tập trung hóa và có thể gỡ lỗi."
+        },
+        {
+          "use": "Biên đạo (dịch vụ phản ứng với các sự kiện)",
+          "why": "Khớp nối lỏng lẻo, không có sự phụ thuộc trung tâm - nhưng quy trình làm việc chỉ tồn tại ngầm, trải rộng khắp người tiêu dùng."
+        }
+      ],
+      "tradeoff": "Sự phụ thuộc phối hợp so với process không ai có thể nhìn thấy từ đầu đến cuối.",
+      "interviewerProbe": "Một đơn hàng bị kẹt ở bước 3 trên 6 — trong mỗi mô hình, bạn làm cách nào để tìm ra và tiếp tục đơn hàng đó?",
+      "relatedCaseIds": [
+        "case-32"
+      ],
+      "conceptId": "sagas"
+    },
+    {
+      "id": "rollout-strategy",
+      "category": "advanced",
+      "title": "Triển khai Canary vs xanh lam",
+      "when": "Chuyển một sự thay đổi rủi ro sang sản xuất",
+      "options": [
+        {
+          "use": "Canary với cổng metric",
+          "why": "1% → 10% → 100% với tính năng tự động khôi phục do lỗi hoặc hồi quy latency - bán kính vụ nổ vẫn rất nhỏ."
+        },
+        {
+          "use": "Xanh lam",
+          "why": "Hai môi trường đầy đủ, chuyển đổi atomic tức thì và khôi phục tức thì — đơn giản hơn nhưng phơi sáng hoàn toàn hoặc không có gì."
+        }
+      ],
+      "tradeoff": "Phát hiện dần dần với hai phiên bản trực tiếp (khả năng tương thích schema!) Với cơ sở hạ tầng kép và rủi ro nhị phân.",
+      "interviewerProbe": "Cả hai phiên bản đều chạy đồng thời trong quá trình triển khai — điều đó tác động gì đến quá trình di chuyển database của bạn?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    },
+    {
+      "id": "chaos-testing",
+      "category": "advanced",
+      "title": "Xác minh khả năng phục hồi với sự hỗn loạn",
+      "when": "Thiết kế của bạn tuyên bố sẽ tồn tại sau những thất bại nhưng chưa có gì chứng minh được điều đó",
+      "options": [
+        {
+          "use": "Lỗi chèn vào dàn/ngày thi đấu",
+          "why": "Tiêu diệt các nút, thêm latency, thả các gói trong buổi diễn tập — tìm ra những điều bất ngờ trước khi khách hàng thực hiện."
+        },
+        {
+          "use": "Sự hỗn loạn sản xuất với giới hạn bán kính vụ nổ",
+          "why": "Môi trường duy nhất nói lên sự thật — nhưng chỉ sau khi vượt qua giai đoạn dàn dựng, với các mục tiêu được xác định phạm vi và bị hủy bỏ ngay lập tức."
+        }
+      ],
+      "tradeoff": "Chủ nghĩa hiện thực và rủi ro; sự hỗn loạn không có giả thuyết và công tắc hủy bỏ chỉ là sự cố ngừng hoạt động mà bạn đã lên lịch.",
+      "interviewerProbe": "Tiêu chí phá thai của bạn là gì và ai có thẩm quyền thực hiện nó?",
+      "relatedCaseIds": [],
+      "conceptId": null
+    }
+  ]
+}

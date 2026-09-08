@@ -1,0 +1,1660 @@
+[
+  {
+    "id": "replication-basics",
+    "title": "Replication & Dự phòng",
+    "summary": "Giữ các bản sao dữ liệu trên nhiều máy để hệ thống tồn tại sau các lỗi riêng lẻ.",
+    "explanation": [
+      "Một điểm lỗi duy nhất (SPOF) là bất kỳ thành phần nào bị lỗi làm toàn bộ hệ thống bị hỏng. Nếu máy chủ database duy nhất của bạn gặp sự cố, mọi máy khách sẽ mất quyền truy cập.",
+      "Replication giải quyết vấn đề này bằng cách duy trì các bản sao dữ liệu giống hệt nhau trên nhiều máy chủ. Nếu một cái không thành công, những cái khác có thể tiếp tục phục vụ các yêu cầu.",
+      "Hình thức đơn giản nhất là leader-follower replication: một máy chủ (leader) xử lý việc ghi và một hoặc nhiều người theo dõi duy trì các bản sao. Nếu leader không thành công, follower có thể được thăng cấp.",
+      "Sự dư thừa là nguyên tắc chung: không bao giờ chỉ phụ thuộc vào một trong những điều quan trọng. Áp dụng nó cho cơ sở dữ liệu, mạng, nguồn điện — bất kỳ điểm lỗi nào."
+    ],
+    "keyTerms": [
+      {
+        "term": "Single Point of Failure (SPOF)",
+        "definition": "Một thành phần mà nếu bị lỗi sẽ khiến toàn bộ hệ thống ngừng hoạt động."
+      },
+      {
+        "term": "Replication",
+        "definition": "Duy trì các bản sao dữ liệu trên nhiều máy để dự phòng và availability."
+      },
+      {
+        "term": "Failover",
+        "definition": "process tự động chuyển sang hệ thống dự phòng khi hệ thống chính bị lỗi."
+      },
+      {
+        "term": "Replica",
+        "definition": "Một máy chủ duy trì một bản sao dữ liệu từ một máy chủ khác."
+      }
+    ]
+  },
+  {
+    "id": "leader-follower-replication",
+    "title": "Leader-Follower Replication",
+    "summary": "Một máy chủ xử lý việc ghi; những người theo dõi sao chép và phục vụ các lượt đọc - nhưng có thể bị tụt lại phía sau.",
+    "explanation": [
+      "Trong leader-follower replication, một máy chủ (leader) chấp nhận tất cả các hoạt động write. Một hoặc nhiều người theo dõi nhận được luồng thay đổi từ leader và áp dụng chúng cho bản sao của riêng họ.",
+      "Người theo dõi có thể phục vụ các truy vấn read để phân phối tải. Nhưng có một nhược điểm: replication cần có thời gian. follower có thể chậm hơn leader vài giây, vài phút hoặc thậm chí vài giờ.",
+      "Độ trễ này được gọi là độ trễ replication. Nếu khách hàng đọc từ follower bị trễ, họ có thể thấy dữ liệu cũ (lỗi thời) - dữ liệu đã được cập nhật trên leader.",
+      "Đối với các bài đọc quan trọng trong đó độ mới là vấn đề quan trọng, các ứng dụng có thể định tuyến các truy vấn đó trực tiếp đến leader. Mẫu này được gọi là 'đọc-viết-của bạn' hoặc 'đọc từ người lãnh đạo' consistency."
+    ],
+    "keyTerms": [
+      {
+        "term": "Leader (Primary/Master)",
+        "definition": "Máy chủ chấp nhận các hoạt động write và gửi các thay đổi cho người theo dõi."
+      },
+      {
+        "term": "Follower (Replica/Slave)",
+        "definition": "Máy chủ nhận và áp dụng các thay đổi từ leader, phục vụ các truy vấn read."
+      },
+      {
+        "term": "Replication Lag",
+        "definition": "Độ trễ giữa write trên leader và khi nó xuất hiện trên follower."
+      },
+      {
+        "term": "Stale Read",
+        "definition": "Đọc dữ liệu lỗi thời từ follower chưa bắt kịp leader."
+      }
+    ]
+  },
+  {
+    "id": "sync-vs-async-replication",
+    "title": "Đồng bộ so với Asynchronous Replication",
+    "summary": "Đồng bộ hóa replication đảm bảo durability nhưng chậm hơn; async nhanh nhưng có nguy cơ mất dữ liệu.",
+    "explanation": [
+      "Với asynchronous replication, leader xác nhận write ngay sau khi lưu trữ cục bộ mà không cần đợi bất kỳ follower nào xác nhận. Tốc độ này nhanh nhưng nếu leader gặp sự cố trước khi sao chép, dữ liệu đó sẽ bị mất.",
+      "Với synchronous replication, leader đợi ít nhất một follower để xác nhận rằng nó đã nhận được dữ liệu trước khi xác nhận write cho khách hàng. Điều này chậm hơn nhưng đảm bảo dữ liệu tồn tại trên nhiều máy.",
+      "Hầu hết các hệ thống đều sử dụng phương pháp kết hợp: một follower là đồng bộ (được đảm bảo cập nhật), trong khi các hệ thống khác là không đồng bộ (về hiệu suất). Điều này được gọi là replication 'bán đồng bộ'.",
+      "trade-off là nền tảng trong các hệ thống phân tán: durability so với hiệu suất. Đối với dữ liệu quan trọng (giao dịch tài chính, bằng chứng), synchronous replication xứng đáng với chi phí latency."
+    ],
+    "keyTerms": [
+      {
+        "term": "Asynchronous Replication",
+        "definition": "Leader xác nhận việc ghi mà không cần đợi follower xác nhận. Nhanh nhưng có nguy cơ mất dữ liệu."
+      },
+      {
+        "term": "Synchronous Replication",
+        "definition": "Leader chờ xác nhận của follower trước khi xác nhận. Chậm hơn nhưng đảm bảo durability."
+      },
+      {
+        "term": "Durability",
+        "definition": "Sự đảm bảo rằng khi dữ liệu được xác nhận, nó sẽ không bị mất — ngay cả khi máy chủ gặp sự cố."
+      },
+      {
+        "term": "Semi-Synchronous",
+        "definition": "Phương pháp kết hợp trong đó một follower đồng bộ và các follower khác không đồng bộ."
+      }
+    ]
+  },
+  {
+    "id": "network-partitions",
+    "title": "Phân vùng Network & Split Brain",
+    "summary": "Khi lỗi network chia tách cluster, các nút có thể phân kỳ — dẫn đến xung đột dữ liệu.",
+    "explanation": [
+      "network partition xảy ra khi các nút trong hệ thống phân tán không thể giao tiếp với nhau, mặc dù mỗi node vẫn đang chạy. cluster chia thành các nhóm biệt lập.",
+      "Split brain là hậu quả nguy hiểm: nếu cả hai bên của partition đều nghĩ rằng chúng là leader, cả hai sẽ chấp nhận ghi độc lập, tạo ra dữ liệu xung đột rất khó điều hòa.",
+      "Để ngăn chặn split brain, các hệ thống sử dụng các phương pháp tiếp cận dựa trên số đại biểu: node chỉ có thể hoạt động như leader nếu nó có thể giao tiếp với đa số (quorum) các nút. thiểu số partition không thể bầu leader mới.",
+      "Định lý CAP cho chúng ta biết rằng trong network partition, hệ thống phải chọn giữa consistency (từ chối hoạt động) và availability (phục vụ dữ liệu có thể cũ). Bạn không thể có cả hai."
+    ],
+    "keyTerms": [
+      {
+        "term": "Network Partition",
+        "definition": "Lỗi trong đó một số nút không thể giao tiếp với các nút khác, làm chia tách cluster."
+      },
+      {
+        "term": "Split Brain",
+        "definition": "Một trạng thái nguy hiểm khi cả hai bên của partition đều nghĩ rằng họ là leader."
+      },
+      {
+        "term": "Quorum",
+        "definition": "Số lượng nút tối thiểu phải đồng ý để một hoạt động được tiến hành (thường là đa số)."
+      },
+      {
+        "term": "Fencing",
+        "definition": "Một cơ chế đảm bảo chỉ một node hoạt động như leader, thường bằng cách thu hồi quyền truy cập của leader cũ."
+      }
+    ]
+  },
+  {
+    "id": "leader-election",
+    "title": "Cuộc bầu cử Leader",
+    "summary": "Các thuật toán cho phép các nút phân tán đồng ý trên một leader duy nhất mà không cần điều phối viên trung tâm.",
+    "explanation": [
+      "Trong nhiều hệ thống phân tán, một node cần đóng vai trò là leader - điều phối việc ghi, đưa ra quyết định hoặc quản lý tài nguyên. Nhưng ai quyết định node nào dẫn đầu?",
+      "Các thuật toán bầu cử Leader (như Raft, Paxos hoặc ZAB) giải quyết vấn đề này. Các nút bỏ phiếu và một ứng cử viên cần có đa số để trở thành leader. Điều này ngăn cản split brain.",
+      "Cuộc bầu cử diễn ra khi leader hiện tại không thành công hoặc không thể truy cập được. timeout kích hoạt các ứng cử viên nhận phiếu bầu request từ các đồng nghiệp.",
+      "Yêu cầu chính: chính xác một leader tại một thời điểm, phát hiện nhanh lỗi leader và chuyển giao duyên dáng. Các giao thức đồng thuận làm cho điều này trở nên đáng tin cậy ngay cả khi có lỗi."
+    ],
+    "keyTerms": [
+      {
+        "term": "Leader Election",
+        "definition": "process theo đó các nút chọn một leader duy nhất trong số chúng."
+      },
+      {
+        "term": "Consensus",
+        "definition": "Thỏa thuận giữa các nút phân phối về một giá trị hoặc quyết định duy nhất."
+      },
+      {
+        "term": "Term/Epoch",
+        "definition": "Đồng hồ logic tăng dần theo mỗi leader mới, ngăn chặn các nhà lãnh đạo cũ hành động."
+      },
+      {
+        "term": "Heartbeat",
+        "definition": "Tin nhắn định kỳ được gửi bởi leader để chứng minh nó vẫn còn sống."
+      }
+    ]
+  },
+  {
+    "id": "multi-leader-replication",
+    "title": "Đa lãnh đạo Replication",
+    "summary": "Nhiều nút chấp nhận ghi đồng thời — rất tốt cho availability, khó xử lý xung đột.",
+    "explanation": [
+      "Trong replication đa lãnh đạo (multi-master), nhiều node có thể chấp nhận các hoạt động write. Điều này cải thiện availability và giảm latency cho các hệ thống phân tán theo địa lý.",
+      "Lưu ý: nếu hai nhà lãnh đạo sửa đổi độc lập cùng một dữ liệu, bạn sẽ gặp phải xung đột write. Không giống như một đường dẫn đơn nơi các thao tác viết được sắp xếp theo thứ tự, nhiều đường dẫn tạo ra các thao tác ghi đồng thời và xung đột.",
+      "Các chiến lược giải quyết xung đột bao gồm: người viết cuối cùng sẽ thắng (LWW), hợp nhất các giá trị hoặc để ứng dụng giải quyết nó. Mỗi cái đều có sự đánh đổi.",
+      "Nhiều người lãnh đạo thường gặp trong thiết lập nhiều trung tâm dữ liệu và chỉnh sửa cộng tác (như Google Docs). Sử dụng nó khi availability và latency quan trọng hơn consistency nghiêm ngặt."
+    ],
+    "keyTerms": [
+      {
+        "term": "Write Conflict",
+        "definition": "Hai nhà lãnh đạo sửa đổi độc lập cùng một dữ liệu, tạo ra các phiên bản không tương thích."
+      },
+      {
+        "term": "Last Writer Wins (LWW)",
+        "definition": "Giải quyết xung đột trong đó write gần đây nhất (theo dấu thời gian) được lưu giữ."
+      },
+      {
+        "term": "Conflict Resolution",
+        "definition": "Chiến lược quyết định nên giữ phiên bản nào của dữ liệu xung đột."
+      },
+      {
+        "term": "CRDTs",
+        "definition": "Các kiểu dữ liệu được sao chép không có xung đột - các cấu trúc dữ liệu có thể được hợp nhất tự động."
+      }
+    ]
+  },
+  {
+    "id": "clock-synchronization",
+    "title": "Đồng bộ hóa đồng hồ",
+    "summary": "Đồng hồ vật lý trôi xa nhau; đồng hồ logic cung cấp thứ tự mà không cần dựa vào thời gian trên đồng hồ treo tường.",
+    "explanation": [
+      "Mỗi máy tính đều có đồng hồ vật lý, nhưng chúng bị trôi. Hai máy chủ có thể không đồng ý về thời gian hiện tại tính bằng mili giây hoặc thậm chí vài giây. NTP giúp nhưng không thể đảm bảo đồng bộ hóa hoàn hảo.",
+      "Điều này rất nguy hiểm khi bạn sử dụng dấu thời gian để sắp xếp các sự kiện. Nếu đồng hồ của Máy chủ A chạy nhanh, các sự kiện của nó dường như sẽ xảy ra 'sau' Máy chủ B — ngay cả khi chúng thực sự xảy ra trước tiên.",
+      "Đồng hồ logic (đồng hồ Lamport, đồng hồ vector) giải quyết vấn đề này bằng cách theo dõi thứ tự nhân quả thay vì thời gian vật lý. Chúng cho bạn biết những sự kiện nào đã xảy ra trước những sự kiện khác.",
+      "Đối với các hệ thống phân tán, ưu tiên sắp xếp hợp lý hơn các dấu thời gian vật lý. Nếu bạn phải sử dụng thời gian vật lý, hãy sử dụng đồng hồ được đồng bộ hóa với sai số giới hạn (như TrueTime của Google)."
+    ],
+    "keyTerms": [
+      {
+        "term": "Clock Skew",
+        "definition": "Sự khác biệt về số chỉ thời gian giữa hai đồng hồ tại cùng một thời điểm."
+      },
+      {
+        "term": "NTP",
+        "definition": "Giao thức thời gian Network - đồng bộ hóa đồng hồ trên network nhưng với độ chính xác hạn chế."
+      },
+      {
+        "term": "Lamport Clock",
+        "definition": "Một đồng hồ logic cung cấp tổng thứ tự các sự kiện dựa trên quan hệ nhân quả."
+      },
+      {
+        "term": "Happens-Before",
+        "definition": "Thứ tự một phần trong đó sự kiện A xảy ra trước B nếu A có thể ảnh hưởng đến B."
+      }
+    ]
+  },
+  {
+    "id": "byzantine-faults",
+    "title": "Dung sai lỗi Byzantine",
+    "summary": "Xử lý các nút không chỉ bị lỗi - chúng còn nói dối, gửi các dữ liệu khác nhau đến các nút ngang hàng khác nhau.",
+    "explanation": [
+      "Hầu hết khả năng chịu lỗi đều giả định sự cố xảy ra - các nút hoạt động bình thường hoặc dừng hoàn toàn. Lỗi Byzantine còn tệ hơn: node có thể gửi thông tin xung đột đến các đồng nghiệp khác nhau.",
+      "Được đặt theo tên Bài toán của các vị tướng Byzantine: các vị tướng phải đồng ý về kế hoạch chiến đấu, nhưng một số có thể là kẻ phản bội gửi những thông điệp trái ngược nhau.",
+      "Khả năng chịu lỗi Byzantine (BFT) yêu cầu ít nhất 3f+1 nút để chấp nhận f nút bị lỗi. Điều này có nghĩa là bạn cần 4 nút để xử lý 1 lỗi Byzantine.",
+      "BFT rất quan trọng trong môi trường đối nghịch (blockchain, hệ thống tài chính) nhưng đắt tiền trong các hệ thống phân tán thông thường. Hầu hết các hệ thống nội bộ chỉ xử lý các lỗi va chạm."
+    ],
+    "keyTerms": [
+      {
+        "term": "Byzantine Fault",
+        "definition": "Lỗi trong đó node gửi dữ liệu khác nhau, có khả năng mâu thuẫn với các đồng nghiệp khác nhau."
+      },
+      {
+        "term": "Crash Fault",
+        "definition": "Một mô hình lỗi đơn giản hơn trong đó các nút hoạt động chính xác hoặc dừng hoàn toàn."
+      },
+      {
+        "term": "3f+1 Rule",
+        "definition": "Số lượng nút tối thiểu cần thiết để chịu đựng được lỗi Byzantine."
+      },
+      {
+        "term": "Digital Signatures",
+        "definition": "Bằng chứng mật mã cho thấy tin nhắn đến từ một node cụ thể và không bị giả mạo."
+      }
+    ]
+  },
+  {
+    "id": "load-balancing",
+    "title": "Load Balancing",
+    "summary": "Phân phối các yêu cầu đến trên nhiều máy chủ để ngăn không cho bất kỳ máy chủ nào bị quá tải.",
+    "explanation": [
+      "load balancer nằm giữa máy khách và máy chủ, phân phối các yêu cầu đến trên một nhóm máy chủ phụ trợ. Điều này ngăn không cho bất kỳ máy chủ nào trở thành nút cổ chai.",
+      "Các thuật toán phổ biến: quay vòng (xoay qua các máy chủ), ít kết nối nhất (gửi đến ít bận nhất), có trọng số (thích máy chủ mạnh hơn) và dựa trên hàm băm (định tuyến nhất quán).",
+      "Nếu không có load balancing, một cổng duy nhất sẽ trở thành một điểm lỗi duy nhất. Nhiều bộ cân bằng tải có chức năng kiểm tra tình trạng đảm bảo cả phân phối và availability.",
+      "Định tuyến cân bằng tải lớp 4 (TCP) dựa trên thông tin kết nối; Bộ cân bằng lớp 7 (HTTP) có thể đưa ra quyết định thông minh hơn dựa trên nội dung, tiêu đề hoặc URL của request."
+    ],
+    "keyTerms": [
+      {
+        "term": "Load Balancer",
+        "definition": "Một thành phần phân phối lưu lượng truy cập trên nhiều máy chủ phụ trợ."
+      },
+      {
+        "term": "Health Check",
+        "definition": "Thăm dò định kỳ để xác minh máy chủ phụ trợ hoạt động tốt và có thể xử lý các yêu cầu."
+      },
+      {
+        "term": "Round Robin",
+        "definition": "Một thuật toán đơn giản duyệt qua các máy chủ theo thứ tự."
+      },
+      {
+        "term": "Least Connections",
+        "definition": "Định tuyến các yêu cầu mới đến máy chủ có ít kết nối hoạt động nhất."
+      }
+    ]
+  },
+  {
+    "id": "cache-stampede",
+    "title": "Cache Stampede (Bầy sấm sét)",
+    "summary": "Khi một mục nhập cache phổ biến hết hạn, nhiều yêu cầu sẽ đồng thời chạm vào database.",
+    "explanation": [
+      "cache stampede xảy ra khi một mục cache được truy cập thường xuyên hết hạn và nhiều yêu cầu đồng thời đều thấy mục này bị thiếu cùng một lúc. Tất cả đều là query database cùng một lúc.",
+      "Điều này tạo ra sự tăng đột biến lớn về tải database - có khả năng làm hỏng nó. Điều trớ trêu: cache đang bảo vệ database giờ lại gây ra lỗi.",
+      "Các giải pháp bao gồm: khóa cache (chỉ xây dựng lại một request, những request khác chờ), hết hạn sớm (làm mới trước khi hết hạn thực tế) và xác thực lại cũ trong khi (cung cấp dữ liệu cũ trong khi cập nhật).",
+      "Phòng bệnh hơn chữa bệnh: sắp xếp xen kẽ thời gian hết hạn với jitter ngẫu nhiên, sử dụng tính năng làm mới nền cho các phím nóng và triển khai request coalescing."
+    ],
+    "keyTerms": [
+      {
+        "term": "Cache Stampede",
+        "definition": "Nhiều yêu cầu đồng thời áp đảo database khi một mục cache phổ biến hết hạn."
+      },
+      {
+        "term": "Request Coalescing",
+        "definition": "Kết hợp các yêu cầu đồng thời trùng lặp thành một database query duy nhất."
+      },
+      {
+        "term": "Cache Lock",
+        "definition": "lock đảm bảo chỉ một request xây dựng lại mục cache trong khi những mục khác chờ đợi."
+      },
+      {
+        "term": "Jitter",
+        "definition": "Thêm biến thể ngẫu nhiên vào thời gian hết hạn để ngăn chặn việc hết hạn đồng thời."
+      }
+    ]
+  },
+  {
+    "id": "data-partitioning",
+    "title": "Phân vùng dữ liệu (Sharding)",
+    "summary": "Chia dữ liệu trên nhiều máy bằng một phím — nhưng hãy chọn phím partition một cách khôn ngoan.",
+    "explanation": [
+      "Khi một database không thể xử lý tất cả dữ liệu hoặc lưu lượng, sharding sẽ chia nó ra nhiều máy. Mỗi shard chứa một tập hợp con dữ liệu.",
+      "Khóa partition xác định shard nào chứa dữ liệu nào. Một khóa sai sẽ tạo ra các điểm nóng — một shard nhận được nhiều lưu lượng truy cập hơn các khóa khác.",
+      "Các phím partition tốt phân phối dữ liệu đồng đều. Phân vùng dựa trên hàm băm (băm khóa, mod theo số lượng shard) mang lại sự phân phối đồng đều nhưng làm mất phạm vi khả năng của query.",
+      "Việc chia lại (thay đổi số lượng phân đoạn) rất khó khăn. Việc băm nhất quán sẽ giảm thiểu sự di chuyển dữ liệu khi thêm/xóa phân đoạn."
+    ],
+    "keyTerms": [
+      {
+        "term": "Shard",
+        "definition": "partition dữ liệu được lưu trữ trên một máy riêng biệt trong distributed database."
+      },
+      {
+        "term": "Partition Key",
+        "definition": "Trường được sử dụng để xác định shard nào lưu trữ một phần dữ liệu cụ thể."
+      },
+      {
+        "term": "Hot Spot",
+        "definition": "shard nhận được nhiều lưu lượng truy cập hơn các loại khác một cách không tương xứng."
+      },
+      {
+        "term": "Consistent Hashing",
+        "definition": "Một kỹ thuật giúp giảm thiểu việc phân phối lại dữ liệu khi các phân đoạn được thêm vào hoặc xóa đi."
+      }
+    ]
+  },
+  {
+    "id": "horizontal-scaling",
+    "title": "Chia tỷ lệ ngang và dọc",
+    "summary": "Mở rộng quy mô (máy lớn hơn) có giới hạn; mở rộng quy mô (nhiều máy hơn) là cách các hệ thống phân tán phát triển.",
+    "explanation": [
+      "Chia tỷ lệ theo chiều dọc (tăng tỷ lệ) có nghĩa là thêm nhiều CPU, RAM hoặc disk vào một máy. Nó đơn giản nhưng có giới hạn cứng — bạn không thể mua một máy chủ mạnh vô hạn.",
+      "Chia tỷ lệ theo chiều ngang (mở rộng quy mô) có nghĩa là thêm nhiều máy hơn. Về mặt lý thuyết, nó không giới hạn nhưng yêu cầu ứng dụng của bạn hoạt động trên nhiều máy chủ.",
+      "Các hệ thống có quy mô theo chiều ngang cần load balancing, phân vùng dữ liệu và phối hợp phân tán - phức tạp hơn đáng kể so với một máy chủ.",
+      "Cách tiếp cận hiện đại: thiết kế để mở rộng quy mô theo chiều ngang ngay từ đầu. Các dịch vụ phi trạng thái, kho lưu trữ dữ liệu ngoài và khả năng chứa trong vùng chứa làm cho nó trở nên thiết thực."
+    ],
+    "keyTerms": [
+      {
+        "term": "Vertical Scaling",
+        "definition": "Thêm nhiều tài nguyên hơn (CPU, RAM) vào một máy. Bị giới hạn bởi mức tối đa phần cứng."
+      },
+      {
+        "term": "Horizontal Scaling",
+        "definition": "Bổ sung thêm máy móc để phân bổ khối lượng công việc. Về mặt lý thuyết không giới hạn."
+      },
+      {
+        "term": "Stateless Service",
+        "definition": "service không lưu trữ cục bộ dữ liệu phiên, khiến mọi phiên bản có thể hoán đổi cho nhau."
+      },
+      {
+        "term": "Elasticity",
+        "definition": "Khả năng tự động tăng hoặc giảm quy mô tài nguyên dựa trên nhu cầu."
+      }
+    ]
+  },
+  {
+    "id": "stateless-services",
+    "title": "Dịch vụ không quốc tịch",
+    "summary": "Các dịch vụ không lưu trữ trạng thái cục bộ rất dễ mở rộng, thay thế và cân bằng tải.",
+    "explanation": [
+      "service không trạng thái không lưu trữ cục bộ bất kỳ phiên hoặc dữ liệu người dùng nào. Mỗi request chứa tất cả thông tin cần thiết cho process.",
+      "Điều này làm cho việc mở rộng quy mô trở nên đơn giản: mọi phiên bản đều có thể xử lý bất kỳ request nào. Nếu một thiết bị gặp sự cố, những thiết bị khác sẽ tiếp quản liền mạch mà không bị mất dữ liệu.",
+      "Các phiên cố định (định tuyến người dùng đến cùng một máy chủ) sẽ đánh bại mục đích này. Nếu máy chủ đó chết, người dùng sẽ mất phiên của họ.",
+      "Lưu trữ trạng thái bên ngoài: trong database, Redis hoặc kho lưu trữ phiên. Các phiên bản service trở thành các phiên bản có thể hoán đổi cho nhau."
+    ],
+    "keyTerms": [
+      {
+        "term": "Stateless",
+        "definition": "service không lưu trữ cục bộ dữ liệu phiên hoặc người dùng giữa các yêu cầu."
+      },
+      {
+        "term": "Sticky Sessions",
+        "definition": "Định tuyến người dùng luôn đến cùng một máy chủ, tạo ra sự phụ thuộc vào máy chủ đó."
+      },
+      {
+        "term": "Session Store",
+        "definition": "service bên ngoài (như Redis) lưu trữ dữ liệu phiên có thể truy cập được bởi mọi phiên bản."
+      },
+      {
+        "term": "Shared Nothing",
+        "definition": "Một kiến ​​trúc trong đó mỗi node độc lập và không chia sẻ trạng thái với các node khác."
+      }
+    ]
+  },
+  {
+    "id": "cache-invalidation",
+    "title": "Cache vô hiệu",
+    "summary": "Vấn đề khó nhất trong CS: biết khi nào dữ liệu được lưu trong bộ nhớ đệm đã cũ và cần được làm mới.",
+    "explanation": [
+      "Caching cải thiện hiệu suất bằng cách lưu trữ dữ liệu được truy cập thường xuyên gần hơn với consumer. Nhưng khi dữ liệu nguồn thay đổi, cache sẽ trở nên cũ.",
+      "Chiến lược vô hiệu hóa Cache: ghi qua (cập nhật cache trên mọi write), viết sau (cập nhật async cache) và dựa trên TTL (hết hạn sau một thời gian).",
+      "Các trường hợp khó nhất liên quan đến nhiều bộ đệm ở các lớp khác nhau (ứng dụng, CDN, trình duyệt) — việc vô hiệu hóa tất cả chúng một cách nhất quán là rất khó.",
+      "Như Phil Karlton đã nói: 'Chỉ có hai điều khó khăn trong Khoa học Máy tính: vô hiệu hóa cache và đặt tên cho mọi thứ.'"
+    ],
+    "keyTerms": [
+      {
+        "term": "Cache Invalidation",
+        "definition": "process xóa hoặc cập nhật các mục cũ trong cache."
+      },
+      {
+        "term": "Write-Through",
+        "definition": "Ghi đồng thời cho cả cache và database trên mỗi bản cập nhật."
+      },
+      {
+        "term": "TTL (Time To Live)",
+        "definition": "Khoảng thời gian mà mục nhập cache được coi là hợp lệ trước khi hết hạn."
+      },
+      {
+        "term": "Cache-Aside",
+        "definition": "Ứng dụng kiểm tra cache trước; nếu lỡ, đọc từ DB và điền vào cache."
+      }
+    ]
+  },
+  {
+    "id": "cache-expiry-strategies",
+    "title": "Chiến lược hết hạn Cache",
+    "summary": "Cách thức và thời điểm các mục cache hết hạn sẽ xác định hành vi của hệ thống của bạn khi đang tải.",
+    "explanation": [
+      "Đã sửa lỗi TTL giúp mọi mục nhập cache có cùng thời gian tồn tại. Đơn giản, nhưng nếu nhiều mục được tạo cùng lúc, tất cả chúng đều hết hạn cùng nhau - gây ra tình trạng hỗn loạn.",
+      "TTL bị xáo trộn thêm biến thể ngẫu nhiên vào thời gian hết hạn. Điều này làm lan rộng thời gian hết hạn theo thời gian, ngăn chặn việc hết hạn đồng bộ.",
+      "Cửa sổ trượt TTL đặt lại bộ hẹn giờ cho mỗi lần truy cập, giữ cho các mục phổ biến được lưu trong bộ nhớ đệm lâu hơn trong khi các mục hiếm khi được sử dụng sẽ hết hạn.",
+      "Làm mới nền chủ động cập nhật các mục trước khi chúng hết hạn, đảm bảo cache luôn có dữ liệu mới và khách hàng không bao giờ thấy cache bị bỏ sót."
+    ],
+    "keyTerms": [
+      {
+        "term": "Fixed TTL",
+        "definition": "Thời gian hết hạn được đặt cho tất cả các mục cache, đơn giản nhưng dễ bị đóng dấu."
+      },
+      {
+        "term": "Jittered TTL",
+        "definition": "Thêm thời gian ngẫu nhiên vào các giá trị TTL để tránh hết hạn đồng bộ hóa."
+      },
+      {
+        "term": "Sliding Window",
+        "definition": "TTL đặt lại trên mỗi lần truy cập, giữ các mục được sử dụng thường xuyên được lưu trong bộ nhớ đệm lâu hơn."
+      },
+      {
+        "term": "Background Refresh",
+        "definition": "Chủ động làm mới các mục cache trước khi hết hạn."
+      }
+    ]
+  },
+  {
+    "id": "cache-locking",
+    "title": "Khóa Cache & Request Coalescing",
+    "summary": "Ngăn chặn công việc trùng lặp bằng cách đảm bảo chỉ một request xây dựng lại mục nhập cache đã hết hạn.",
+    "explanation": [
+      "Khi một mục nhập cache hết hạn, request đầu tiên sẽ nhận được lock, xây dựng lại mục nhập đó và giải phóng lock. Các yêu cầu khác chờ xây dựng lại.",
+      "Nếu không khóa, tất cả N yêu cầu đồng thời đều bỏ lỡ cache và tất cả query độc lập với database — thực hiện N lần công việc để có cùng một kết quả.",
+      "Request coalescing nhóm các yêu cầu giống nhau trên chuyến bay. Chỉ có một thực sự thực thi; kết quả được chia sẻ với tất cả những người yêu cầu đang chờ.",
+      "Xác suất hết hạn sớm sẽ làm mới các mục nhập trước khi chúng thực sự hết hạn, dựa trên xác suất tăng lên khi gần hết hạn."
+    ],
+    "keyTerms": [
+      {
+        "term": "Cache Lock",
+        "definition": "mutex đảm bảo mỗi lần chỉ có một process xây dựng lại mục nhập cache đã hết hạn."
+      },
+      {
+        "term": "Request Coalescing",
+        "definition": "Hợp nhất các yêu cầu đồng thời giống hệt nhau thành một lần thực thi duy nhất."
+      },
+      {
+        "term": "Probabilistic Early Expiration",
+        "definition": "Làm mới các mục nhập một cách ngẫu nhiên trước TTL, với xác suất ngày càng tăng khi gần hết hạn."
+      },
+      {
+        "term": "Singleflight",
+        "definition": "Mẫu trong đó các lệnh gọi hàm trùng lặp bị chặn, chia sẻ một kết quả."
+      }
+    ]
+  },
+  {
+    "id": "cdn-caching",
+    "title": "CDN & Cạnh Caching",
+    "summary": "Nội dung Cache ở rìa network, gần gũi với người dùng — nhưng hãy cẩn thận với việc truyền bá nội dung cũ.",
+    "explanation": [
+      "Nội dung Mạng Delivery (CDN) Nội dung cache tại các vị trí biên trên toàn thế giới. Người dùng được phục vụ từ rìa gần nhất, giảm đáng kể latency.",
+      "CDN caching tuân theo các tiêu đề HTTP cache (Kiểm soát bộ đệm, ETag, Sửa đổi lần cuối). Việc sử dụng sai các tiêu đề này có nghĩa là cung cấp nội dung cũ trên toàn cầu.",
+      "Việc xóa bộ nhớ đệm CDN không diễn ra ngay lập tức — có thể mất vài phút để truyền bá trên tất cả các vị trí biên. Trong cửa sổ này, những người dùng khác nhau sẽ thấy các phiên bản khác nhau.",
+      "Chiến lược: sử dụng URL được phiên bản (file-v2.js) để cập nhật tức thời, đặt TTL ngắn cho nội dung động và sử dụng thẻ cache để lọc mục tiêu."
+    ],
+    "keyTerms": [
+      {
+        "term": "CDN",
+        "definition": "network gồm các máy chủ biên cache và phục vụ nội dung gần gũi với người dùng."
+      },
+      {
+        "term": "Cache-Control",
+        "definition": "Tiêu đề HTTP chỉ định hành vi caching (tuổi tối đa, không có bộ đệm, v.v.)."
+      },
+      {
+        "term": "Cache Purge",
+        "definition": "Xóa rõ ràng nội dung khỏi bộ đệm CDN trước khi hết hạn TTL."
+      },
+      {
+        "term": "Edge Location",
+        "definition": "Máy chủ CDN gần về mặt địa lý với người dùng cuối."
+      }
+    ]
+  },
+  {
+    "id": "message-durability",
+    "title": "Tin nhắn Durability",
+    "summary": "Tin nhắn chỉ được lưu trữ trong memory bị mất khi gặp sự cố; hàng đợi liên tục tồn tại sau thất bại.",
+    "explanation": [
+      "Hàng đợi tin nhắn trong bộ nhớ nhanh nhưng không ổn định. Nếu broker gặp sự cố, tất cả các tin nhắn được xếp hàng đợi sẽ bị mất vĩnh viễn.",
+      "Tin nhắn lâu bền xếp hàng tin nhắn write tới disk trước khi xác nhận đã nhận. Điều này vẫn tồn tại sau sự cố với chi phí write latency.",
+      "Hầu hết các hệ thống sản xuất (Kafka, RabbitMQ có tính bền bỉ) đều sử dụng log ghi trước: các thông báo được thêm vào disk một cách tuần tự, tốc độ này nhanh ngay cả đối với đĩa quay.",
+      "Sự lựa chọn phụ thuộc vào khả năng chịu mất dữ liệu của bạn. Thông báo nhất thời có thể sử dụng hàng đợi trong bộ nhớ; giao dịch tài chính cần lưu trữ lâu dài."
+    ],
+    "keyTerms": [
+      {
+        "term": "Durable Queue",
+        "definition": "Hàng đợi tin nhắn vẫn tồn tại các tin nhắn tới disk, broker vẫn gặp sự cố."
+      },
+      {
+        "term": "Write-Ahead Log",
+        "definition": "log tuần tự, chỉ nối thêm được ghi vào disk trước khi xử lý."
+      },
+      {
+        "term": "At-Least-Once Delivery",
+        "definition": "Đảm bảo tin nhắn được gửi ít nhất một lần (có thể trùng lặp)."
+      },
+      {
+        "term": "Acknowledgment",
+        "definition": "Xác nhận từ consumer rằng tin nhắn đã được xử lý."
+      }
+    ]
+  },
+  {
+    "id": "idempotency",
+    "title": "Idempotency",
+    "summary": "Thiết kế các hoạt động sao cho việc thực hiện chúng nhiều lần sẽ tạo ra kết quả giống như một lần.",
+    "explanation": [
+      "Trong các hệ thống phân tán, tin nhắn có thể được gửi nhiều lần (thử lại, sự cố network). Nếu việc xử lý thư hai lần gây ra tác dụng phụ trùng lặp thì bạn đã gặp sự cố.",
+      "Một thao tác idempotent tạo ra kết quả tương tự bất kể nó được thực thi bao nhiêu lần. 'Đặt số dư thành $100' là idempotent; 'Thêm $100 vào số dư' thì không.",
+      "Triển khai idempotency với các ID request duy nhất: lưu trữ ID của từng request đã xử lý và bỏ qua các bản sao. Đây là mẫu phím idempotency.",
+      "Hầu hết các hàng đợi tin nhắn đều cung cấp at-least-once delivery (không phải exactly-once). Người tiêu dùng Idempotent tạo ra at-least-once tương đương hiệu quả với exactly-once."
+    ],
+    "keyTerms": [
+      {
+        "term": "Idempotency",
+        "definition": "Thuộc tính thực hiện một thao tác nhiều lần có tác dụng tương tự như một lần."
+      },
+      {
+        "term": "Idempotency Key",
+        "definition": "Mã định danh duy nhất cho mỗi request, được sử dụng để phát hiện và bỏ qua các bản sao."
+      },
+      {
+        "term": "Exactly-Once Semantics",
+        "definition": "Việc đảm bảo rằng tin nhắn được xử lý chính xác một lần - rất khó đạt được."
+      },
+      {
+        "term": "Deduplication",
+        "definition": "process xác định và xóa các tin nhắn hoặc yêu cầu trùng lặp."
+      }
+    ]
+  },
+  {
+    "id": "backpressure",
+    "title": "Backpressure",
+    "summary": "Khi một hệ thống bị quá tải, nó cần phải đẩy lùi các nhà sản xuất thay vì loại bỏ dữ liệu.",
+    "explanation": [
+      "Backpressure xảy ra khi hệ thống hạ nguồn không thể theo kịp tốc độ dữ liệu đến. Nếu không có sự quản lý, hàng đợi sẽ tăng lên không giới hạn cho đến khi hết memory.",
+      "Các chiến lược bao gồm: hàng đợi giới hạn (từ chối khi đầy), nhà sản xuất rate limiting, người tiêu dùng mở rộng quy mô và tín hiệu điều khiển luồng.",
+      "Một hệ thống được thiết kế tốt sẽ truyền tải backpressure ngược dòng: nếu database chậm thì hàng đợi sẽ chậm lại, điều này sẽ làm chậm API, điều này sẽ làm chậm các máy khách.",
+      "Hàng đợi không giới hạn rất nguy hiểm — chúng che giấu các vấn đề bằng cách hấp thụ tất cả dữ liệu đến cho đến khi hệ thống gặp sự cố do cạn kiệt memory."
+    ],
+    "keyTerms": [
+      {
+        "term": "Backpressure",
+        "definition": "Một cơ chế để các hệ thống bị quá tải gửi tín hiệu từ thượng nguồn xuống để giảm tốc độ."
+      },
+      {
+        "term": "Bounded Queue",
+        "definition": "Hàng đợi có kích thước tối đa sẽ từ chối hoặc chặn khi đầy."
+      },
+      {
+        "term": "Flow Control",
+        "definition": "Điều chỉnh tốc độ truyền dữ liệu giữa các thành phần."
+      },
+      {
+        "term": "Dead Letter Queue",
+        "definition": "Hàng đợi các tin nhắn không thể xử lý được sau nhiều lần thử."
+      }
+    ]
+  },
+  {
+    "id": "message-ordering",
+    "title": "Thứ tự tin nhắn",
+    "summary": "Việc duy trì thứ tự các tin nhắn thật khó khăn khi có nhiều người tiêu dùng process song song.",
+    "explanation": [
+      "Khi một consumer xử lý các tin nhắn một cách tuần tự, trật tự sẽ được giữ nguyên. Nhưng đối với throughput, bạn muốn nhiều người tiêu dùng xử lý song song.",
+      "Người tiêu dùng song song có thể gửi tin nhắn process không theo thứ tự: Consumer A nhận được tin nhắn 1 nhưng chậm; Consumer B nhận được tin nhắn 2 và kết thúc trước.",
+      "Giải pháp: Thông báo partition theo một khóa (cùng một khóa luôn đi đến cùng một consumer), sử dụng số thứ tự để sắp xếp lại hoặc thiết kế các hoạt động độc lập với thứ tự.",
+      "Kafka giải quyết vấn đề này bằng các phân vùng: các tin nhắn trong partition được sắp xếp theo thứ tự và mỗi partition có một consumer. Bạn có được sự song song giữa các phân vùng trong khi vẫn duy trì trật tự bên trong chúng."
+    ],
+    "keyTerms": [
+      {
+        "term": "FIFO",
+        "definition": "Vào trước, ra trước - tin nhắn được xử lý theo thứ tự chúng đến."
+      },
+      {
+        "term": "Partition",
+        "definition": "Một tập hợp con của luồng tin nhắn, duy trì trật tự bên trong chính nó."
+      },
+      {
+        "term": "Sequence Number",
+        "definition": "Một con số tăng dần đều được gán cho mỗi tin nhắn để đặt hàng."
+      },
+      {
+        "term": "Causal Ordering",
+        "definition": "Đảm bảo các tin nhắn liên quan đến nhân quả được xử lý theo đúng thứ tự."
+      }
+    ]
+  },
+  {
+    "id": "sharding",
+    "title": "Database Sharding",
+    "summary": "Chia database giữa các máy bằng một phím. Mạnh mẽ cho quy mô, khó quản lý.",
+    "explanation": [
+      "Sharding phân phối các hàng trên nhiều máy chủ database. Mỗi shard là một database độc lập chứa một tập hợp con của tổng dữ liệu.",
+      "Khi shard ngừng hoạt động, chỉ có dữ liệu của nó là không khả dụng - nhưng dữ liệu đó hoàn toàn không thể truy cập được cho đến khi shard phục hồi.",
+      "Mỗi shard cũng phải được sao chép để có khả năng chịu lỗi. shard không có bản sao thì bản thân nó là một điểm lỗi.",
+      "Truy vấn chéo phân đoạn (nối qua các phân đoạn) rất tốn kém và phức tạp. Thiết kế khóa shard của bạn để giảm thiểu các thao tác phân đoạn chéo."
+    ],
+    "keyTerms": [
+      {
+        "term": "Shard",
+        "definition": "Một database partition độc lập chứa một tập hợp con của tổng dữ liệu."
+      },
+      {
+        "term": "Shard Key",
+        "definition": "Trường xác định shard nào lưu trữ từng bản ghi."
+      },
+      {
+        "term": "Cross-Shard Query",
+        "definition": "query cần dữ liệu từ nhiều phân đoạn, cần có sự phối hợp."
+      },
+      {
+        "term": "Resharding",
+        "definition": "process của việc chia tách hoặc hợp nhất các phân đoạn, thường gây rối."
+      }
+    ]
+  },
+  {
+    "id": "cap-theorem",
+    "title": "Định lý CAP",
+    "summary": "Trong partition, chọn consistency (tất cả các nút xem cùng một dữ liệu) hoặc availability (tất cả các nút phản hồi).",
+    "explanation": [
+      "Định lý CAP nêu rõ: một hệ thống phân tán có thể cung cấp tối đa hai trong số ba đảm bảo: dung sai Consistency, Availability và Partition.",
+      "Vì phân vùng network là không thể tránh khỏi trong các hệ thống phân tán nên lựa chọn thực sự là giữa CP (nhất quán nhưng đôi khi không khả dụng) và AP (có sẵn nhưng đôi khi không nhất quán).",
+      "Các hệ thống CP (như ZooKeeper) từ chối các yêu cầu trong quá trình phân vùng để duy trì consistency. Các hệ thống AP (như Cassandra) phục vụ các yêu cầu nhưng có thể trả về dữ liệu cũ.",
+      "Trong thực tế, hầu hết các hệ thống đều có thể điều chỉnh được: bạn có thể chọn consistency cho một số thao tác và availability cho các thao tác khác. Nó không phải là tất cả hoặc không có gì."
+    ],
+    "keyTerms": [
+      {
+        "term": "Consistency",
+        "definition": "Tất cả các nút đều nhìn thấy cùng một dữ liệu cùng một lúc."
+      },
+      {
+        "term": "Availability",
+        "definition": "Mỗi request đều nhận được response (thành công hay thất bại)."
+      },
+      {
+        "term": "Partition Tolerance",
+        "definition": "Hệ thống vẫn tiếp tục hoạt động mặc dù giao tiếp network bị lỗi."
+      },
+      {
+        "term": "Eventual Consistency",
+        "definition": "Tất cả các bản sao sẽ hội tụ về cùng một trạng thái nếu có đủ thời gian mà không cần cập nhật."
+      }
+    ]
+  },
+  {
+    "id": "data-integrity",
+    "title": "Tính toàn vẹn dữ liệu & tổng kiểm tra",
+    "summary": "Xác minh dữ liệu không bị hỏng trong quá trình truyền hoặc lưu trữ bằng cách sử dụng tổng kiểm tra và băm.",
+    "explanation": [
+      "Dữ liệu có thể bị hỏng tại bất kỳ thời điểm nào: khi truyền qua network, trong khi lưu trữ trên disk hoặc trong quá trình xử lý do lỗi phần mềm.",
+      "Tổng kiểm tra (CRC32, MD5, SHA-256) tạo dấu vân tay của dữ liệu. Nếu dữ liệu thay đổi, tổng kiểm tra sẽ không khớp — phát hiện sai sót.",
+      "Tổng kiểm tra từ đầu đến cuối là rất cần thiết: xác minh dữ liệu ở mọi bước của quy trình, không chỉ ở ranh giới. Tổng kiểm tra network vượt qua không có nghĩa là ứng dụng không làm hỏng nó.",
+      "Kho dữ liệu bất biến và nhật ký chỉ bổ sung giúp phát hiện và khôi phục lỗi dễ dàng hơn vì dữ liệu gốc không bao giờ bị ghi đè."
+    ],
+    "keyTerms": [
+      {
+        "term": "Checksum",
+        "definition": "Giá trị có kích thước cố định được tính toán từ dữ liệu, được sử dụng để phát hiện sai sót hoặc giả mạo."
+      },
+      {
+        "term": "End-to-End Integrity",
+        "definition": "Xác minh tính toàn vẹn dữ liệu ở mỗi bước từ producer đến consumer."
+      },
+      {
+        "term": "Hash Function",
+        "definition": "Một chức năng ánh xạ dữ liệu tới dấu vân tay có kích thước cố định."
+      },
+      {
+        "term": "Bit Rot",
+        "definition": "Dữ liệu bị hỏng dần dần trên phương tiện lưu trữ theo thời gian."
+      }
+    ]
+  },
+  {
+    "id": "write-amplification",
+    "title": "Khuếch đại Write",
+    "summary": "Một write logic duy nhất có thể gây ra nhiều thao tác ghi vật lý trong công cụ lưu trữ, ảnh hưởng đến hiệu suất.",
+    "explanation": [
+      "Quá trình khuếch đại Write xảy ra khi một write cấp ứng dụng dẫn đến nhiều lần ghi vật lý vào bộ lưu trữ. Cây LSM và cây B đều gặp phải vấn đề này theo những cách khác nhau.",
+      "Trước tiên, cây LSM write thành bảng ghi nhớ (nhanh), sau đó chuyển sang các tệp được sắp xếp. Quá trình nén sẽ hợp nhất các tệp này, ghi lại dữ liệu nhiều lần - mức khuếch đại write cao.",
+      "B-cây write trực tiếp tới các trang trên disk. Một bản cập nhật nhỏ có thể yêu cầu viết lại toàn bộ trang cộng với ghi nhật ký ghi trước - khuếch đại write vừa phải.",
+      "Giảm mức khuếch đại write: điều chỉnh các chiến lược nén, sử dụng kích thước trang phù hợp, ghi hàng loạt và chọn công cụ lưu trữ phù hợp cho khối lượng công việc của bạn."
+    ],
+    "keyTerms": [
+      {
+        "term": "Write Amplification",
+        "definition": "Tỷ lệ ghi vật lý và ghi logic trong công cụ lưu trữ."
+      },
+      {
+        "term": "LSM-Tree",
+        "definition": "Cây hợp nhất có cấu trúc nhật ký - được tối ưu hóa cho việc ghi, sử dụng tính năng nén."
+      },
+      {
+        "term": "Compaction",
+        "definition": "process hợp nhất và ghi lại các tệp lưu trữ để lấy lại dung lượng và cải thiện khả năng đọc."
+      },
+      {
+        "term": "Write-Ahead Log (WAL)",
+        "definition": "Một log tuần tự được viết trước khi sửa đổi cấu trúc dữ liệu thực tế."
+      }
+    ]
+  },
+  {
+    "id": "cascading-timeouts",
+    "title": "Hết thời gian xếp tầng",
+    "summary": "Một service chậm khiến chuỗi timeout khiến toàn bộ hệ thống ngừng hoạt động.",
+    "explanation": [
+      "Khi Service A gọi Service B gọi Service C, C chậm khiến B phải đợi, khiến A phải đợi. Cả ba đều xuất hiện chậm hoặc chậm.",
+      "Giá trị timeout dài khiến điều này trở nên tồi tệ hơn: A đợi B trong 30 giây, B đợi C trong 30 giây — Máy khách của A đợi tới 60 giây.",
+      "Thời gian chờ sẽ giảm sâu hơn trong chuỗi cuộc gọi. Nếu A có timeout 5 giây thì B sẽ có timeout ở 3 giây và C ở 1 giây.",
+      "Bộ ngắt mạch, vách ngăn và kiểu giao tiếp async ngăn chặn một chiếc service chậm làm hỏng toàn bộ hệ thống."
+    ],
+    "keyTerms": [
+      {
+        "term": "Cascading Failure",
+        "definition": "Lỗi ở một thành phần sẽ gây ra lỗi ở các thành phần phụ thuộc."
+      },
+      {
+        "term": "Timeout Budget",
+        "definition": "Phân bổ thời gian chờ giảm dần thông qua chuỗi cuộc gọi."
+      },
+      {
+        "term": "Bulkhead",
+        "definition": "Cô lập các thành phần để lỗi ở một thành phần không ảnh hưởng đến các thành phần khác."
+      },
+      {
+        "term": "Fail Fast",
+        "definition": "Trả lại lỗi ngay lập tức thay vì chờ đợi sự phụ thuộc chậm."
+      }
+    ]
+  },
+  {
+    "id": "retry-strategies",
+    "title": "Chiến lược Retry",
+    "summary": "Việc thử lại các yêu cầu không thành công có thể hữu ích — hoặc làm trầm trọng thêm vấn đề nếu thực hiện một cách ngây thơ.",
+    "explanation": [
+      "Thử lại giúp giải quyết các lỗi tạm thời (network bị hỏng, không có sẵn trong thời gian ngắn). Nhưng việc cố gắng thử lại một cách mạnh mẽ trước một service đang gặp khó khăn sẽ tăng thêm tải và khiến nó trở nên tồi tệ hơn.",
+      "backoff theo cấp số nhân tăng độ trễ giữa các lần thử lại: 1 giây, 2 giây, 4 giây, 8 giây. Điều này giúp service bị lỗi có thời gian để phục hồi.",
+      "Thêm jitter để ngăn việc thử lại đồng bộ từ nhiều máy khách (cơn bão retry). Nếu không có jitter, tất cả các máy khách retry đều ở các khoảng thời gian như nhau.",
+      "Đặt số lượng retry tối đa và triển khai bộ ngắt mạch để ngừng thử lại hoàn toàn khi service bị hỏng rõ ràng."
+    ],
+    "keyTerms": [
+      {
+        "term": "Exponential Backoff",
+        "definition": "Nhân đôi thời gian chờ giữa mỗi lần thử retry."
+      },
+      {
+        "term": "Retry Storm",
+        "definition": "Nhiều khách hàng thử lại đồng thời, áp đảo service đang phục hồi."
+      },
+      {
+        "term": "Jitter",
+        "definition": "Biến thể ngẫu nhiên được thêm vào thời gian retry để giải đồng bộ hóa máy khách."
+      },
+      {
+        "term": "Max Retries",
+        "definition": "Giới hạn trên retry cố gắng ngăn chặn các vòng lặp vô hạn."
+      }
+    ]
+  },
+  {
+    "id": "circuit-breakers",
+    "title": "Bộ ngắt mạch",
+    "summary": "Hãy ngừng gọi service bị lỗi để khôi phục thay vì gửi thêm yêu cầu.",
+    "explanation": [
+      "circuit breaker giám sát các cuộc gọi đến service. Sau một ngưỡng thất bại, nó 'mở' - ngay lập tức không thực hiện được các yêu cầu tiếp theo mà không thực sự gọi service.",
+      "Điều này có ba trạng thái: Đóng (bình thường, yêu cầu được thông qua), Mở (bị ngắt, yêu cầu không thành công ngay lập tức) và Nửa mở (kiểm tra xem service đã phục hồi chưa).",
+      "Nếu không có bộ ngắt mạch, service bị lỗi sẽ bị choáng ngợp bởi số lần thử lại và lưu lượng truy cập bình thường, ngăn cản quá trình phục hồi. Bộ ngắt cho nó chỗ thở.",
+      "Kết hợp với các dự phòng: khi mạch mở, trả về dữ liệu đã lưu trong bộ nhớ đệm, response mặc định hoặc trải nghiệm bị xuống cấp thay vì lỗi."
+    ],
+    "keyTerms": [
+      {
+        "term": "Circuit Breaker",
+        "definition": "Mẫu dừng gọi service bị lỗi sau một ngưỡng lỗi."
+      },
+      {
+        "term": "Closed State",
+        "definition": "Hoạt động bình thường - các yêu cầu chuyển đến service."
+      },
+      {
+        "term": "Open State",
+        "definition": "Bị vấp - các yêu cầu không thành công ngay lập tức nếu không gọi service."
+      },
+      {
+        "term": "Half-Open State",
+        "definition": "Kiểm tra - một số lượng yêu cầu hạn chế được gửi để kiểm tra xem service có được phục hồi hay không."
+      }
+    ]
+  },
+  {
+    "id": "service-discovery",
+    "title": "Khám phá Service",
+    "summary": "Các dịch vụ cần tìm nhau một cách linh hoạt — các địa chỉ được mã hóa cứng sẽ bị hỏng khi mọi thứ thay đổi.",
+    "explanation": [
+      "Trong môi trường động (đám mây, vùng chứa), các dịch vụ khởi động và dừng liên tục. Địa chỉ IP và cổng được mã hóa cứng bị hỏng khi dịch vụ di chuyển.",
+      "Khám phá Service cung cấp một sổ đăng ký nơi các dịch vụ tự đăng ký và tra cứu các dịch vụ khác. Dịch vụ DNS, Consul, etcd và Kubernetes là những triển khai phổ biến.",
+      "Khám phá phía máy khách: máy khách truy vấn sổ đăng ký và chọn phiên bản service. Khám phá phía máy chủ: load balancer thay mặt khách hàng truy vấn sổ đăng ký.",
+      "Kiểm tra tình trạng đảm bảo sổ đăng ký chỉ chứa các phiên bản khỏe mạnh. Các mục cũ (chỉ vào các phiên bản đã chết) gây ra lỗi."
+    ],
+    "keyTerms": [
+      {
+        "term": "Service Registry",
+        "definition": "database gồm các phiên bản service có sẵn và vị trí network của chúng."
+      },
+      {
+        "term": "Service Discovery",
+        "definition": "Cơ chế mà các dịch vụ tìm và liên lạc với nhau."
+      },
+      {
+        "term": "DNS-Based Discovery",
+        "definition": "Sử dụng bản ghi DNS để phân giải tên service thành địa chỉ IP."
+      },
+      {
+        "term": "Sidecar Proxy",
+        "definition": "Một proxy chạy cùng với mỗi service xử lý việc phát hiện và định tuyến."
+      }
+    ]
+  },
+  {
+    "id": "distributed-deadlocks",
+    "title": "Bế tắc phân tán",
+    "summary": "Hai dịch vụ đều chứa một tài nguyên mà dịch vụ kia cần, khiến cả hai phải chờ đợi mãi mãi.",
+    "explanation": [
+      "deadlock xảy ra khi hai hoặc nhiều tiến trình, mỗi tiến trình giữ một tài nguyên và chờ tài nguyên do một tiến trình khác nắm giữ. Cả hai đều không thể tiếp tục.",
+      "Trong các hệ thống phân tán, bế tắc khó phát hiện hơn vì các giá trị lock nằm trên các máy khác nhau. Không có cái nhìn duy nhất về tất cả các khóa.",
+      "Chiến lược phòng ngừa: luôn thu thập các khóa theo thứ tự nhất quán, sử dụng thời gian chờ khi thu thập lock và triển khai phân tích biểu đồ chờ.",
+      "Thời gian chờ của Lock là giải pháp đơn giản nhất: nếu bạn không thể lấy được lock trong vòng N giây, hãy mở khóa và retry. Điều này phá vỡ deadlock với cái giá là một số công việc lãng phí."
+    ],
+    "keyTerms": [
+      {
+        "term": "Deadlock",
+        "definition": "Trạng thái trong đó hai hoặc nhiều tiến trình bị chặn vĩnh viễn, mỗi tiến trình chờ đợi một tiến trình khác."
+      },
+      {
+        "term": "Wait-For Graph",
+        "definition": "Đồ thị có hướng mà process đang chờ, được sử dụng để phát hiện các chu kỳ (bế tắc)."
+      },
+      {
+        "term": "Lock Ordering",
+        "definition": "Luôn lấy các khóa theo thứ tự chung được xác định trước để ngăn chặn việc chờ đợi vòng tròn."
+      },
+      {
+        "term": "Lock Timeout",
+        "definition": "Mở khóa và thử lại nếu quá trình thu thập mất quá nhiều thời gian."
+      }
+    ]
+  },
+  {
+    "id": "isolation-levels",
+    "title": "Cấp độ Transaction Isolation",
+    "summary": "Kiểm soát số lượng giao dịch có thể nhìn thấy những thay đổi không được cam kết của nhau.",
+    "explanation": [
+      "Các cấp độ Isolation xác định những gì transaction có thể thấy khi các giao dịch khác đang sửa đổi dữ liệu đồng thời. isolation cao hơn sẽ ngăn ngừa nhiều điểm bất thường hơn nhưng làm giảm khả năng xử lý đồng thời.",
+      "Read Không được cam kết: xem mọi thứ, ngay cả những thay đổi không được cam kết (đọc bẩn). Read Đã cam kết: chỉ xem dữ liệu đã cam kết. Read có thể lặp lại: xem ảnh chụp nhanh nhất quán. Có thể tuần tự hóa: isolation đầy đủ.",
+      "Phantom read xảy ra khi transaction thực thi lại query và tìm thấy các hàng mới mà một transaction khác đã chèn vào. Chỉ Serializable mới ngăn chặn được điều này.",
+      "Hầu hết các cơ sở dữ liệu mặc định là READ COMMITTED. Chỉ sử dụng mức cao hơn khi cần thiết vì chúng làm giảm throughput thông qua việc khóa mạnh mẽ hơn."
+    ],
+    "keyTerms": [
+      {
+        "term": "Dirty Read",
+        "definition": "Đọc dữ liệu đã được sửa đổi bởi transaction khác nhưng chưa được cam kết."
+      },
+      {
+        "term": "Phantom Read",
+        "definition": "query trả về các hàng khác nhau vì một transaction khác đã chèn hoặc xóa các hàng."
+      },
+      {
+        "term": "Serializable",
+        "definition": "Mức isolation cao nhất — các giao dịch hoạt động như thể được thực hiện từng giao dịch một."
+      },
+      {
+        "term": "Snapshot Isolation",
+        "definition": "Mỗi transaction nhìn thấy ảnh chụp nhanh nhất quán của database tại thời điểm bắt đầu."
+      }
+    ]
+  },
+  {
+    "id": "sagas",
+    "title": "Mẫu Saga",
+    "summary": "Phối hợp các giao dịch phân tán nhiều bước với các hành động bù đắp thay vì hoàn trả.",
+    "explanation": [
+      "Các giao dịch database truyền thống sử dụng thuộc tính ACID và khôi phục khi thất bại. Nhưng trong các hệ thống phân tán, một transaction duy nhất trải rộng trên nhiều dịch vụ là không thực tế.",
+      "Mẫu Saga chia transaction phân tán thành một chuỗi các giao dịch cục bộ. Mỗi bước có một hành động bù đắp sẽ hủy tác dụng của nó nếu bước sau thất bại.",
+      "Hai phong cách phối khí: vũ đạo (mỗi service kích hoạt phong cách tiếp theo) và phối khí (một điều phối viên trung tâm quản lý trình tự).",
+      "Sagas cung cấp eventual consistency chứ không phải consistency ngay lập tức. Hệ thống có thể ở trạng thái trung gian giữa các bước mà ứng dụng của bạn phải xử lý."
+    ],
+    "keyTerms": [
+      {
+        "term": "Saga",
+        "definition": "Một chuỗi các giao dịch cục bộ với các hành động bù đắp cho việc xử lý lỗi."
+      },
+      {
+        "term": "Compensating Action",
+        "definition": "Một thao tác hủy bỏ tác dụng của bước trước đó trong câu chuyện."
+      },
+      {
+        "term": "Choreography",
+        "definition": "Mỗi service trong câu chuyện sẽ kích hoạt bước tiếp theo thông qua các sự kiện."
+      },
+      {
+        "term": "Orchestrator",
+        "definition": "Điều phối viên trung tâm quản lý trình tự bước của câu chuyện."
+      }
+    ]
+  },
+  {
+    "id": "rate-limiting",
+    "title": "Rate Limiting",
+    "summary": "Kiểm soát số lượng yêu cầu mà khách hàng có thể thực hiện để bảo vệ hệ thống của bạn khỏi quá tải.",
+    "explanation": [
+      "Rate limiting giới hạn số lượng yêu cầu mà khách hàng có thể thực hiện trong một khoảng thời gian. Nó bảo vệ các dịch vụ khỏi bị lạm dụng, lưu lượng truy cập tăng đột biến và lỗi xếp tầng.",
+      "Các thuật toán phổ biến: cửa sổ cố định (N yêu cầu mỗi phút), cửa sổ trượt (mượt mà hơn), nhóm mã thông báo (cho phép bùng nổ) và nhóm rò rỉ (tốc độ không đổi).",
+      "Triển khai rate limiting ở cấp cổng API để bảo vệ tất cả các dịch vụ hạ nguồn. Trả về HTTP 429 (Quá nhiều yêu cầu) với tiêu đề thử lại sau.",
+      "Các giới hạn khác nhau cho các khách hàng khác nhau: người dùng được xác thực có giới hạn cao hơn, bậc miễn phí có giới hạn thấp hơn và các dịch vụ nội bộ có thể có giới hạn hoàn toàn riêng biệt."
+    ],
+    "keyTerms": [
+      {
+        "term": "Rate Limit",
+        "definition": "Số lượng yêu cầu tối đa được phép trong một khoảng thời gian."
+      },
+      {
+        "term": "Token Bucket",
+        "definition": "Một thuật toán trong đó các mã thông báo tích lũy theo thời gian và mỗi request tiêu thụ một mã thông báo."
+      },
+      {
+        "term": "HTTP 429",
+        "definition": "Mã trạng thái 'Quá nhiều yêu cầu' cho biết rate limiting."
+      },
+      {
+        "term": "Throttling",
+        "definition": "Làm chậm lại hoặc từ chối các yêu cầu vượt quá tỷ lệ cho phép."
+      }
+    ]
+  },
+  {
+    "id": "database-normalization",
+    "title": "Database Normalization",
+    "summary": "Normalization loại bỏ dữ liệu lặp và tránh insert, update, delete anomaly. Chỉ denormalize cho read path đã đo được và phải xác định rõ bên chịu trách nhiệm đồng bộ.",
+    "explanation": [
+      "Thuộc tính khách hàng bị lặp đã tạo update anomaly trong bảng giao dịch denormalized.",
+      "Tách Customer và Order, tham chiếu bằng customer_id; chỉ lưu shipping snapshot bất biến khi nghiệp vụ cần lịch sử.",
+      "Normalization loại bỏ dữ liệu lặp và tránh insert, update, delete anomaly. Chỉ denormalize cho read path đã đo được và phải xác định rõ bên chịu trách nhiệm đồng bộ."
+    ],
+    "keyTerms": [
+      {
+        "term": "Normalization",
+        "definition": "Tổ chức dữ liệu để mỗi fact có một nơi authoritative."
+      },
+      {
+        "term": "Functional dependency",
+        "definition": "Quan hệ trong đó một thuộc tính xác định thuộc tính khác."
+      },
+      {
+        "term": "Update anomaly",
+        "definition": "Các bản sao mâu thuẫn do chỉ cập nhật một phần dữ liệu lặp."
+      },
+      {
+        "term": "Denormalization",
+        "definition": "Chủ động lặp dữ liệu để tối ưu read path đã được đo."
+      }
+    ]
+  },
+  {
+    "id": "composite-index-design",
+    "title": "Thiết kế Composite Index",
+    "summary": "Thứ tự composite index phải đi theo access pattern. Index làm tốn memory và write I/O nên cần đo selectivity và loại index thừa.",
+    "explanation": [
+      "Query không sử dụng leftmost prefix của composite B-tree index.",
+      "Thiết kế index với các cột equality ở đầu, sau đó là range/order; kiểm chứng bằng EXPLAIN ANALYZE thay vì đoán.",
+      "Thứ tự composite index phải đi theo access pattern. Index làm tốn memory và write I/O nên cần đo selectivity và loại index thừa."
+    ],
+    "keyTerms": [
+      {
+        "term": "Composite index",
+        "definition": "Index gồm nhiều cột có thứ tự."
+      },
+      {
+        "term": "Leftmost prefix",
+        "definition": "Chuỗi cột đầu tiên mà B-tree có thể tìm hiệu quả."
+      },
+      {
+        "term": "Selectivity",
+        "definition": "Mức độ predicate thu hẹp tập kết quả."
+      },
+      {
+        "term": "EXPLAIN ANALYZE",
+        "definition": "Execution plan thực tế cùng số liệu runtime."
+      }
+    ]
+  },
+  {
+    "id": "sargable-queries",
+    "title": "Sargable Query",
+    "summary": "Sargable predicate cho phép planner đi thẳng vào index. Khi đổi sang date range phải so sánh execution plan và giữ đúng timezone semantics.",
+    "explanation": [
+      "Bọc indexed column trong function khiến predicate trở thành non-sargable.",
+      "Viết lại thành created_at >= start AND created_at < next_day, hoặc tạo expression index khi có lý do rõ ràng.",
+      "Sargable predicate cho phép planner đi thẳng vào index. Khi đổi sang date range phải so sánh execution plan và giữ đúng timezone semantics."
+    ],
+    "keyTerms": [
+      {
+        "term": "Sargable",
+        "definition": "Predicate mà index có thể tìm trực tiếp."
+      },
+      {
+        "term": "Sequential scan",
+        "definition": "Đọc phần lớn hoặc toàn bộ page của bảng."
+      },
+      {
+        "term": "Expression index",
+        "definition": "Index được tạo trên một biểu thức."
+      },
+      {
+        "term": "Half-open range",
+        "definition": "Range bao gồm điểm đầu và loại điểm cuối."
+      }
+    ]
+  },
+  {
+    "id": "n-plus-one-queries",
+    "title": "N+1 Query",
+    "summary": "N+1 gây vấn đề latency và connection pool. Eager loading không phải lúc nào cũng đúng; phải giới hạn result và tránh cartesian explosion.",
+    "explanation": [
+      "ORM lazy loading tạo ra N+1 query pattern.",
+      "Lấy relation bằng join/batch có giới hạn, chỉ select field cần thiết và kiểm tra query count bằng test hoặc tracing.",
+      "N+1 gây vấn đề latency và connection pool. Eager loading không phải lúc nào cũng đúng; phải giới hạn result và tránh cartesian explosion."
+    ],
+    "keyTerms": [
+      {
+        "term": "N+1 query",
+        "definition": "Một query cha rồi thêm một query con cho mỗi dòng."
+      },
+      {
+        "term": "Lazy loading",
+        "definition": "Chỉ tải relation khi code truy cập."
+      },
+      {
+        "term": "Eager loading",
+        "definition": "Tải trước relation đã biết sẽ cần."
+      },
+      {
+        "term": "Batch loading",
+        "definition": "Lấy nhiều record liên quan bằng một query có giới hạn."
+      }
+    ]
+  },
+  {
+    "id": "connection-pool-exhaustion",
+    "title": "Connection Pool Exhaustion",
+    "summary": "Tăng pool vô hạn có thể làm database quá tải. Cần đo checkout time, transaction age, active/idle connection và slow statement.",
+    "explanation": [
+      "Transaction giữ connection trong pool qua một đoạn network I/O không liên quan.",
+      "Giữ transaction ngắn, trả connection trước external call, đặt pool/statement timeout và tính pool size theo capacity của database.",
+      "Tăng pool vô hạn có thể làm database quá tải. Cần đo checkout time, transaction age, active/idle connection và slow statement."
+    ],
+    "keyTerms": [
+      {
+        "term": "Connection pool",
+        "definition": "Tập connection database có giới hạn và được tái sử dụng."
+      },
+      {
+        "term": "Checkout time",
+        "definition": "Thời gian chờ mượn một connection."
+      },
+      {
+        "term": "Transaction scope",
+        "definition": "Phần công việc chính xác được transaction bảo vệ."
+      },
+      {
+        "term": "Pool saturation",
+        "definition": "Mọi connection đều đang bận hoặc bị leak."
+      }
+    ]
+  },
+  {
+    "id": "lost-update",
+    "title": "Lost Update",
+    "summary": "Chỉ mở transaction chưa chắc ngăn lost update ở mọi isolation level. Hãy biểu diễn invariant bằng thao tác atomic và làm retry an toàn.",
+    "explanation": [
+      "Race trong chuỗi read-modify-write gây lost update.",
+      "Dùng atomic conditional UPDATE hoặc optimistic version check; retry conflict và enforce invariant tại database.",
+      "Chỉ mở transaction chưa chắc ngăn lost update ở mọi isolation level. Hãy biểu diễn invariant bằng thao tác atomic và làm retry an toàn."
+    ],
+    "keyTerms": [
+      {
+        "term": "Lost update",
+        "definition": "Một concurrent write âm thầm ghi đè write khác."
+      },
+      {
+        "term": "Optimistic concurrency",
+        "definition": "Phát hiện conflict bằng version rồi retry."
+      },
+      {
+        "term": "Atomic update",
+        "definition": "Read và write được database thực hiện như một thao tác không thể chia nhỏ."
+      },
+      {
+        "term": "Invariant",
+        "definition": "Điều kiện luôn phải đúng để dữ liệu hợp lệ."
+      }
+    ]
+  },
+  {
+    "id": "process-isolation",
+    "title": "Process và Thread",
+    "summary": "Process cho isolation tốt hơn nhưng tốn memory và communication. Thread chia sẻ memory và cùng chết khi process sập.",
+    "explanation": [
+      "Failure boundary là process chứ không phải thread; memory được cô lập giữa các process.",
+      "Chạy công việc không an toàn hoặc CPU-bound trong worker process được supervisor quản lý; thiết kế IPC, restart, timeout và idempotency.",
+      "Process cho isolation tốt hơn nhưng tốn memory và communication. Thread chia sẻ memory và cùng chết khi process sập."
+    ],
+    "keyTerms": [
+      {
+        "term": "Process",
+        "definition": "Đơn vị isolation của OS với virtual address space riêng."
+      },
+      {
+        "term": "Thread",
+        "definition": "Đơn vị thực thi chia sẻ memory của process."
+      },
+      {
+        "term": "IPC",
+        "definition": "Cơ chế giao tiếp giữa các process."
+      },
+      {
+        "term": "Supervisor",
+        "definition": "Tiến trình cha theo dõi và restart worker."
+      }
+    ]
+  },
+  {
+    "id": "thread-race-condition",
+    "title": "Race Condition giữa các Thread",
+    "summary": "Correctness phụ thuộc mọi interleaving có thể xảy ra, không chỉ lần chạy local. Lock tạo contention và cần scope chặt chẽ.",
+    "explanation": [
+      "Data race trên shared counter không atomic làm mất increment.",
+      "Dùng atomic primitive hoặc lock quanh critical section nhỏ nhất; hoặc loại shared mutable state bằng partitioning/message passing.",
+      "Correctness phụ thuộc mọi interleaving có thể xảy ra, không chỉ lần chạy local. Lock tạo contention và cần scope chặt chẽ."
+    ],
+    "keyTerms": [
+      {
+        "term": "Race condition",
+        "definition": "Correctness phụ thuộc thứ tự thực thi không xác định."
+      },
+      {
+        "term": "Atomicity",
+        "definition": "Operation trông như không thể chia nhỏ đối với thread khác."
+      },
+      {
+        "term": "Critical section",
+        "definition": "Đoạn code truy cập shared mutable state."
+      },
+      {
+        "term": "Memory visibility",
+        "definition": "Một thread có nhìn thấy write của thread khác hay không."
+      }
+    ]
+  },
+  {
+    "id": "thread-deadlock",
+    "title": "Thread Deadlock",
+    "summary": "Deadlock cần mutual exclusion, hold-and-wait, no preemption và circular wait. Thiết kế phải phá ít nhất một điều kiện.",
+    "explanation": [
+      "Thứ tự lấy lock ngược nhau tạo circular wait.",
+      "Định nghĩa global lock order, luôn acquire theo thứ tự đó, thu nhỏ lock scope; timeout chỉ là safety net để recovery.",
+      "Deadlock cần mutual exclusion, hold-and-wait, no preemption và circular wait. Thiết kế phải phá ít nhất một điều kiện."
+    ],
+    "keyTerms": [
+      {
+        "term": "Deadlock",
+        "definition": "Các thành phần chờ nhau vô hạn theo một vòng phụ thuộc."
+      },
+      {
+        "term": "Lock ordering",
+        "definition": "Thứ tự toàn cục khi acquire nhiều lock."
+      },
+      {
+        "term": "Liveness",
+        "definition": "Hệ thống tiếp tục tạo tiến triển."
+      },
+      {
+        "term": "Thread dump",
+        "definition": "Snapshot trạng thái thread và lock đang chờ."
+      }
+    ]
+  },
+  {
+    "id": "python-gil-cpu-bound",
+    "title": "Python GIL và CPU-bound Work",
+    "summary": "Thread phù hợp blocking I/O. Với CPU-bound Python, cần đo workload có release GIL hay không trước khi chọn concurrency model.",
+    "explanation": [
+      "GIL của CPython tuần tự hóa việc chạy Python bytecode giữa các CPU-bound thread.",
+      "Dùng multiprocessing, native library có release GIL hoặc compute service riêng; benchmark serialization và memory cost.",
+      "Thread phù hợp blocking I/O. Với CPU-bound Python, cần đo workload có release GIL hay không trước khi chọn concurrency model."
+    ],
+    "keyTerms": [
+      {
+        "term": "GIL",
+        "definition": "Lock trong CPython chỉ cho một thread chạy Python bytecode tại một thời điểm."
+      },
+      {
+        "term": "CPU-bound",
+        "definition": "Bị giới hạn chủ yếu bởi computation."
+      },
+      {
+        "term": "I/O-bound",
+        "definition": "Bị giới hạn chủ yếu bởi thời gian chờ I/O."
+      },
+      {
+        "term": "Native extension",
+        "definition": "Code đã compile và có thể release GIL."
+      }
+    ]
+  },
+  {
+    "id": "multiprocessing-overhead",
+    "title": "Multiprocessing Overhead",
+    "summary": "Multiprocessing vượt qua GIL nhưng communication không miễn phí. Cần giảm data movement và giới hạn worker count.",
+    "explanation": [
+      "Task granularity quá nhỏ so với serialization và IPC overhead của multiprocessing.",
+      "Gộp việc thành chunk lớn hơn, chỉ gửi identifier gọn, dùng shared memory khi ownership rõ ràng và benchmark end-to-end.",
+      "Multiprocessing vượt qua GIL nhưng communication không miễn phí. Cần giảm data movement và giới hạn worker count."
+    ],
+    "keyTerms": [
+      {
+        "term": "Serialization",
+        "definition": "Encode dữ liệu để truyền qua một boundary."
+      },
+      {
+        "term": "Pickle",
+        "definition": "Định dạng serialization object của Python."
+      },
+      {
+        "term": "Task granularity",
+        "definition": "Lượng công việc hữu ích trong mỗi task được schedule."
+      },
+      {
+        "term": "Shared memory",
+        "definition": "Vùng memory nhiều process cùng truy cập có chủ đích."
+      }
+    ]
+  },
+  {
+    "id": "blocking-event-loop",
+    "title": "Async Event Loop",
+    "summary": "async chỉ tăng concurrency khi task chịu yield. Offload không giới hạn chỉ chuyển saturation sang thread pool.",
+    "explanation": [
+      "Blocking I/O chạy trực tiếp trên event-loop thread.",
+      "Dùng async client, chuyển blocking call sang bounded thread pool, đặt timeout và theo dõi event-loop lag.",
+      "async chỉ tăng concurrency khi task chịu yield. Offload không giới hạn chỉ chuyển saturation sang thread pool."
+    ],
+    "keyTerms": [
+      {
+        "term": "Event loop",
+        "definition": "Scheduler thúc đẩy các non-blocking task theo cơ chế cooperative."
+      },
+      {
+        "term": "Cooperative scheduling",
+        "definition": "Task phải yield để task khác chạy."
+      },
+      {
+        "term": "Event-loop lag",
+        "definition": "Độ trễ giữa lúc được schedule và lúc loop thực thi."
+      },
+      {
+        "term": "Offloading",
+        "definition": "Chuyển blocking work sang executor khác."
+      }
+    ]
+  },
+  {
+    "id": "memory-leak",
+    "title": "Memory Leak",
+    "summary": "Memory leak liên quan đến reachability ngoài ý muốn, không chỉ allocation cao. RSS cũng có thể giữ cao vì allocator giữ arena.",
+    "explanation": [
+      "Cache chứa reference không giới hạn gây memory leak.",
+      "Giới hạn cache bằng size/TTL, xóa entry khi lifecycle kết thúc và so sánh heap profile theo retained path.",
+      "Memory leak liên quan đến reachability ngoài ý muốn, không chỉ allocation cao. RSS cũng có thể giữ cao vì allocator giữ arena."
+    ],
+    "keyTerms": [
+      {
+        "term": "Reachability",
+        "definition": "Có còn reference path sống trỏ đến object hay không."
+      },
+      {
+        "term": "Heap profile",
+        "definition": "Thông tin allocation và object còn được giữ."
+      },
+      {
+        "term": "RSS",
+        "definition": "Các memory page đang resident trong process."
+      },
+      {
+        "term": "Eviction",
+        "definition": "Loại entry theo policy có giới hạn."
+      }
+    ]
+  },
+  {
+    "id": "virtual-memory-thrashing",
+    "title": "Virtual Memory và Thrashing",
+    "summary": "Virtual memory giúp address space linh hoạt nhưng disk chậm hơn RAM nhiều bậc. Tăng concurrent work có thể làm throughput giảm.",
+    "explanation": [
+      "Memory pressure gây virtual-memory thrashing.",
+      "Giảm working set, giới hạn concurrency/cache memory, chỉ thêm RAM sau khi đo và alert theo major fault cùng swap activity.",
+      "Virtual memory giúp address space linh hoạt nhưng disk chậm hơn RAM nhiều bậc. Tăng concurrent work có thể làm throughput giảm."
+    ],
+    "keyTerms": [
+      {
+        "term": "Virtual memory",
+        "definition": "Address space của từng process được map vào physical memory hoặc storage."
+      },
+      {
+        "term": "Page fault",
+        "definition": "Lần truy cập buộc OS phải map hoặc load một page."
+      },
+      {
+        "term": "Working set",
+        "definition": "Nhóm page workload đang cần dùng."
+      },
+      {
+        "term": "Thrashing",
+        "definition": "Paging quá mức làm hệ thống gần như không làm được việc hữu ích."
+      }
+    ]
+  },
+  {
+    "id": "file-descriptor-exhaustion",
+    "title": "File Descriptor Exhaustion",
+    "summary": "File, socket, pipe và epoll handle đều dùng descriptor. Chỉ tăng limit sẽ che leak và trì hoãn failure.",
+    "explanation": [
+      "Socket/file-descriptor leak làm cạn per-process limit.",
+      "Đóng resource bằng context manager/finally, tái sử dụng bounded client pool, expose descriptor metric và đặt ulimit có chủ đích.",
+      "File, socket, pipe và epoll handle đều dùng descriptor. Chỉ tăng limit sẽ che leak và trì hoãn failure."
+    ],
+    "keyTerms": [
+      {
+        "term": "File descriptor",
+        "definition": "Handle của process tới file, socket, pipe hoặc kernel object."
+      },
+      {
+        "term": "EMFILE",
+        "definition": "Process đã chạm open-file limit."
+      },
+      {
+        "term": "Resource lifecycle",
+        "definition": "Acquire, sử dụng và release resource một cách chắc chắn."
+      },
+      {
+        "term": "ulimit",
+        "definition": "Cách xem/đặt resource limit của process."
+      }
+    ]
+  },
+  {
+    "id": "scheduler-oversubscription",
+    "title": "CPU Scheduling và Oversubscription",
+    "summary": "Concurrency khác parallelism. Worker count phụ thuộc workload, CPU quota, blocking ratio và memory constraint.",
+    "explanation": [
+      "CPU oversubscription tạo scheduling overhead và phá cache locality.",
+      "Đặt số CPU-bound worker gần effective CPU quota, batch work và đo run queue, throttling, context switch, throughput.",
+      "Concurrency khác parallelism. Worker count phụ thuộc workload, CPU quota, blocking ratio và memory constraint."
+    ],
+    "keyTerms": [
+      {
+        "term": "Context switch",
+        "definition": "Lưu execution context hiện tại và khôi phục context khác."
+      },
+      {
+        "term": "Oversubscription",
+        "definition": "Runnable work nhiều hơn execution capacity."
+      },
+      {
+        "term": "CPU quota",
+        "definition": "Lượng CPU time container được phép dùng."
+      },
+      {
+        "term": "Cache locality",
+        "definition": "Tái sử dụng dữ liệu đang ở gần CPU core."
+      }
+    ]
+  },
+  {
+    "id": "transactional-outbox",
+    "title": "Transactional Outbox",
+    "summary": "Outbox đóng atomicity gap nhưng tạo relay lag, cleanup, ordering decision và duplicate delivery.",
+    "explanation": [
+      "Dual write vào database và broker không atomic.",
+      "Ghi business row và outbox row trong cùng database transaction, relay có retry và consumer phải idempotent.",
+      "Outbox đóng atomicity gap nhưng tạo relay lag, cleanup, ordering decision và duplicate delivery."
+    ],
+    "keyTerms": [
+      {
+        "term": "Dual write",
+        "definition": "Một logical action được ghi vào hai hệ thống độc lập."
+      },
+      {
+        "term": "Transactional outbox",
+        "definition": "Event được lưu atomic cùng business data."
+      },
+      {
+        "term": "Relay",
+        "definition": "Process publish các outbox row đang chờ."
+      },
+      {
+        "term": "Idempotent consumer",
+        "definition": "Consumer an toàn khi nhận duplicate delivery."
+      }
+    ]
+  },
+  {
+    "id": "kafka-offset-commit",
+    "title": "Kafka Offset và Delivery Semantics",
+    "summary": "Offset commit ghi nhận tiến độ đọc, không chứng minh business completion. Cam kết exactly-once luôn bị giới hạn bởi các hệ thống cùng tham gia transaction.",
+    "explanation": [
+      "At-least-once delivery replay record có side effect đã commit.",
+      "Dùng idempotency/inbox key trong cùng transaction với side effect rồi commit offset; chỉ chọn Kafka transaction khi transaction boundary phù hợp.",
+      "Offset commit ghi nhận tiến độ đọc, không chứng minh business completion. Cam kết exactly-once luôn bị giới hạn bởi các hệ thống cùng tham gia transaction."
+    ],
+    "keyTerms": [
+      {
+        "term": "Offset",
+        "definition": "Vị trí record trong một Kafka partition."
+      },
+      {
+        "term": "At-least-once",
+        "definition": "Record có thể được deliver nhiều lần nhưng không nên bị mất."
+      },
+      {
+        "term": "Inbox pattern",
+        "definition": "Lưu processed event ID cùng side effect."
+      },
+      {
+        "term": "Exactly-once boundary",
+        "definition": "Các resource chính xác nằm trong atomic guarantee."
+      }
+    ]
+  },
+  {
+    "id": "kafka-consumer-rebalance",
+    "title": "Kafka Consumer Rebalance",
+    "summary": "Rebalance an toàn cần pause intake, finish hoặc cancel work, và chỉ commit offset đã hoàn tất. Tune một timeout không sửa được unbounded work.",
+    "explanation": [
+      "Processing vượt poll interval và kích hoạt consumer-group rebalance liên tục.",
+      "Giảm/giới hạn processing, tune poll records và interval từ worst case đã đo, dùng cooperative rebalancing và cô lập poison/slow record.",
+      "Rebalance an toàn cần pause intake, finish hoặc cancel work, và chỉ commit offset đã hoàn tất. Tune một timeout không sửa được unbounded work."
+    ],
+    "keyTerms": [
+      {
+        "term": "Consumer group",
+        "definition": "Các consumer chia nhau partition của topic."
+      },
+      {
+        "term": "Rebalance",
+        "definition": "Phân phối lại ownership của partition."
+      },
+      {
+        "term": "max.poll.interval.ms",
+        "definition": "Khoảng tối đa được phép giữa hai lần poll."
+      },
+      {
+        "term": "Cooperative rebalancing",
+        "definition": "Di chuyển partition từng phần để giảm stop-the-world churn."
+      }
+    ]
+  },
+  {
+    "id": "cache-hot-key",
+    "title": "Cache Hot Key",
+    "summary": "Thêm shard không tự chia một key. Cách xử lý phụ thuộc staleness tolerance, write rate, value size và invalidation cost.",
+    "explanation": [
+      "Một hot key tập trung traffic vào duy nhất một partition.",
+      "Dùng near-cache/request coalescing, replicate hoặc split hot value khi an toàn, bảo vệ origin bằng limit và đo load theo key/shard.",
+      "Thêm shard không tự chia một key. Cách xử lý phụ thuộc staleness tolerance, write rate, value size và invalidation cost."
+    ],
+    "keyTerms": [
+      {
+        "term": "Hot key",
+        "definition": "Key nhận lượng traffic lớn bất thường."
+      },
+      {
+        "term": "Request coalescing",
+        "definition": "Nhiều concurrent miss dùng chung một origin fetch."
+      },
+      {
+        "term": "Near cache",
+        "definition": "Cache nhỏ nằm gần mỗi application instance."
+      },
+      {
+        "term": "Shard skew",
+        "definition": "Load phân bố không đều giữa các partition."
+      }
+    ]
+  },
+  {
+    "id": "sql-injection",
+    "title": "Phòng chống SQL Injection",
+    "summary": "Tự escape bằng tay rất dễ sai. Parameterization tách code khỏi data nhưng không thay thế tenant authorization.",
+    "explanation": [
+      "Untrusted input bị database hiểu thành SQL code.",
+      "Dùng parameterized query cho value, allowlist identifier/operator động, giảm DB privilege và test authorization độc lập.",
+      "Tự escape bằng tay rất dễ sai. Parameterization tách code khỏi data nhưng không thay thế tenant authorization."
+    ],
+    "keyTerms": [
+      {
+        "term": "SQL injection",
+        "definition": "Input làm thay đổi cấu trúc SQL statement."
+      },
+      {
+        "term": "Parameterized query",
+        "definition": "Cấu trúc SQL cố định còn value được bind riêng."
+      },
+      {
+        "term": "Allowlist",
+        "definition": "Chỉ lựa chọn được cho phép rõ ràng mới được chấp nhận."
+      },
+      {
+        "term": "Least privilege",
+        "definition": "Chỉ cấp permission cần cho nhiệm vụ."
+      }
+    ]
+  },
+  {
+    "id": "ssrf-defense",
+    "title": "Phòng chống SSRF",
+    "summary": "String-prefix check có thể bị vượt qua bằng DNS, redirect, IPv6 và encoding. Cần cả application validation lẫn network control.",
+    "explanation": [
+      "Server-Side Request Forgery cho attacker chọn network destination có quyền cao.",
+      "Allowlist scheme/destination, resolve và validate mọi hop, chặn private/link-local range ở egress, giới hạn redirect và cô lập fetcher.",
+      "String-prefix check có thể bị vượt qua bằng DNS, redirect, IPv6 và encoding. Cần cả application validation lẫn network control."
+    ],
+    "keyTerms": [
+      {
+        "term": "SSRF",
+        "definition": "Attacker khiến server gửi request tới destination ngoài ý muốn."
+      },
+      {
+        "term": "Link-local",
+        "definition": "Address chỉ có hiệu lực trên local network segment."
+      },
+      {
+        "term": "Egress control",
+        "definition": "Policy giới hạn outbound network access."
+      },
+      {
+        "term": "DNS rebinding",
+        "definition": "Hostname đổi kết quả resolve để vượt validation."
+      }
+    ]
+  },
+  {
+    "id": "authentication-authorization",
+    "title": "Authentication và Authorization",
+    "summary": "Valid token chứng minh identity và một số claim. Mỗi protected action vẫn cần policy evaluation cho resource đích.",
+    "explanation": [
+      "Đã có authentication nhưng thiếu object-level authorization.",
+      "Enforce authorization tại data-access boundary với tenant/user scope, deny by default và test cross-tenant ID.",
+      "Valid token chứng minh identity và một số claim. Mỗi protected action vẫn cần policy evaluation cho resource đích."
+    ],
+    "keyTerms": [
+      {
+        "term": "Authentication",
+        "definition": "Xác lập caller là ai."
+      },
+      {
+        "term": "Authorization",
+        "definition": "Quyết định caller được làm gì với resource."
+      },
+      {
+        "term": "BOLA/IDOR",
+        "definition": "Truy cập object khi thiếu object-level authorization."
+      },
+      {
+        "term": "Deny by default",
+        "definition": "Từ chối access trừ khi policy rõ ràng cho phép."
+      }
+    ]
+  },
+  {
+    "id": "api-idempotency-key",
+    "title": "API Idempotency",
+    "summary": "Idempotency cần key scope, retention window, cách xử lý concurrent request và quan hệ atomic với side effect.",
+    "explanation": [
+      "Create operation thiếu stable idempotency key nên replay side effect đã commit.",
+      "Yêu cầu idempotency key có scope, atomic lưu request hash cùng result, trả original result khi replay và từ chối tái dùng key với input khác.",
+      "Idempotency cần key scope, retention window, cách xử lý concurrent request và quan hệ atomic với side effect."
+    ],
+    "keyTerms": [
+      {
+        "term": "Idempotency key",
+        "definition": "Identity do client cung cấp cho một logical command."
+      },
+      {
+        "term": "Request fingerprint",
+        "definition": "Hash để phát hiện tái dùng key với input khác."
+      },
+      {
+        "term": "Replay",
+        "definition": "Lặp lại command đã từng thử."
+      },
+      {
+        "term": "Atomic persistence",
+        "definition": "Lưu deduplication state và outcome mà không có partial gap."
+      }
+    ]
+  },
+  {
+    "id": "overload-load-shedding",
+    "title": "Overload và Load Shedding",
+    "summary": "Availability nên tính response hữu ích trong deadline. Từ chối excess work sớm có thể giữ lại nhiều successful work hơn.",
+    "explanation": [
+      "Unbounded queueing cùng retry biến overload thành congestion collapse.",
+      "Đặt admission limit, bounded queue và deadline; shed low-priority work, áp dụng retry budget/backoff, graceful degradation và scale theo saturation signal.",
+      "Availability nên tính response hữu ích trong deadline. Từ chối excess work sớm có thể giữ lại nhiều successful work hơn."
+    ],
+    "keyTerms": [
+      {
+        "term": "Load shedding",
+        "definition": "Từ chối excess work để bảo vệ useful throughput."
+      },
+      {
+        "term": "Admission control",
+        "definition": "Quyết định work mới có được đi vào hệ thống hay không."
+      },
+      {
+        "term": "Retry budget",
+        "definition": "Giới hạn extra load do retry sinh ra."
+      },
+      {
+        "term": "Saturation",
+        "definition": "Resource bị giới hạn đang hoạt động gần capacity."
+      }
+    ]
+  }
+]
+

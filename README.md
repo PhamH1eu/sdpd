@@ -1,5 +1,7 @@
 # SDPD — Systems Design Police Department 🔍
 
+> This fork expands the campaign to 58 cases and adds Vietnamese UI/content for a backend-engineering curriculum. See [`docs/CURRICULUM-VI.md`](docs/CURRICULUM-VI.md).
+
 > **An interactive educational game for mastering distributed systems design through detective-style problem-solving**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -10,7 +12,7 @@
 
 ## 📖 Overview
 
-SDPD is a gamified learning platform that teaches distributed systems design concepts through interactive detective cases. Instead of reading theory, you solve **33 real-world system failure scenarios** where you must:
+SDPD is a gamified learning platform that teaches distributed systems and backend engineering concepts through interactive detective cases. Instead of reading theory, you solve **58 system failure scenarios** where you must:
 
 1. **Investigate** — Inspect system components and logs to understand what failed
 2. **Diagnose** — Identify the root cause of the failure
@@ -22,7 +24,7 @@ Each case is tied to specific distributed systems concepts (replication, consist
 
 ## ✨ Features
 
-- 🎮 **33 Interactive Cases** — Progressive difficulty, unlocked sequentially
+- 🎮 **58 Interactive Cases** — Progressive difficulty across distributed systems, databases, OS/concurrency, backend reliability, and security
 - 🏆 **Achievement System** — 7 ranks from Rookie to Chief based on completion
 - 🔬 **Visual System Diagrams** — Interactive node inspection with debug logs
 - 🌍 **Multilingual** — English and Portuguese (Brazil) support
@@ -90,7 +92,7 @@ Without those env vars, the app makes zero network calls related to accounts —
 
 ### Game Flow
 
-1. **Home Page** — View all 33 cases organized by concept category
+1. **Home Page** — View all 58 cases organized by concept category
    - See your current rank and progress percentage
    - Click on a case to begin investigation
 
@@ -118,6 +120,9 @@ Without those env vars, the app makes zero network calls related to accounts —
 | 💿 **Storage** | 22-25 | Partitioning, indexing, write amplification |
 | 🌐 **Networking** | 26-29 | Latency, bandwidth, packet loss, timeouts |
 | 🔮 **Advanced** | 30-33 | Distributed tracing, chaos engineering, orchestration |
+| 🗄️ **Database Engineering** | 34-39 | Normalization, indexes, query plans, pools, concurrency |
+| 🧵 **OS & Concurrency** | 40-49 | Processes, threads, GIL, async, memory, scheduling |
+| 🛡️ **Backend Reliability & Security** | 50-58 | Outbox, Kafka, cache hot keys, API security, overload |
 
 ---
 
@@ -134,6 +139,8 @@ Complete cases to climb the ranks:
 | Sergeant | 17 | ⭐ |
 | Lieutenant | 25 | 🎖️ |
 | Chief | 33 | 👑 |
+| Architect | 45 | 🏗️ |
+| Principal Engineer | 58 | 🧭 |
 
 ---
 
@@ -386,7 +393,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 ## 📊 Statistics
 
-- **33 Cases** across 8 categories
+- **58 Cases** across 11 categories
 - **50+ Concepts** explained
 - **100+ Multiple-choice Questions**
 - **7 Achievement Ranks**

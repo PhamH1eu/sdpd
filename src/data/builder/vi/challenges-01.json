@@ -1,0 +1,76 @@
+{
+  "id": "builder-01",
+  "number": 1,
+  "title": "Giờ cao điểm API",
+  "subtitle": "Giao thông tăng cao đang khiến các request của cảnh sát bị timeout",
+  "objective": "Chọn và kết nối các bộ phận hấp thụ lưu lượng tăng đột biến trong khi vẫn giữ đường dẫn request ổn định.",
+  "constraints": [
+    "Ưu tiên khả năng mở rộng theo chiều ngang",
+    "Tránh tắc nghẽn đơn lẻ trong định tuyến request",
+    "Kết nối các thành phần trong luồng lưu lượng dự kiến"
+  ],
+  "availableComponents": [
+    "client",
+    "cdn",
+    "loadBalancer",
+    "api",
+    "cache",
+    "database"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Phân phối lưu lượng truy cập",
+      "description": "Sử dụng load balancer trước các dịch vụ API.",
+      "requiredAll": [
+        "client",
+        "loadBalancer",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        },
+        {
+          "from": "loadBalancer",
+          "to": "api"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Gia tốc Read",
+      "description": "Thêm cache hoặc CDN để giảm áp lực API khi đọc lặp lại.",
+      "requiredAnyOf": [
+        "cache",
+        "cdn"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "cache"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Nguồn sự thật bền bỉ",
+      "description": "Liên tục yêu cầu thông qua API vào bộ lưu trữ lâu bền.",
+      "requiredAnyOf": [
+        "database",
+        "blobStorage"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "database"
+        },
+        {
+          "from": "api",
+          "to": "blobStorage"
+        }
+      ]
+    }
+  ]
+}

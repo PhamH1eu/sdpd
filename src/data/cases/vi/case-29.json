@@ -1,0 +1,221 @@
+{
+  "id": "case-29",
+  "number": 29,
+  "title": "Thảm họa DNS",
+  "subtitle": "Khi máy chủ di chuyển và không ai nhận được địa chỉ mới",
+  "brief": {
+    "narrative": "Lúc đó là 2 giờ sáng khi nhóm cơ sở hạ tầng Distributia PD thay thế một máy chủ bị lỗi trong Theo dõi bằng chứng cluster. Máy chủ mới trực tuyến với địa chỉ IP mới — 10.0.5.47 thay vì 10.0.5.31 cũ. Mọi thứ trông có vẻ ổn từ góc nhìn của máy chủ mới. Nhưng chỉ trong vài phút, điện thoại bắt đầu đổ chuông. Phòng thí nghiệm pháp y không thể gửi báo cáo bằng chứng. Cổng thông tin Liên lạc Tòa án hiển thị 'Kết nối bị từ chối.' Ứng dụng Tải lên Bằng chứng Tuần tra đã ngừng hoạt động. Vấn đề? Mọi service giao tiếp với Trình theo dõi Bằng chứng đều có địa chỉ IP cũ được mã hóa cứng trong các tệp cấu hình của nó. Không có DNS, không có đăng ký service, không có cơ chế phát hiện service — chỉ có các địa chỉ IP thô nằm rải rác trên hàng chục tệp cấu hình trong hàng chục dịch vụ. Thám tử DNS nhìn chằm chằm vào một tấm bảng trắng có đầy địa chỉ IP và mũi tên, cố gắng tìm ra dịch vụ nào trong số 23 dịch vụ phụ thuộc vào Trình theo dõi Bằng chứng vẫn trỏ đến một chiếc máy không còn tồn tại.",
+    "symptoms": [
+      "Trình theo dõi bằng chứng hoạt động tốt trên IP mới (10.0.5.47) nhưng các dịch vụ khác không thể truy cập được",
+      "Phòng thí nghiệm pháp y, Liên lạc tòa án và Đội tuần tra Tải lên tất cả báo cáo lỗi 'Kết nối bị từ chối'",
+      "Tất cả các dịch vụ phụ thuộc đều có IP cũ (10.0.5.31) được mã hóa cứng trong tệp cấu hình",
+      "Không có đăng ký service tập trung hoặc DNS nào tồn tại để khám phá service nội bộ"
+    ],
+    "objective": "Xác định lý do tại sao việc thay thế máy chủ lại làm gián đoạn giao tiếp giữa các dịch vụ và xác định cách tiếp cận chính xác để khám phá service vẫn tồn tại sau những thay đổi về cơ sở hạ tầng."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "evidence-tracker",
+        "type": "server",
+        "label": "Trình theo dõi bằng chứng (mới)",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 400,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Trình theo dõi bằng chứng Service (Máy chủ mới)",
+          "logs": [
+            "[02:15:00] INFO: Service started on 10.0.5.47:8080",
+            "[02:15:01] INFO: Database connection established",
+            "[02:15:02] INFO: Health check passing — all systems nominal",
+            "[02:16:00] WARN: No incoming requests in 60s — unusually quiet",
+            "[02:20:00] WARN: Still no incoming requests — 5 minutes of silence"
+          ],
+          "data": {
+            "IP Address": "10.0.5.47 (MỚI)",
+            "Old IP": "10.0.5.31 (NGỪNG ngừng hoạt động)",
+            "Status": "KHỎE MẠNH - chấp nhận yêu cầu",
+            "Requests Received": "0 kể từ khi khởi động",
+            "Registered In": "Không có sổ đăng ký service nào tồn tại"
+          },
+          "status": "Service vẫn hoạt động tốt và sẵn sàng nhưng không khách hàng nào có thể tìm thấy nó ở IP mới."
+        }
+      },
+      {
+        "id": "forensics-lab",
+        "type": "client",
+        "label": "Phòng thí nghiệm pháp y",
+        "status": "thất bại",
+        "position": {
+          "x": 80,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cổng thông tin phòng thí nghiệm pháp y",
+          "logs": [
+            "[02:16:05] INFO: Submitting DNA evidence report for Case #7821",
+            "[02:16:05] ERROR: Connection refused to 10.0.5.31:8080",
+            "[02:16:10] ERROR: Retry 1 — Connection refused to 10.0.5.31:8080",
+            "[02:16:15] ERROR: Retry 2 — Connection refused to 10.0.5.31:8080",
+            "[02:16:20] ERROR: Evidence submission failed — Evidence Tracker unreachable"
+          ],
+          "data": {
+            "Config File": "pháp y-lab.conf",
+            "evidence_tracker_host": "10.0.5.31 (MÃ CỨNG - CŨ)",
+            "Last Config Update": "6 tháng trước",
+            "Discovery Method": "IP thủ công trong tập tin cấu hình"
+          },
+          "status": "Không thể truy cập Trình theo dõi bằng chứng - vẫn trỏ đến IP đã ngừng hoạt động."
+        }
+      },
+      {
+        "id": "court-liaison",
+        "type": "client",
+        "label": "Liên lạc tòa án",
+        "status": "thất bại",
+        "position": {
+          "x": 80,
+          "y": 220
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cổng thông tin liên lạc của tòa án",
+          "logs": [
+            "[02:17:00] INFO: Requesting evidence chain-of-custody for Case #6554",
+            "[02:17:01] ERROR: Connection refused to 10.0.5.31:8080",
+            "[02:17:30] ERROR: Evidence chain request failed — service unreachable"
+          ],
+          "data": {
+            "Config File": "tòa án-liaison.yaml",
+            "evidence_api_url": "http://10.0.5.31:8080/api (HARDCODED - STALE)",
+            "Last Config Update": "4 tháng trước",
+            "Discovery Method": "IP thủ công trong tập tin cấu hình"
+          },
+          "status": "Không thể truy xuất hồ sơ bằng chứng - trỏ đến địa chỉ IP cũ."
+        }
+      },
+      {
+        "id": "patrol-upload",
+        "type": "client",
+        "label": "Tải lên bằng chứng tuần tra",
+        "status": "thất bại",
+        "position": {
+          "x": 80,
+          "y": 390
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Ứng dụng tải lên bằng chứng tuần tra",
+          "logs": [
+            "[02:18:00] INFO: Officer uploading body-cam footage for Incident #9203",
+            "[02:18:01] ERROR: Connection refused to 10.0.5.31:8080",
+            "[02:18:05] ERROR: Upload failed — Evidence Tracker unreachable",
+            "[02:18:10] WARN: Queueing upload locally — will retry when service available"
+          ],
+          "data": {
+            "Config File": "tuần tra-upload.env",
+            "EVIDENCE_HOST": "10.0.5.31 (MÃ CỨNG - CŨ)",
+            "Last Config Update": "8 tháng trước",
+            "Queued Uploads": "23 (đang phát triển)"
+          },
+          "status": "Không thể tải lên bằng chứng - điểm IP được mã hóa cứng tới máy chủ đã ngừng hoạt động."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-forensics-evidence",
+        "source": "forensics-lab",
+        "target": "evidence-tracker",
+        "label": "10.0.5.31 (sai IP)",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-court-evidence",
+        "source": "court-liaison",
+        "target": "evidence-tracker",
+        "label": "10.0.5.31 (sai IP)",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-patrol-evidence",
+        "source": "patrol-upload",
+        "target": "evidence-tracker",
+        "label": "10.0.5.31 (sai IP)",
+        "animated": false,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của tất cả các dịch vụ mất liên lạc với Công cụ theo dõi bằng chứng là gì?",
+      "options": [
+        {
+          "id": "rc-3",
+          "text": "Địa chỉ IP được mã hóa cứng không có cơ chế phát hiện service có nghĩa là bất kỳ thay đổi cơ sở hạ tầng nào cũng sẽ phá vỡ giao tiếp giữa các dịch vụ",
+          "correct": true,
+          "feedback": "Chính xác! Khi các dịch vụ tìm thấy nhau bằng các IP được mã hóa cứng, mọi thay đổi cơ sở hạ tầng (thay thế máy chủ, mở rộng quy mô, failover, di chuyển) đều yêu cầu cập nhật thủ công mọi cấu hình của service phụ thuộc. Điều này không có quy mô và cực kỳ mong manh. Khám phá Service — cho dù thông qua DNS, sổ đăng ký service như Consul/Eureka hoặc Kubernetes service trừu tượng — tách danh tính service khỏi vị trí network, cho phép cơ sở hạ tầng thay đổi mà không làm gián đoạn liên lạc."
+        },
+        {
+          "id": "rc-1",
+          "text": "Nhóm cơ sở hạ tầng quên cập nhật địa chỉ IP trong file config của tất cả 23 dịch vụ phụ thuộc sau khi thay thế khiến hệ thống bị lỗi",
+          "correct": false,
+          "feedback": "Mặc dù cách khắc phục trước mắt là cập nhật cấu hình nhưng việc đổ lỗi cho nhóm vận hành đã bỏ sót vấn đề hệ thống. Với hơn 23 dịch vụ phụ thuộc, mỗi dịch vụ mã hóa cứng một IP, các bản cập nhật cấu hình thủ công dễ bị lỗi và không mở rộng quy mô. root cause là kiến ​​trúc: không có cơ chế khám phá service, do đó, bất kỳ thay đổi IP nào đều yêu cầu tìm kiếm và cập nhật mọi máy khách theo cách thủ công."
+        },
+        {
+          "id": "rc-2",
+          "text": "Máy chủ thay thế mới phải được gán cùng địa chỉ IP tĩnh với địa chỉ cũ đã ngừng hoạt động",
+          "correct": false,
+          "feedback": "Việc sử dụng lại IP rất mong manh và không phải lúc nào cũng có thể thực hiện được (mạng con khác, môi trường đám mây, v.v.). Vấn đề thực sự là các dịch vụ đều phụ thuộc vào một địa chỉ IP cụ thể. Khám phá service thích hợp sẽ tách danh tính service khỏi vị trí network."
+        },
+        {
+          "id": "rc-4",
+          "text": "Máy chủ Theo dõi Bằng chứng lẽ ra phải được cấu hình để nghe trên IP 10.0.5.31, ngay cả khi nó nằm trên phần cứng mới",
+          "correct": false,
+          "feedback": "Liên kết với một IP thuộc về một máy khác là cấu hình sai network đang chờ xảy ra. Giải pháp không phải là buộc cơ sở hạ tầng mới bắt chước các IP cũ — mà là có một lớp khám phá trừu tượng hóa hoàn toàn các địa chỉ IP."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Giải pháp lâu dài tốt nhất để ngăn chặn tình trạng ngừng hoạt động này là gì?",
+      "options": [
+        {
+          "id": "fix-2",
+          "text": "Triển khai hệ thống khám phá service nơi các dịch vụ tự đăng ký và khách hàng tự động tra cứu điểm cuối",
+          "correct": true,
+          "feedback": "Chính xác! Với tính năng khám phá service (dựa trên DNS như CoreDNS, dựa trên sổ đăng ký như Consul/Eureka hoặc nền tảng gốc như Kubernetes Services), Trình theo dõi Bằng chứng sẽ tự đăng ký khi khởi động với IP hiện tại của nó. Khách hàng tra cứu 'trình theo dõi bằng chứng' theo tên thay vì theo IP. Khi máy chủ được thay thế, phiên bản mới sẽ tự động đăng ký và khách hàng sẽ tìm thấy nó ngay lập tức. Không có thay đổi cấu hình thủ công, không có IP được mã hóa cứng và cơ sở hạ tầng có thể thay đổi tự do."
+        },
+        {
+          "id": "fix-1",
+          "text": "Tạo tệp cấu hình trung tâm dùng chung liệt kê tất cả các IP service để chỉ có một nơi duy nhất cần cập nhật",
+          "correct": false,
+          "feedback": "Tệp cấu hình tập trung tốt hơn một chút so với cấu hình phân tán nhưng vẫn yêu cầu cập nhật thủ công khi IP thay đổi. Nó cũng tạo ra một điểm thất bại duy nhất. Khám phá service thực sự rất năng động - các dịch vụ tự động đăng ký khi chúng khởi động."
+        },
+        {
+          "id": "fix-3",
+          "text": "Đặt load balancer có IP ảo tĩnh trước Trình theo dõi bằng chứng để khách hàng luôn kết nối với cùng một địa chỉ",
+          "correct": false,
+          "feedback": "load balancer hỗ trợ một service duy nhất nhưng không giải quyết được vấn đề hệ thống. Bạn cần có load balancer cho mọi service và bản thân các bộ cân bằng tải đó cần được phát hiện. Hệ thống khám phá service thích hợp là giải pháp chung xử lý tất cả hoạt động liên lạc giữa các dịch vụ."
+        },
+        {
+          "id": "fix-4",
+          "text": "Xây dựng tập lệnh quản lý cấu hình tự động cập nhật tất cả các tệp cấu hình bị ảnh hưởng bất cứ khi nào địa chỉ IP máy chủ thay đổi",
+          "correct": false,
+          "feedback": "Tự động cập nhật cấu hình tốt hơn thay đổi thủ công nhưng vẫn yêu cầu khởi động lại dịch vụ để nhận cấu hình mới, biết dịch vụ nào phụ thuộc vào dịch vụ nào và xử lý khoảng cách giữa thay đổi IP và truyền bá cấu hình. Khám phá Service làm cho điều này hoàn toàn năng động và theo thời gian thực."
+        }
+      ]
+    }
+  },
+  "conceptId": "service-discovery",
+  "badge": {
+    "name": "Đại lý khám phá",
+    "icon": "🔭"
+  }
+}

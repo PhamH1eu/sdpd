@@ -1,0 +1,172 @@
+{
+  "id": "case-42",
+  "number": 42,
+  "title": "The Local Deadlock",
+  "subtitle": "Two threads wait forever with zero CPU",
+  "brief": {
+    "narrative": "Thread A locks account 1 then waits for account 2. Thread B locks account 2 then waits for account 1. Both block forever.",
+    "symptoms": [
+      "Thread Pool metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Two threads wait forever with zero CPU"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "Two threads wait forever with zero CPU"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Thread Pool shows an anomaly",
+            "[09:00:20] WARN Two threads wait forever with zero CPU",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "Two threads wait forever with zero CPU",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Thread Pool",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Thread Pool",
+          "logs": [
+            "Thread Pool metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-2",
+          "text": "A socket/file-descriptor leak exhausted the per-process limit.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "CPU oversubscription created scheduling and cache-locality overhead.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Opposite lock ordering created a circular wait.",
+          "correct": true,
+          "feedback": "Correct. Deadlock requires mutual exclusion, hold-and-wait, no preemption, and circular wait. Break at least one condition by design."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Memory pressure caused virtual-memory thrashing.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-3",
+          "text": "Size CPU-bound workers near the effective CPU quota, batch work, and measure run queue, throttling, switches, and throughput.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Define a global lock order, acquire in that order, keep lock scope small, and use timeouts only as a recovery safety net.",
+          "correct": true,
+          "feedback": "Correct. Deadlock requires mutual exclusion, hold-and-wait, no preemption, and circular wait. Break at least one condition by design."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Reduce working sets, cap concurrency/cache memory, add RAM only after measurement, and alert on major faults and swap activity.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Close resources with context managers/finally, reuse bounded client pools, expose descriptor metrics, and keep a deliberate ulimit.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "thread-deadlock",
+  "badge": {
+    "name": "The Local Deadlock",
+    "icon": "🔒"
+  }
+}

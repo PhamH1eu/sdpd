@@ -1,0 +1,213 @@
+{
+  "id": "case-01",
+  "number": 1,
+  "title": "Điểm thất bại duy nhất",
+  "subtitle": "Hồ sơ tội phạm bị che mờ khắp các khu vực",
+  "brief": {
+    "narrative": "Bây giờ là 2 giờ sáng và điều phối tràn ngập các cuộc gọi. Mọi khu vực ở Distributia đều báo cáo điều giống nhau: cảnh sát không thể tra cứu hồ sơ tội phạm. Không có tiền án, không có lệnh bắt, không có vụ án nào tồn đọng. Hồ sơ tội phạm trung ương Database - cơ quan duy nhất - vừa ngoại tuyến. Một sĩ quan tuần tra đã chặn một nghi phạm có 3 lệnh truy nã còn tồn đọng và phải thả người đó đi vì hệ thống không hiển thị gì. Cảnh sát trưởng Partition muốn câu trả lời, Thám tử.",
+    "symptoms": [
+      "Cả 3 khu vực đều báo cáo mất hoàn toàn quyền truy cập hồ sơ tội phạm",
+      "Máy chủ database trung tâm hiển thị cảnh báo lỗi phần cứng",
+      "Không có hệ thống dự phòng nào phản hồi",
+      "Các quan chức tại hiện trường không thể xác minh lệnh hoặc lệnh trước"
+    ],
+    "objective": "Xác định lý do tại sao một lỗi máy chủ đã làm hỏng toàn bộ hệ thống hồ sơ và đề xuất cách khắc phục để ngăn điều này xảy ra lần nữa."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "db-central",
+        "type": "database",
+        "label": "Hồ sơ trung tâm DB",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hồ sơ trung tâm DB",
+          "logs": [
+            "[02:01:33] WARN: Disk I/O latency exceeding thresholds",
+            "[02:01:47] ERROR: Disk failure detected on /dev/sda1",
+            "[02:01:48] FATAL: Unable to read data files",
+            "[02:01:48] FATAL: Database process terminated",
+            "[02:01:49] INFO: No failover configured"
+          ],
+          "data": {
+            "Status": "NGOẠI TUYẾN",
+            "Uptime": "0s (bị lỗi)",
+            "Records": "Bản ghi 2,4 triệu (không thể truy cập)",
+            "Replicas": "Không có cấu hình nào",
+            "Last Backup": "72 giờ trước"
+          },
+          "status": "Lỗi phần cứng - disk gặp sự cố. Không có cấu hình replication hoặc failover."
+        }
+      },
+      {
+        "id": "precinct-north",
+        "type": "client",
+        "label": "Phân khu phía Bắc",
+        "status": "thất bại",
+        "position": {
+          "x": 100,
+          "y": 280
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Đồn cảnh sát phía Bắc",
+          "logs": [
+            "[02:02:01] ERROR: Connection to records DB refused",
+            "[02:02:01] ERROR: Query timeout after 5000ms",
+            "[02:02:15] WARN: All record lookups failing"
+          ],
+          "data": {
+            "Status": "KHÔNG CÓ KẾT NỐI DATABASE",
+            "Pending Queries": "47",
+            "Officers Active": "12"
+          },
+          "status": "Không thể kết nối với database trung tâm. Không có sẵn dự phòng."
+        }
+      },
+      {
+        "id": "precinct-south",
+        "type": "client",
+        "label": "Phân khu Nam",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 280
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Đồn cảnh sát phía Nam",
+          "logs": [
+            "[02:02:03] ERROR: Connection to records DB refused",
+            "[02:02:04] ERROR: Query timeout after 5000ms"
+          ],
+          "data": {
+            "Status": "KHÔNG CÓ KẾT NỐI DATABASE",
+            "Pending Queries": "23",
+            "Officers Active": "8"
+          },
+          "status": "Không thể kết nối với database trung tâm. Không có sẵn dự phòng."
+        }
+      },
+      {
+        "id": "precinct-east",
+        "type": "client",
+        "label": "Phường Đông",
+        "status": "thất bại",
+        "position": {
+          "x": 600,
+          "y": 280
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Đồn cảnh sát phía Đông",
+          "logs": [
+            "[02:02:05] ERROR: Connection to records DB refused",
+            "[02:02:06] ERROR: Query timeout after 5000ms"
+          ],
+          "data": {
+            "Status": "KHÔNG CÓ KẾT NỐI DATABASE",
+            "Pending Queries": "31",
+            "Officers Active": "10"
+          },
+          "status": "Không thể kết nối với database trung tâm. Không có sẵn dự phòng."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-db-north",
+        "source": "db-central",
+        "target": "precinct-north",
+        "label": "truy vấn",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-db-south",
+        "source": "db-central",
+        "target": "precinct-south",
+        "label": "truy vấn",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-db-east",
+        "source": "db-central",
+        "target": "precinct-east",
+        "label": "truy vấn",
+        "animated": false,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của tình trạng ngừng hoạt động trên toàn hệ thống là gì?",
+      "options": [
+        {
+          "id": "rc-4",
+          "text": "Quá nhiều truy vấn đồng thời từ tất cả các khu vực cùng một lúc làm choáng ngợp máy chủ database được chia sẻ duy nhất",
+          "correct": false,
+          "feedback": "Nhật ký hiển thị lỗi disk phần cứng chứ không phải lỗi quá tải hiệu năng. Các truy vấn không thành công vì máy chủ ngừng hoạt động chứ không phải vì quá tải."
+        },
+        {
+          "id": "rc-2",
+          "text": "Máy chủ database duy nhất là một điểm lỗi — khi nó gặp sự cố, không có replica nào để xử lý các yêu cầu",
+          "correct": true,
+          "feedback": "Chính xác! Toàn bộ hệ thống phụ thuộc vào một máy chủ database không có bản sao. Khi disk của máy chủ đó bị lỗi, mọi khu vực đều mất quyền truy cập. Đây là vấn đề về một điểm lỗi (SPOF) cổ điển."
+        },
+        {
+          "id": "rc-1",
+          "text": "network partition đang ngăn tất cả các khu vực kết nối và liên lạc với database trung tâm",
+          "correct": false,
+          "feedback": "Không hẳn. Nhật ký database hiển thị lỗi phần cứng disk chứ không phải sự cố network. Tất cả các khu vực đều gặp phải vấn đề tương tự vì tất cả đều phụ thuộc vào cùng một máy chủ."
+        },
+        {
+          "id": "rc-3",
+          "text": "database đã vượt quá dung lượng lưu trữ được phân bổ và ngừng chấp nhận các truy vấn đến cũng như các hoạt động write",
+          "correct": false,
+          "feedback": "Nhật ký hiển thị lỗi disk vật lý (sự cố phần cứng), không phải vấn đề về dung lượng lưu trữ. Nhưng ngay cả khi đó là vấn đề về lưu trữ thì vấn đề kiến ​​trúc thực sự là chỉ có một máy chủ."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để ngăn chặn điều này xảy ra lần nữa là gì?",
+      "options": [
+        {
+          "id": "fix-4",
+          "text": "Cài đặt phần cứng tốt hơn với tính năng dự phòng RAID disk trên máy chủ hiện có để bảo vệ khỏi các lỗi disk",
+          "correct": false,
+          "feedback": "RAID bảo vệ khỏi lỗi disk trên một máy, nhưng không giúp ích gì nếu toàn bộ máy chủ ngừng hoạt động (nguồn, bo mạch chủ, v.v.). Tính dự phòng thực sự cần có các máy riêng biệt — đó là những gì replication cung cấp."
+        },
+        {
+          "id": "fix-3",
+          "text": "Cung cấp cho mỗi khu vực bản sao database độc lập đầy đủ của riêng nó, tiếp tục hoạt động khi máy chủ chính ngoại tuyến",
+          "correct": false,
+          "feedback": "Mặc dù điều này loại bỏ điểm lỗi duy nhất, nhưng việc duy trì các bản sao đầy đủ độc lập ở mỗi khu vực sẽ tạo ra cơn ác mộng về dữ liệu consistency. Làm thế nào để bạn giữ tất cả các bản sao được đồng bộ? Replication với thiết lập người dẫn đầu-người theo dõi là cách tiếp cận tiêu chuẩn."
+        },
+        {
+          "id": "fix-1",
+          "text": "Thêm database replication - duy trì ít nhất một replica có thể tiếp quản nếu lỗi chính",
+          "correct": true,
+          "feedback": "Chính xác! Database replication tạo bản sao dữ liệu trên các máy chủ riêng biệt. Nếu chính (leader) không thành công, replica (follower) có thể được thăng cấp để xử lý các yêu cầu. Điều này giúp loại bỏ điểm thất bại duy nhất."
+        },
+        {
+          "id": "fix-2",
+          "text": "Tăng lịch sao lưu từ 72 giờ một lần lên chạy sao lưu tự động mỗi giờ",
+          "correct": false,
+          "feedback": "Sao lưu thường xuyên hơn sẽ giúp khôi phục dữ liệu nhưng chúng không giải quyết được vấn đề availability. Việc khôi phục từ bản sao lưu cần có thời gian — bạn cần một replica đang hoạt động có thể tiếp quản ngay lập tức."
+        }
+      ]
+    }
+  },
+  "conceptId": "replication-basics",
+  "badge": {
+    "name": "Tân binh dư thừa",
+    "icon": "🛡️"
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "id": "case-43",
+  "number": 43,
+  "title": "Thread pool bận rộn",
+  "subtitle": "Thêm Python thread không làm image hashing nhanh hơn",
+  "brief": {
+    "narrative": "Tám thread chạy pure-Python CPU work. Hầu hết core vẫn rảnh trong khi context switch tăng.",
+    "symptoms": [
+      "Metric của Python Runtime khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Thêm Python thread không làm image hashing nhanh hơn"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Thêm Python thread không làm image hashing nhanh hơn"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN Python Runtime xuất hiện anomaly",
+            "[09:00:20] WARN Thêm Python thread không làm image hashing nhanh hơn",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Thêm Python thread không làm image hashing nhanh hơn",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Python Runtime",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Python Runtime",
+          "logs": [
+            "Metric của Python Runtime khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-wrong-3",
+          "text": "Failure boundary là process chứ không phải thread; memory được cô lập giữa các process.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-correct",
+          "text": "GIL của CPython tuần tự hóa việc chạy Python bytecode giữa các CPU-bound thread.",
+          "correct": true,
+          "feedback": "Chính xác. Thread phù hợp blocking I/O. Với CPU-bound Python, cần đo workload có release GIL hay không trước khi chọn concurrency model."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Socket/file-descriptor leak làm cạn per-process limit.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "CPU oversubscription tạo scheduling overhead và phá cache locality.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-correct",
+          "text": "Dùng multiprocessing, native library có release GIL hoặc compute service riêng; benchmark serialization và memory cost.",
+          "correct": true,
+          "feedback": "Chính xác. Thread phù hợp blocking I/O. Với CPU-bound Python, cần đo workload có release GIL hay không trước khi chọn concurrency model."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Đóng resource bằng context manager/finally, tái sử dụng bounded client pool, expose descriptor metric và đặt ulimit có chủ đích.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Đặt số CPU-bound worker gần effective CPU quota, batch work và đo run queue, throttling, context switch, throughput.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Chạy công việc không an toàn hoặc CPU-bound trong worker process được supervisor quản lý; thiết kế IPC, restart, timeout và idempotency.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    }
+  },
+  "conceptId": "python-gil-cpu-bound",
+  "badge": {
+    "name": "Thread pool bận rộn",
+    "icon": "🐍"
+  }
+}

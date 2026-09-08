@@ -1,0 +1,237 @@
+{
+  "id": "case-30",
+  "number": 30,
+  "title": "Quận Deadlock",
+  "subtitle": "Hai dịch vụ bị mắc kẹt trong tình trạng bế tắc vĩnh viễn",
+  "brief": {
+    "narrative": "Đó là sự thay đổi ca làm việc tại Distributia PD và hệ thống đã bị đóng băng. Cơ quan đăng ký vũ khí Service và Sĩ quan Service đều hoàn toàn không phản hồi - không có lỗi, không gặp sự cố, chỉ im lặng. Cuộc điều tra cho thấy một cái ôm chết người: lúc 18:00:01, Cơ quan đăng ký vũ khí đã lấy được lock trong hồ sơ giao vũ khí của Sĩ quan # 347 và sau đó cố gắng truy cập lock trạng thái nhiệm vụ của sĩ quan để xác minh rằng họ đang trực ca. Cùng lúc đó, Sĩ quan làm nhiệm vụ Service đã nhận được lock trong trạng thái làm nhiệm vụ của Sĩ quan # 347 và sau đó cố gắng lấy bản ghi phân công vũ khí của lock để cập nhật danh sách thiết bị của sĩ quan. Mỗi service nắm giữ lock cho các nhu cầu khác và sẽ không phát hành lock cho đến khi có được thứ kia. Họ đang bế tắc - bị đóng băng trong sự chờ đợi vô tận, giữ toàn bộ người thay ca làm con tin. Đại úy Gridlock có 200 sĩ quan đang chờ kiểm tra vũ khí và về nhà, cùng 200 người khác đang chờ trang bị vũ khí và bắt đầu tuần tra. Không ai có thể làm được cả.",
+    "symptoms": [
+      "Cơ quan đăng ký vũ khí Service và Sĩ quan Service đều hoàn toàn không phản hồi (không có lỗi, không hết thời gian chờ)",
+      "Cả hai dịch vụ đều hiển thị mức sử dụng thread 100% nhưng CPU 0% - các luồng bị chặn, không hoạt động",
+      "Thay đổi ca process bị đóng băng - cảnh sát không thể kiểm tra hoặc kiểm tra vũ khí",
+      "Kết xuất Thread hiển thị cả hai dịch vụ đang chờ lấy khóa do dịch vụ kia nắm giữ"
+    ],
+    "objective": "Xác định deaddistributed lock giữa hai dịch vụ và xác định chiến lược chính xác để ngăn chặn và giải quyết bế tắc trong hệ thống phân tán."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "weapon-registry",
+        "type": "server",
+        "label": "Cơ quan đăng ký vũ khí",
+        "status": "thất bại",
+        "position": {
+          "x": 100,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cơ quan đăng ký vũ khí Service",
+          "logs": [
+            "[18:00:01] INFO: Processing weapon return for Officer #347",
+            "[18:00:01] INFO: LOCK ACQUIRED — weapon_assignment_347",
+            "[18:00:01] INFO: Requesting lock on duty_status_347 to verify shift status...",
+            "[18:00:01] WARN: Waiting for lock on duty_status_347 — held by Officer Duty Service",
+            "[18:00:31] WARN: Still waiting for lock on duty_status_347 — 30s elapsed",
+            "[18:02:01] WARN: Still waiting for lock on duty_status_347 — 120s elapsed"
+          ],
+          "data": {
+            "Status": "DEADLOCK",
+            "Lock Held": "vũ khí_phân công_347",
+            "Lock Waiting For": "nhiệm vụ_status_347",
+            "Lock Timeout": "KHÔNG (chờ vô thời hạn)",
+            "Blocked Threads": "50/50",
+            "CPU Usage": "0,1% (luồng ngủ, không hoạt động)"
+          },
+          "status": "Cầm vũ khí lock, chờ vô thời hạn trạng thái nhiệm vụ lock do Sĩ quan Service nắm giữ."
+        }
+      },
+      {
+        "id": "officer-duty",
+        "type": "server",
+        "label": "Sĩ quan trực Service",
+        "status": "thất bại",
+        "position": {
+          "x": 550,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Sĩ quan trực Service",
+          "logs": [
+            "[18:00:01] INFO: Processing shift change for Officer #347",
+            "[18:00:01] INFO: LOCK ACQUIRED — duty_status_347",
+            "[18:00:01] INFO: Requesting lock on weapon_assignment_347 to update equipment list...",
+            "[18:00:01] WARN: Waiting for lock on weapon_assignment_347 — held by Weapon Registry",
+            "[18:00:31] WARN: Still waiting for lock on weapon_assignment_347 — 30s elapsed",
+            "[18:02:01] WARN: Still waiting for lock on weapon_assignment_347 — 120s elapsed"
+          ],
+          "data": {
+            "Status": "DEADLOCK",
+            "Lock Held": "nhiệm vụ_status_347",
+            "Lock Waiting For": "vũ khí_phân công_347",
+            "Lock Timeout": "KHÔNG (chờ vô thời hạn)",
+            "Blocked Threads": "50/50",
+            "CPU Usage": "0,2% (luồng ngủ, không hoạt động)"
+          },
+          "status": "Đang giữ trạng thái nhiệm vụ lock, chờ đợi vô thời hạn vũ khí lock do Cơ quan đăng ký vũ khí nắm giữ."
+        }
+      },
+      {
+        "id": "shift-terminal",
+        "type": "client",
+        "label": "Thiết bị đầu cuối thay đổi ca",
+        "status": "thất bại",
+        "position": {
+          "x": 325,
+          "y": 300
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Thiết bị đầu cuối thay đổi ca",
+          "logs": [
+            "[18:00:05] INFO: Officer #348 requesting weapon check-in — sending to Weapon Registry",
+            "[18:00:35] WARN: No response from Weapon Registry — 30s timeout",
+            "[18:01:00] INFO: Officer #349 requesting shift start — sending to Officer Duty Service",
+            "[18:01:30] WARN: No response from Officer Duty Service — 30s timeout",
+            "[18:02:00] ERROR: Both services unresponsive — shift change blocked"
+          ],
+          "data": {
+            "Officers Waiting (Off-Duty)": "200 (không thể trả lại vũ khí)",
+            "Officers Waiting (On-Duty)": "200 (không thể nhận vũ khí)",
+            "Services Responding": "0 trên 2",
+            "Shift Change Status": "HOÀN TOÀN CHẶN"
+          },
+          "status": "400 sĩ quan mắc kẹt khi đổi ca Cả hai dịch vụ bắt buộc đều bị bế tắc."
+        }
+      },
+      {
+        "id": "lock-manager",
+        "type": "database",
+        "label": "Cửa hàng Lock phân phối",
+        "status": "xuống cấp",
+        "position": {
+          "x": 325,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cửa hàngRedis Lock Store",
+          "logs": [
+            "[18:00:01] INFO: Lock granted — weapon_assignment_347 → Weapon Registry (no TTL)",
+            "[18:00:01] INFO: Lock granted — duty_status_347 → Officer Duty Service (no TTL)",
+            "[18:00:01] INFO: Lock request — duty_status_347 → Weapon Registry (QUEUED — already held)",
+            "[18:00:01] INFO: Lock request — weapon_assignment_347 → Officer Duty Service (QUEUED — already held)",
+            "[18:05:00] WARN: 2 locks held for >5 minutes with no release"
+          ],
+          "data": {
+            "Active Locks": "2 (cả hai đều bị mắc kẹt)",
+            "Lock TTL": "KHÔNG - khóa không bao giờ hết hạn",
+            "Deadlock Detection": "KHÔNG THỰC HIỆN",
+            "Lock Order Enforcement": "KHÔNG CÓ"
+          },
+          "status": "Hai ổ khóa được giữ vô thời hạn. Không có TTL, không phát hiện deadlock, không đặt hàng lock."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-weapon-lock",
+        "source": "weapon-registry",
+        "target": "lock-manager",
+        "label": "cầm vũ khí lock, muốn làm nhiệm vụ lock",
+        "animated": false,
+        "style": "slow"
+      },
+      {
+        "id": "e-duty-lock",
+        "source": "officer-duty",
+        "target": "lock-manager",
+        "label": "giữ nhiệm vụ lock, muốn có vũ khí lock",
+        "animated": false,
+        "style": "slow"
+      },
+      {
+        "id": "e-terminal-weapon",
+        "source": "shift-terminal",
+        "target": "weapon-registry",
+        "label": "không có response",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-terminal-duty",
+        "source": "shift-terminal",
+        "target": "officer-duty",
+        "label": "không có response",
+        "animated": false,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của cả hai dịch vụ bị đóng băng hoàn toàn là gì?",
+      "options": [
+        {
+          "id": "rc-2",
+          "text": "deaddistributed lock - hai dịch vụ, mỗi dịch vụ chứa một lock mà dịch vụ kia cần, không có timeout hoặc yêu cầu phá vỡ chu trình",
+          "correct": true,
+          "feedback": "Chính xác! Đây là một deadlock cổ điển đáp ứng tất cả bốn điều kiện Coffman: loại trừ lẫn nhau (khóa là độc quyền), giữ và chờ (mỗi service giữ một lock trong khi chờ một lock khác), không có quyền ưu tiên (không thể cưỡng bức khóa) và chờ vòng tròn (A đợi B, B đợi A). Việc thiếu thời gian chờ lock có nghĩa là service sẽ không bao giờ từ bỏ và việc thiếu thứ tự lock nhất quán có nghĩa là sự phụ thuộc vòng tròn có thể hình thành."
+        },
+        {
+          "id": "rc-3",
+          "text": "Các dịch vụ bị lỗi và khóa của chúng không bao giờ được giải phóng do thiếu TTL trên khóa lock",
+          "correct": false,
+          "feedback": "Các dịch vụ không gặp sự cố — chúng vẫn đang chạy với mức sử dụng 100% thread. Chúng vẫn sống nhưng bị chặn, điều này thực sự còn tệ hơn cả một vụ va chạm (ít nhất một vụ va chạm sẽ được phát hiện khi kiểm tra sức khỏe). Các sợi dây đang ngủ, chờ đợi những khóa mà chúng sẽ không bao giờ có được."
+        },
+        {
+          "id": "rc-1",
+          "text": "Cửa hàng distributed lock Redis có một lỗi nội bộ khiến các khóa lock đã mua không được phát hành đúng cách",
+          "correct": false,
+          "feedback": "Redis đang hoạt động bình thường — nó đã cấp các khóa theo yêu cầu và đang chờ lệnh giải phóng một cách trung thực. Cửa hàng lock chỉ đang làm những gì được yêu cầu. Vấn đề là thứ tự các dịch vụ thu được khóa: mỗi dịch vụ lấy một lock rồi cố lấy một lock rồi cố gắng lấy một lock khác, tạo ra một vòng chờ đợi."
+        },
+        {
+          "id": "rc-4",
+          "text": "Việc thay đổi ca đồng thời process gửi quá nhiều yêu cầu lock đồng thời, khiến kho lock bị quá tải và bão hòa",
+          "correct": false,
+          "feedback": "Cửa hàng lock không bị quá tải — nó chỉ có 2 khóa hoạt động. Vấn đề không phải là số lượng, mà là thứ tự mua lại lock. Ngay cả một cặp yêu cầu cũng có thể gây ra deadlock nếu hai dịch vụ nhận được khóa theo thứ tự ngược nhau."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách tiếp cận tốt nhất để ngăn chặn bế tắc phân tán là gì?",
+      "options": [
+        {
+          "id": "fix-4",
+          "text": "Hợp nhất Cơ quan đăng ký vũ khí và Nhiệm vụ sĩ quan thành một service kết hợp duy nhất để việc khóa trở thành cục bộ thay vì phân tán",
+          "correct": false,
+          "feedback": "Trong khi việc hợp nhất loại bỏ khía cạnh phân tán, các bế tắc cục bộ vẫn có thể xảy ra trong một service. Ngoài ra, việc hợp nhất các dịch vụ còn vi phạm nguyên tắc trách nhiệm duy nhất và tạo ra phạm vi bùng nổ lớn hơn. Cách khắc phục chính xác - thứ tự và thời gian chờ của lock - hoạt động cho cả bế tắc cục bộ và phân tán."
+        },
+        {
+          "id": "fix-1",
+          "text": "Thêm nhiều luồng hơn đáng kể vào cả hai dịch vụ để một số luồng vẫn khả dụng ngay cả khi các luồng khác bị chặn chờ khóa",
+          "correct": false,
+          "feedback": "Nhiều luồng hơn chỉ có nghĩa là nhiều luồng hơn có thể tham gia vào bế tắc. Các luồng bị bế tắc sẽ không bao giờ được giải phóng — việc thêm nhiều luồng khác chỉ làm trì hoãn thời điểm tất cả các luồng được sử dụng. Bạn cần ngăn chặn hoặc phá vỡ chính deadlock."
+        },
+        {
+          "id": "fix-2",
+          "text": "Thực thi thứ tự lock toàn cầu - tất cả các dịch vụ phải có được các khóa theo cùng một thứ tự nhất quán và thêm thời gian chờ lock (TTL) làm mạng an toàn",
+          "correct": true,
+          "feedback": "Chính xác! Thứ tự lock nhất quán sẽ phá vỡ điều kiện chờ vòng tròn. Nếu tất cả các dịch vụ luôn có nhiệm vụ lock trước vũ khí lock (hoặc ngược lại), thì hai dịch vụ không bao giờ có thể nắm giữ những gì dịch vụ kia cần. Thời gian chờ của Lock (TTL) thêm mạng lưới an toàn - nếu deadlock bằng cách nào đó xảy ra, khóa sẽ hết hạn và giải phóng các dịch vụ. Cùng với nhau, những điều này ngăn chặn sự bế tắc và hạn chế tác động của chúng nếu một sự cố xảy ra."
+        },
+        {
+          "id": "fix-3",
+          "text": "Thay thế tất cả khóa phân tán bằng kiểm soát đồng thời lạc quan bằng cách sử dụng số phiên bản hàng để phát hiện xung đột",
+          "correct": false,
+          "feedback": "Tính đồng thời lạc quan hoạt động tốt trong các tình huống ít tranh chấp, nhưng việc phân công vũ khí khi thay ca có mức độ tranh chấp cao - 400 sĩ quan cùng lúc. Bạn sẽ thấy xung đột và thử lại liên tục. Cách tiếp cận tốt hơn là tiếp tục khóa nhưng thực thi thứ tự và thêm thời gian chờ."
+        }
+      ]
+    }
+  },
+  "conceptId": "distributed-deadlocks",
+  "badge": {
+    "name": "Lock Smith",
+    "icon": "🔐"
+  }
+}

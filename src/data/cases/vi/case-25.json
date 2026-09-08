@@ -1,0 +1,222 @@
+{
+  "id": "case-25",
+  "number": 25,
+  "title": "Kho tiền quá tải",
+  "subtitle": "Ghi nhật ký bằng chứng nặng nề gây ra sự khuếch đại lưu trữ lớn",
+  "brief": {
+    "narrative": "Hệ thống ghi bằng chứng theo thời gian thực mới của Distributia được cho là một bước đột phá — mọi khung hình trên máy ảnh, mọi hoạt động đọc cảm biến, mọi đường truyền vô tuyến đều được ghi vào công cụ lưu trữ dựa trên cây LSM để ghi nhanh. Nó hoạt động rất tốt trong tháng đầu tiên. Giờ đây, bộ lưu trữ đang lấp đầy nhanh hơn gấp 10 lần so với dự kiến, disk I/O đã đạt mức cao nhất và hệ thống đang dành nhiều thời gian để sắp xếp lại dữ liệu hơn là thực sự viết bằng chứng mới. Quá trình nén nền process đang tiêu tốn 90% băng thông disk và việc ghi mới bắt đầu bị đình trệ. Trưởng Partition đã ủy quyền 50 TB dung lượng lưu trữ, nhưng nó đã đầy 80% chỉ sau một tháng dữ liệu mà lẽ ra chỉ chiếm 5 TB.",
+    "symptoms": [
+      "Bộ nhớ đang tiêu tốn dung lượng disk gấp 10 lần so với kích thước dữ liệu logic",
+      "Các quá trình nén nền đang sử dụng 90% băng thông disk I/O",
+      "Bằng chứng mới đang bị đình trệ do tranh chấp disk I/O",
+      "Công cụ lưu trữ cây LSM có hơn 200 cấp độ chưa được sắp xếp đang chờ nén"
+    ],
+    "objective": "Hiểu lý do tại sao khối lượng công việc ghi nhiều lại gây ra hiện tượng khuếch đại bộ nhớ lớn và đề xuất các chiến lược điều chỉnh."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "bodycam-ingest",
+        "type": "client",
+        "label": "Nhập máy ảnh cơ thể",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 80,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Nhập máy ảnh cơ thể Service",
+          "logs": [
+            "[08:00:00] INFO: Ingesting frames at 500 writes/sec",
+            "[08:00:15] WARN: Write latency increasing — p99 now 800ms",
+            "[08:00:30] WARN: Write latency p99 now 2,400ms — compaction pressure"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Write Rate": "500 ghi/giây",
+            "Data Generated (daily)": "~170 GB",
+            "Write Latency p99": "2.400ms (mục tiêu: 50ms)"
+          },
+          "status": "Đang tạo dữ liệu ở tốc độ mong đợi nhưng write latency đang tăng đột biến do công cụ lưu trữ backpressure."
+        }
+      },
+      {
+        "id": "radio-ingest",
+        "type": "client",
+        "label": "Đài phát thanh Log",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Đài phát thanh Log Nhập Service",
+          "logs": [
+            "[08:00:00] INFO: Logging radio transmissions at 200 writes/sec",
+            "[08:00:30] WARN: Write latency increasing — p99 now 1,200ms"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Write Rate": "200 ghi/giây",
+            "Data Generated (daily)": "~30 GB"
+          },
+          "status": "Hoạt động bình thường nhưng write latency tăng đột biến từ bộ nhớ dùng chung."
+        }
+      },
+      {
+        "id": "lsm-engine",
+        "type": "server",
+        "label": "Công cụ lưu trữ cây LSM",
+        "status": "xuống cấp",
+        "position": {
+          "x": 380,
+          "y": 150
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Công cụ lưu trữ cây LSM",
+          "logs": [
+            "[07:00:00] WARN: L0 SSTable count: 47 (threshold: 4)",
+            "[07:00:01] INFO: Compaction triggered: L0 → L1 merge",
+            "[07:15:00] WARN: Compaction backlog growing — 200+ pending compactions",
+            "[07:30:00] WARN: Write amplification ratio: 42x",
+            "[08:00:00] CRITICAL: Compaction consuming 90% disk I/O",
+            "[08:00:01] WARN: Write stalls detected — memtable flush blocked"
+          ],
+          "data": {
+            "Status": "xuống cấp",
+            "Write Amplification": "42x",
+            "Levels": "7 (L0 có 47 SSTable, giới hạn là 4)",
+            "Pending Compactions": "213",
+            "Disk I/O (compaction)": "90%",
+            "Disk I/O (writes)": "8%",
+            "Logical Data Size": "5 TB",
+            "Actual Disk Usage": "48 TB"
+          },
+          "status": "Khuếch đại write nghiêm trọng. Mỗi byte được ghi sẽ tạo ra 42 byte disk I/O thực tế do quá trình nén lặp lại kết hợp giữa các cấp."
+        }
+      },
+      {
+        "id": "disk-storage",
+        "type": "database",
+        "label": "Bằng chứng mảng Disk",
+        "status": "xuống cấp",
+        "position": {
+          "x": 620,
+          "y": 150
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng mảng Disk",
+          "logs": [
+            "[08:00:00] WARN: Disk usage at 80% (48 TB / 50 TB)",
+            "[08:00:00] WARN: Disk I/O at 98% utilization",
+            "[08:00:01] WARN: I/O queue depth: 256 (max)"
+          ],
+          "data": {
+            "Status": "GẦN CÔNG SUẤT",
+            "Total Capacity": "50 TB",
+            "Used": "48 TB (80%)",
+            "Logical Data": "5 TB",
+            "Space Amplification": "9,6 lần",
+            "Disk I/O Utilization": "98%"
+          },
+          "status": "Disk gần đầy. 48 TB được sử dụng cho 5 TB dữ liệu logic do khuếch đại write và khuếch đại không gian từ quá trình nén."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-bodycam-lsm",
+        "source": "bodycam-ingest",
+        "target": "lsm-engine",
+        "label": "500 ghi/giây",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-radio-lsm",
+        "source": "radio-ingest",
+        "target": "lsm-engine",
+        "label": "200 ghi/giây",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-lsm-disk",
+        "source": "lsm-engine",
+        "target": "disk-storage",
+        "label": "nén I/O (khuếch đại 42x)",
+        "animated": true,
+        "style": "slow"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Tại sao hệ thống lưu trữ sử dụng 48 TB cho 5 TB dữ liệu bằng chứng thực tế?",
+      "options": [
+        {
+          "id": "rc-1",
+          "text": "Các dịch vụ nhập đang ghi các bản sao của cùng một bằng chứng vô tuyến vào disk",
+          "correct": false,
+          "feedback": "Các dịch vụ nhập đang viết ở tốc độ dự kiến. Chi phí lưu trữ gấp 10 lần là do quá trình nén bên trong process của công cụ lưu trữ chứ không phải do ghi ứng dụng trùng lặp."
+        },
+        {
+          "id": "rc-2",
+          "text": "Quá trình nén process của cây LSM ghi lại dữ liệu nhiều lần ở các cấp độ, gây ra sự khuếch đại write lớn — mỗi byte logic tạo ra 42 byte disk I/O thực tế",
+          "correct": true,
+          "feedback": "Chính xác! Trình xử lý cây LSM ghi bằng cách đệm đầu tiên trong memory (memtable), sau đó chuyển sang các tệp đã sắp xếp (SSTable) trên disk. Việc nén sẽ hợp nhất các tệp này theo các cấp độ để duy trì thứ tự được sắp xếp, nhưng mỗi lần hợp nhất sẽ ghi lại dữ liệu. Với mức khuếch đại write là 42x, disk I/O của hệ thống và mức sử dụng không gian sẽ bùng nổ. Đây là sự cân bằng cơ bản của cây LSM: ghi ban đầu nhanh nhưng nén nền tốn kém."
+        },
+        {
+          "id": "rc-3",
+          "text": "Mảng disk gặp trục trặc và báo cáo số liệu dung lượng không chính xác cho hệ thống giám sát",
+          "correct": false,
+          "feedback": "Số liệu disk là chính xác. 48 TB là dữ liệu thực trên disk — đó là kết quả của việc nén lại dữ liệu nhiều lần ở các cấp độ LSM."
+        },
+        {
+          "id": "rc-4",
+          "text": "Các tệp bằng chứng không được nén trước khi được lưu vào disk, gây ra việc sử dụng bộ nhớ thô quá mức",
+          "correct": false,
+          "feedback": "Tính năng nén giúp giảm dung lượng nhưng không giải quyết được vấn đề cốt lõi về khuếch đại write. Ngay cả dữ liệu nén cũng được ghi lại 42 lần trong quá trình nén."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để giảm khuếch đại write trong hệ thống lưu trữ cây LSM này là gì?",
+      "options": [
+        {
+          "id": "fix-2",
+          "text": "Điều chỉnh nén LSM: tăng kích thước có thể ghi nhớ, sử dụng nén theo cấp độ với L0 theo kích thước và hạn chế nén đồng thời để giảm tranh chấp I/O",
+          "correct": true,
+          "feedback": "Chính xác! Việc điều chỉnh cây LSM làm giảm khả năng khuếch đại write: các bảng ghi nhớ lớn hơn có nghĩa là ít lần xóa hơn, việc nén theo mức độ sẽ kiểm soát việc khuếch đại không gian và hạn chế việc nén đồng thời sẽ ngăn chặn tình trạng thiếu I/O khi ghi. Đây là các nút tiêu chuẩn để quản lý việc khuếch đại write trong các hệ thống cây LSM như RocksDB và Cassandra."
+        },
+        {
+          "id": "fix-1",
+          "text": "Chuyển sang công cụ lưu trữ dựa trên cây B để sửa đổi dữ liệu hiện có tại chỗ thay vì thêm vào tệp mới",
+          "correct": false,
+          "feedback": "Cây B có độ khuếch đại write thấp hơn nhưng write throughput kém hơn nhiều khi chèn tuần tự. Đối với khối lượng công việc ghi nhiều 700 lần ghi/giây, cây LSM là lựa chọn phù hợp — nó chỉ cần điều chỉnh."
+        },
+        {
+          "id": "fix-3",
+          "text": "Tắt hoàn toàn tính năng nén LSM process để loại bỏ tất cả chi phí khuếch đại write khỏi công cụ lưu trữ",
+          "correct": false,
+          "feedback": "Nếu không nén, số lượng SSTable sẽ tăng vô hạn và hiệu suất của read sẽ giảm (bạn sẽ phải kiểm tra hàng trăm tệp trên mỗi query). Việc nén là điều cần thiết - nó chỉ cần được điều chỉnh chứ không phải bị tắt."
+        },
+        {
+          "id": "fix-4",
+          "text": "Cung cấp dung lượng lưu trữ disk gấp 10 lần để phù hợp với bộ khuếch đại write mà không làm giảm hiệu suất",
+          "correct": false,
+          "feedback": "Thêm dung lượng lưu trữ là một biện pháp hỗ trợ. Bộ khuếch đại Write cũng tiêu tốn băng thông disk I/O, khiến write bị treo. Bạn cần phải giảm chính hệ số khuếch đại chứ không chỉ thêm disk."
+        }
+      ]
+    }
+  },
+  "conceptId": "write-amplification",
+  "badge": {
+    "name": "Trình tối ưu hóa Write",
+    "icon": "✍️"
+  }
+}

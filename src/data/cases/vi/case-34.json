@@ -1,0 +1,172 @@
+{
+  "id": "case-34",
+  "number": 34,
+  "title": "Khách hàng bị nhân bản",
+  "subtitle": "Một lần đổi địa chỉ làm lệch hàng trăm đơn hàng",
+  "brief": {
+    "narrative": "Tên, số điện thoại và địa chỉ khách hàng bị chép vào mọi dòng order. Một lần cập nhật phải sửa hàng trăm dòng; lỗi giữa chừng tạo ra nhiều hồ sơ mâu thuẫn.",
+    "symptoms": [
+      "Metric của Order Database khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Một lần đổi địa chỉ làm lệch hàng trăm đơn hàng"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Một lần đổi địa chỉ làm lệch hàng trăm đơn hàng"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN Order Database xuất hiện anomaly",
+            "[09:00:20] WARN Một lần đổi địa chỉ làm lệch hàng trăm đơn hàng",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Một lần đổi địa chỉ làm lệch hàng trăm đơn hàng",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Order Database",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Order Database",
+          "logs": [
+            "Metric của Order Database khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-wrong-2",
+          "text": "Query không sử dụng leftmost prefix của composite B-tree index.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Bọc indexed column trong function khiến predicate trở thành non-sargable.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Thuộc tính khách hàng bị lặp đã tạo update anomaly trong bảng giao dịch denormalized.",
+          "correct": true,
+          "feedback": "Chính xác. Normalization loại bỏ dữ liệu lặp và tránh insert, update, delete anomaly. Chỉ denormalize cho read path đã đo được và phải xác định rõ bên chịu trách nhiệm đồng bộ."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Race trong chuỗi read-modify-write gây lost update.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-wrong-3",
+          "text": "Viết lại thành created_at >= start AND created_at < next_day, hoặc tạo expression index khi có lý do rõ ràng.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Tách Customer và Order, tham chiếu bằng customer_id; chỉ lưu shipping snapshot bất biến khi nghiệp vụ cần lịch sử.",
+          "correct": true,
+          "feedback": "Chính xác. Normalization loại bỏ dữ liệu lặp và tránh insert, update, delete anomaly. Chỉ denormalize cho read path đã đo được và phải xác định rõ bên chịu trách nhiệm đồng bộ."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Dùng atomic conditional UPDATE hoặc optimistic version check; retry conflict và enforce invariant tại database.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Thiết kế index với các cột equality ở đầu, sau đó là range/order; kiểm chứng bằng EXPLAIN ANALYZE thay vì đoán.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    }
+  },
+  "conceptId": "database-normalization",
+  "badge": {
+    "name": "Khách hàng bị nhân bản",
+    "icon": "🧩"
+  }
+}

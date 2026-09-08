@@ -7,9 +7,12 @@ import type { Locale } from '../i18n';
 // becomes its own chunk, fetched only when a builder page is visited.
 const enLoaders = import.meta.glob<{ default: BuilderChallenge }>('../data/builder/challenges-*.json');
 const ptBrLoaders = import.meta.glob<{ default: BuilderChallenge }>('../data/builder/pt-BR/challenges-*.json');
+const viLoaders = import.meta.glob<{ default: BuilderChallenge }>('../data/builder/vi/challenges-*.json');
 
 function loadersForLocale(locale: Locale): Record<string, () => Promise<{ default: BuilderChallenge }>> {
-  return locale === 'pt-BR' ? ptBrLoaders : enLoaders;
+  if (locale === 'pt-BR') return ptBrLoaders;
+  if (locale === 'vi') return viLoaders;
+  return enLoaders;
 }
 
 function sortedPaths(loaders: Record<string, () => Promise<{ default: BuilderChallenge }>>): string[] {

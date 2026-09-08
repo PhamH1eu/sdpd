@@ -1,0 +1,172 @@
+{
+  "id": "case-41",
+  "number": 41,
+  "title": "Counter làm mất request",
+  "subtitle": "Một triệu lần increment cho ra con số nhỏ hơn",
+  "brief": {
+    "narrative": "Nhiều thread chạy read-increment-write trên shared state mà không synchronization. Các interleaving khiến increment ghi đè nhau.",
+    "symptoms": [
+      "Metric của Shared Counter khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Một triệu lần increment cho ra con số nhỏ hơn"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Một triệu lần increment cho ra con số nhỏ hơn"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN Shared Counter xuất hiện anomaly",
+            "[09:00:20] WARN Một triệu lần increment cho ra con số nhỏ hơn",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Một triệu lần increment cho ra con số nhỏ hơn",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Shared Counter",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Shared Counter",
+          "logs": [
+            "Metric của Shared Counter khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-wrong-1",
+          "text": "Cache chứa reference không giới hạn gây memory leak.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Memory pressure gây virtual-memory thrashing.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Socket/file-descriptor leak làm cạn per-process limit.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Data race trên shared counter không atomic làm mất increment.",
+          "correct": true,
+          "feedback": "Chính xác. Correctness phụ thuộc mọi interleaving có thể xảy ra, không chỉ lần chạy local. Lock tạo contention và cần scope chặt chẽ."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-wrong-2",
+          "text": "Giảm working set, giới hạn concurrency/cache memory, chỉ thêm RAM sau khi đo và alert theo major fault cùng swap activity.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Đóng resource bằng context manager/finally, tái sử dụng bounded client pool, expose descriptor metric và đặt ulimit có chủ đích.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Dùng atomic primitive hoặc lock quanh critical section nhỏ nhất; hoặc loại shared mutable state bằng partitioning/message passing.",
+          "correct": true,
+          "feedback": "Chính xác. Correctness phụ thuộc mọi interleaving có thể xảy ra, không chỉ lần chạy local. Lock tạo contention và cần scope chặt chẽ."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Giới hạn cache bằng size/TTL, xóa entry khi lifecycle kết thúc và so sánh heap profile theo retained path.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    }
+  },
+  "conceptId": "thread-race-condition",
+  "badge": {
+    "name": "Counter làm mất request",
+    "icon": "🏁"
+  }
+}

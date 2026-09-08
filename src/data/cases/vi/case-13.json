@@ -1,0 +1,244 @@
+{
+  "id": "case-13",
+  "number": 13,
+  "title": "Tình huống khó khăn",
+  "subtitle": "Sự cố máy chủ xóa sạch hàng trăm phiên sĩ quan đang hoạt động",
+  "brief": {
+    "narrative": "Distributia PD gần đây đã triển khai load balancer cho hệ thống điều phối của họ — ba máy chủ chia sẻ tải. Nghe hay đấy, ngoại trừ việc họ đã định cấu hình các phiên cố định: trình duyệt của mỗi sĩ quan được liên kết vĩnh viễn với một máy chủ cụ thể. Máy chủ 2 vừa gặp sự cố và 340 nhân viên đang làm việc giữa ca đột nhiên bị đăng xuất. Các ghi chú trường hợp đang hoạt động, các báo cáo chưa được lưu và nhiệm vụ điều động của họ — tất cả đều biến mất. Trong khi đó, Máy chủ 1 và 3 vẫn ổn nhưng không biết 340 sĩ quan đó đang làm gì. Dữ liệu phiên chỉ tồn tại trong memory của Máy chủ 2. Cảnh sát trưởng Partition đang rất tức giận, thám tử.",
+    "symptoms": [
+      "340 sĩ quan đồng loạt đăng xuất sau sự cố Server 2",
+      "Ghi chú trường hợp hiện hoạt và dữ liệu điều phối chưa được lưu bị mất đối với các nhân viên bị ảnh hưởng",
+      "Server 1 và 3 hoạt động bình thường nhưng không khôi phục được phiên bị mất",
+      "Cán bộ phải đăng nhập lại và làm lại tất cả công việc đang thực hiện"
+    ],
+    "objective": "Xác định lý do sự cố máy chủ gây ra mất phiên cho một phần ba tổng số người dùng và đề xuất kiến ​​trúc tách phiên khỏi các máy chủ riêng lẻ."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "load-balancer",
+        "type": "server",
+        "label": "Load Balancer",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 350,
+          "y": 30
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Load Balancer (Phiên dính)",
+          "logs": [
+            "[14:30:00] INFO: Sticky session routing enabled",
+            "[14:45:12] ERROR: Server 2 health check failed",
+            "[14:45:13] WARN: 340 sticky sessions orphaned — no failover for session state",
+            "[14:45:14] INFO: New requests routed to Server 1 and Server 3"
+          ],
+          "data": {
+            "Mode": "Phiên cố định (dựa trên cookie)",
+            "Server 1 Sessions": "310 (hoạt động)",
+            "Server 2 Sessions": "340 (MẤT)",
+            "Server 3 Sessions": "295 (hoạt động)",
+            "Session Failover": "Không có - trạng thái là máy chủ cục bộ"
+          },
+          "status": "Đã bật phiên cố định. Không có cửa hàng phiên chia sẻ nào được định cấu hình."
+        }
+      },
+      {
+        "id": "server-1",
+        "type": "server",
+        "label": "Máy chủ điều phối 1",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 100,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Máy chủ điều phối 1",
+          "logs": [
+            "[14:45:15] INFO: Operating normally",
+            "[14:45:20] INFO: Receiving redirected traffic from LB"
+          ],
+          "data": {
+            "Status": "KHỎE MẠNH",
+            "Local Sessions": "310",
+            "Memory Session Store": "Chỉ trong quá trình"
+          },
+          "status": "Khỏe mạnh nhưng các phiên chỉ được lưu trữ trong memory cục bộ."
+        }
+      },
+      {
+        "id": "server-2",
+        "type": "server",
+        "label": "Máy chủ điều phối 2",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Máy chủ điều phối 2",
+          "logs": [
+            "[14:44:58] ERROR: Out of memory — process killed",
+            "[14:44:59] FATAL: Server process terminated",
+            "[14:45:00] INFO: 340 in-memory sessions destroyed"
+          ],
+          "data": {
+            "Status": "ĐÃ SỰ LỖI",
+            "Local Sessions": "0 (mất hết)",
+            "Crash Reason": "OOM giết"
+          },
+          "status": "Bị hỏng. Tất cả 340 phiên được lưu trữ cục bộ đều bị mất vĩnh viễn."
+        }
+      },
+      {
+        "id": "server-3",
+        "type": "server",
+        "label": "Máy chủ điều phối 3",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 600,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Máy chủ điều phối 3",
+          "logs": [
+            "[14:45:15] INFO: Operating normally",
+            "[14:45:22] INFO: Receiving redirected traffic from LB"
+          ],
+          "data": {
+            "Status": "KHỎE MẠNH",
+            "Local Sessions": "295",
+            "Memory Session Store": "Chỉ trong quá trình"
+          },
+          "status": "Khỏe mạnh nhưng các phiên chỉ được lưu trữ trong memory cục bộ."
+        }
+      },
+      {
+        "id": "officers",
+        "type": "client",
+        "label": "Thiết bị đầu cuối sĩ quan",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 380
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Thiết bị đầu cuối sĩ quan",
+          "logs": [
+            "[14:45:13] ERROR: 340 terminals received 'Session Expired'",
+            "[14:45:30] WARN: Officers reporting lost case notes and dispatch data"
+          ],
+          "data": {
+            "Total Officers Online": "945",
+            "Sessions Lost": "340",
+            "Unsaved Reports Lost": "~127"
+          },
+          "status": "340 sĩ quan bị mất toàn bộ trạng thái phiên và phải đăng nhập lại."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-lb-s1",
+        "source": "load-balancer",
+        "target": "server-1",
+        "label": "tuyến đường dính",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-lb-s2",
+        "source": "load-balancer",
+        "target": "server-2",
+        "label": "tuyến đường dính",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-lb-s3",
+        "source": "load-balancer",
+        "target": "server-3",
+        "label": "tuyến đường dính",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-officers-lb",
+        "source": "officers",
+        "target": "load-balancer",
+        "label": "yêu cầu",
+        "animated": true,
+        "style": "normal"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của 340 sĩ quan mất phiên họp là gì?",
+      "options": [
+        {
+          "id": "rc-1",
+          "text": "load balancer không thể phân phối lại đúng cách các phiên hoạt động cho các máy chủ khỏe mạnh còn lại sau sự cố",
+          "correct": false,
+          "feedback": "load balancer đã chuyển hướng các yêu cầu mới, nhưng dữ liệu phiên chỉ tồn tại trong memory của Máy chủ 2. Không có gì để phân phối lại - dữ liệu đã biến mất. Vấn đề là phiên được lưu trữ ở đâu chứ không phải lưu lượng được định tuyến như thế nào."
+        },
+        {
+          "id": "rc-2",
+          "text": "Phiên cố định kết hợp trạng thái người dùng với một máy chủ cụ thể - khi máy chủ đó ngừng hoạt động, trạng thái cũng ngừng hoạt động theo",
+          "correct": true,
+          "feedback": "Chính xác! Phiên cố định liên kết người dùng với các máy chủ cụ thể và lưu trữ trạng thái phiên trong memory cục bộ của máy chủ đó. Điều này tạo ra service có trạng thái - nếu máy chủ gặp sự cố, tất cả dữ liệu phiên sẽ bị mất. Các dịch vụ không trạng thái lưu trữ dữ liệu phiên bên ngoài để bất kỳ máy chủ nào cũng có thể xử lý mọi request."
+        },
+        {
+          "id": "rc-3",
+          "text": "Server 2 hết memory vì được gán quá nhiều phiên dính so với các máy chủ khác",
+          "correct": false,
+          "feedback": "Trong khi việc tiêu diệt OOM đã gây ra sự cố, vấn đề kiến ​​trúc thực sự là các phiên hoàn toàn được lưu trữ trong máy chủ memory. Ngay cả với các phiên cân bằng hoàn hảo, bất kỳ sự cố máy chủ nào cũng sẽ phá hủy tất cả các phiên được lưu trữ cục bộ của nó."
+        },
+        {
+          "id": "rc-4",
+          "text": "Các máy chủ ứng dụng thiếu cơ chế sao lưu và phục hồi thích hợp để duy trì dữ liệu phiên thông qua việc khởi động lại",
+          "correct": false,
+          "feedback": "Việc sao lưu các phiên trong bộ nhớ là không thực tế và không giải quyết được vấn đề cốt lõi. Vấn đề là mẫu thiết kế có trạng thái — các phiên phải được đưa ra bên ngoài để máy chủ không giữ trạng thái quan trọng ngay từ đầu."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để tránh mất phiên khi máy chủ gặp sự cố là gì?",
+      "options": [
+        {
+          "id": "fix-4",
+          "text": "Triển khai chính sách khởi động lại máy chủ tự động để các máy chủ gặp sự cố trực tuyến trở lại trước khi phiên hết hạn",
+          "correct": false,
+          "feedback": "Khởi động lại nhanh giúp ích cho availability nhưng các phiên trong bộ nhớ vẫn bị mất khi process bị hỏng. Máy chủ trở lại trống rỗng. Cách khắc phục thực sự là không lưu trữ các phiên trong máy chủ memory."
+        },
+        {
+          "id": "fix-1",
+          "text": "Thêm nhiều phiên bản máy chủ hơn để mỗi máy chủ riêng lẻ xử lý ít phiên cố định hơn, giảm bán kính nổ của bất kỳ sự cố đơn lẻ nào",
+          "correct": false,
+          "feedback": "Nhiều máy chủ có phiên cố định hơn chỉ có nghĩa là mỗi sự cố ảnh hưởng đến ít người dùng hơn — nhưng sự cố vẫn phá hủy phiên. Vấn đề không phải là bạn có bao nhiêu máy chủ; đó là trạng thái phiên tồn tại bên trong các máy chủ riêng lẻ."
+        },
+        {
+          "id": "fix-2",
+          "text": "Làm cho các dịch vụ không có trạng thái bằng cách lưu trữ các phiên trong một cửa hàng chia sẻ bên ngoài (ví dụ: Redis) để bất kỳ máy chủ nào cũng có thể xử lý mọi request",
+          "correct": true,
+          "feedback": "Chính xác! Bằng cách đưa trạng thái phiên ra ngoài một cửa hàng dùng chung như Redis, các máy chủ trở nên không trạng thái và có thể hoán đổi cho nhau. Bất kỳ máy chủ nào cũng có thể xử lý request của bất kỳ người dùng nào, các phiên cố định sẽ trở nên không cần thiết và sự cố máy chủ sẽ không làm mất bất kỳ dữ liệu phiên nào."
+        },
+        {
+          "id": "fix-3",
+          "text": "Sao chép tất cả dữ liệu phiên trong bộ nhớ giữa cả ba máy chủ trong thời gian thực bằng cách sử dụng đồng bộ hóa phiên phía máy chủ",
+          "correct": false,
+          "feedback": "Phiên từ máy chủ đến máy chủ replication rất phức tạp và tốn kém. Nó không có quy mô tốt — mọi máy chủ mới đều tăng lưu lượng truy cập replication. Kho phiên bên ngoài đơn giản hơn và có khả năng mở rộng cao hơn."
+        }
+      ]
+    }
+  },
+  "conceptId": "stateless-services",
+  "badge": {
+    "name": "Nhà giải phóng nhà nước",
+    "icon": "🔓"
+  }
+}

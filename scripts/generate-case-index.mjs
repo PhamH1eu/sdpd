@@ -28,10 +28,17 @@ function buildIndex(dir) {
     });
 }
 
+function mergeLocalizedIndex(baseIndex, localizedIndex) {
+  const localizedById = new Map(localizedIndex.map((entry) => [entry.id, entry]));
+  return baseIndex.map((entry) => localizedById.get(entry.id) ?? entry);
+}
+
 const enIndex = buildIndex(casesDir);
-const ptBrIndex = buildIndex(path.join(casesDir, 'pt-BR'));
+const ptBrIndex = mergeLocalizedIndex(enIndex, buildIndex(path.join(casesDir, 'pt-BR')));
+const viIndex = mergeLocalizedIndex(enIndex, buildIndex(path.join(casesDir, 'vi')));
 
 writeFileSync(path.join(outDir, 'case-index.json'), JSON.stringify(enIndex, null, 2) + '\n');
 writeFileSync(path.join(outDir, 'case-index.pt-BR.json'), JSON.stringify(ptBrIndex, null, 2) + '\n');
+writeFileSync(path.join(outDir, 'case-index.vi.json'), JSON.stringify(viIndex, null, 2) + '\n');
 
-console.log(`Generated case-index.json (${enIndex.length} cases) and case-index.pt-BR.json (${ptBrIndex.length} cases)`);
+console.log(`Generated case indexes: en=${enIndex.length}, pt-BR=${ptBrIndex.length}, vi=${viIndex.length}`);

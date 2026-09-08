@@ -1,0 +1,263 @@
+{
+  "id": "case-21",
+  "number": 21,
+  "title": "Sự mất trật tự",
+  "subtitle": "Các báo cáo tội phạm đến lộn xộn khi người tiêu dùng song song tranh giành trình tự",
+  "brief": {
+    "narrative": "Văn phòng luật sư quận Distributia đang hỗn loạn. Họ đang xây dựng dòng thời gian cho một vụ án tội phạm có tổ chức lớn, nhưng các báo cáo về tội phạm được gửi đến hoàn toàn không theo thứ tự. Vụ cướp xảy ra lúc 10 giờ tối xuất hiện sau lời khai của nhân chứng từ 2 giờ sáng ngày hôm sau. Chuỗi bằng chứng không có ý nghĩa. Hệ thống báo cáo sử dụng hàng đợi tin nhắn với ba người tiêu dùng song song để tăng tốc độ xử lý - nhưng có vẻ như tốc độ này đã phải trả giá đắt. Cảnh sát trưởng Partition cần xây dựng lại dòng thời gian trước phiên tòa vào sáng mai.",
+    "symptoms": [
+      "Báo cáo tội phạm trong hồ sơ vụ án của DA không theo thứ tự thời gian",
+      "Các sự kiện từ các giờ khác nhau được xen kẽ ngẫu nhiên",
+      "Hệ thống có ba công nhân consumer đang xử lý cùng một hàng đợi",
+      "Các báo cáo riêng lẻ đều đúng nhưng thứ tự của chúng sai"
+    ],
+    "objective": "Xác định lý do tại sao các báo cáo tội phạm lại không theo thứ tự và đề xuất một kiến ​​trúc đảm bảo trình tự chính xác."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "report-ingestion",
+        "type": "client",
+        "label": "Nhập báo cáo API",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 100,
+          "y": 180
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Nhập báo cáo API",
+          "logs": [
+            "[09:00:01] INFO: Report #501 (Case-77, timestamp 22:00) enqueued",
+            "[09:00:01] INFO: Report #502 (Case-77, timestamp 22:15) enqueued",
+            "[09:00:02] INFO: Report #503 (Case-77, timestamp 23:30) enqueued",
+            "[09:00:02] INFO: Report #504 (Case-77, timestamp 02:00) enqueued",
+            "[09:00:02] INFO: All reports enqueued in chronological order"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Reports Enqueued Today": "1.204",
+            "Ordering at Enqueue": "Theo thời gian (đúng)"
+          },
+          "status": "Các báo cáo đang được xếp hàng theo đúng thứ tự thời gian."
+        }
+      },
+      {
+        "id": "message-queue",
+        "type": "server",
+        "label": "Hàng đợi xử lý báo cáo",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hàng đợi xử lý báo cáo",
+          "logs": [
+            "[09:00:01] INFO: Report #501 delivered to Consumer-A",
+            "[09:00:01] INFO: Report #502 delivered to Consumer-B",
+            "[09:00:02] INFO: Report #503 delivered to Consumer-C",
+            "[09:00:02] INFO: Report #504 delivered to Consumer-A",
+            "[09:00:03] INFO: Consumer-B ACK report #502 (processed in 45ms)",
+            "[09:00:03] INFO: Consumer-C ACK report #503 (processed in 30ms)",
+            "[09:00:04] INFO: Consumer-A ACK report #501 (processed in 210ms)",
+            "[09:00:04] INFO: Consumer-A ACK report #504 (processed in 50ms)"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Consumer Count": "3",
+            "Delivery Mode": "Vòng tròn",
+            "Partition Key": "Không có cấu hình nào",
+            "Ordering Guarantee": "Chỉ dành cho mỗi người tiêu dùng"
+          },
+          "status": "Hàng đợi phân phối tin nhắn luân phiên cho 3 người tiêu dùng. Không có khóa partition nào được định cấu hình để định tuyến theo trường hợp."
+        }
+      },
+      {
+        "id": "consumer-a",
+        "type": "server",
+        "label": "Consumer A",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 550,
+          "y": 30
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Consumer Worker A",
+          "logs": [
+            "[09:00:01] INFO: Processing report #501 (Case-77, ts 22:00)",
+            "[09:00:04] INFO: Report #501 written to DA system — took 210ms",
+            "[09:00:04] INFO: Processing report #504 (Case-77, ts 02:00)",
+            "[09:00:04] INFO: Report #504 written to DA system — took 50ms"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Avg Processing Time": "130 mili giây",
+            "Reports Processed": "412"
+          },
+          "status": "Xử lý bình thường nhưng báo cáo #501 mất nhiều thời gian hơn, khiến #504 được viết sau #502 và #503."
+        }
+      },
+      {
+        "id": "consumer-b",
+        "type": "server",
+        "label": "Consumer B",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 550,
+          "y": 180
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Consumer Worker B",
+          "logs": [
+            "[09:00:01] INFO: Processing report #502 (Case-77, ts 22:15)",
+            "[09:00:03] INFO: Report #502 written to DA system — took 45ms"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Avg Processing Time": "48 mili giây",
+            "Reports Processed": "398"
+          },
+          "status": "consumer nhanh — đã hoàn thành báo cáo #502 trước khi Consumer A hoàn thành #501."
+        }
+      },
+      {
+        "id": "da-system",
+        "type": "database",
+        "label": "Tệp hồ sơ DA DB",
+        "status": "xuống cấp",
+        "position": {
+          "x": 550,
+          "y": 340
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hồ sơ vụ án DA Database",
+          "logs": [
+            "[09:00:03] INFO: Report #502 (ts 22:15) inserted at position 1",
+            "[09:00:03] INFO: Report #503 (ts 23:30) inserted at position 2",
+            "[09:00:04] INFO: Report #501 (ts 22:00) inserted at position 3",
+            "[09:00:04] INFO: Report #504 (ts 02:00) inserted at position 4"
+          ],
+          "data": {
+            "Status": "VẤN ĐỀ TÍCH HỢP DỮ LIỆU",
+            "Case-77 Report Order": "#502, #503, #501, #504",
+            "Expected Order": "#501, #502, #503, #504",
+            "Total Cases Affected": "187"
+          },
+          "status": "Báo cáo được lưu trữ theo thứ tự đến, không theo thứ tự thời gian. 187 trường hợp có mốc thời gian lộn xộn."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-ingest-queue",
+        "source": "report-ingestion",
+        "target": "message-queue",
+        "label": "báo cáo xếp hàng",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-queue-a",
+        "source": "message-queue",
+        "target": "consumer-a",
+        "label": "vòng tròn",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-queue-b",
+        "source": "message-queue",
+        "target": "consumer-b",
+        "label": "vòng tròn",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-a-da",
+        "source": "consumer-a",
+        "target": "da-system",
+        "label": "Báo cáo write",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-b-da",
+        "source": "consumer-b",
+        "target": "da-system",
+        "label": "Báo cáo write",
+        "animated": true,
+        "style": "normal"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Tại sao các báo cáo tội phạm lại không theo thứ tự trong hệ thống của DA?",
+      "options": [
+        {
+          "id": "rc-4",
+          "text": "Hàng đợi tin nhắn có lỗi khiến tin nhắn đến người tiêu dùng không đúng thứ tự",
+          "correct": false,
+          "feedback": "Hàng đợi gửi tin nhắn theo thứ tự FIFO tới từng consumer. Vấn đề là việc phân phối vòng tròn trên nhiều người tiêu dùng không duy trì được thứ tự toàn cầu khi thời gian xử lý khác nhau."
+        },
+        {
+          "id": "rc-1",
+          "text": "Quá trình nhập báo cáo tội phạm API đang xếp các báo cáo sai thứ tự thời gian vào hàng đợi",
+          "correct": false,
+          "feedback": "Nhật ký API quá trình nhập hiển thị rõ ràng các báo cáo được xếp vào hàng đợi theo đúng trình tự thời gian. Sự tranh giành xảy ra ở hạ lưu."
+        },
+        {
+          "id": "rc-2",
+          "text": "Nhiều người tiêu dùng song song process gửi tin nhắn ở các tốc độ khác nhau, do đó người tiêu dùng write sẽ gửi tin nhắn sau nhanh hơn trước khi người tiêu dùng chậm hơn hoàn thành tin nhắn trước đó",
+          "correct": true,
+          "feedback": "Chính xác! Với delivery quay vòng trên 3 người tiêu dùng và không có khóa partition, các tin nhắn cho cùng một trường hợp sẽ được gửi đến những người tiêu dùng khác nhau. Vì mỗi consumer có thời gian xử lý khác nhau nên consumer nhanh có thể hoàn thành tin nhắn N+1 trước khi consumer chậm hoàn thành tin nhắn N, phá hủy thứ tự ban đầu."
+        },
+        {
+          "id": "rc-3",
+          "text": "Quản lý trường hợp DA database đang sắp xếp và lưu trữ các bản ghi được chèn không chính xác, gây ra sai thứ tự hiển thị, khiến báo cáo không hiển thị dữ liệu chính xác.",
+          "correct": false,
+          "feedback": "database đang lưu trữ các bản ghi theo thứ tự chúng đến, đây là tiêu chuẩn. Vấn đề là chúng không theo thứ tự do kiến ​​trúc consumer song song."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để đảm bảo các báo cáo tội phạm đến đúng thứ tự là gì?",
+      "options": [
+        {
+          "id": "fix-2",
+          "text": "Sử dụng khóa partition (ID trường hợp) để tất cả các báo cáo cho cùng một trường hợp đều chuyển đến cùng một consumer, giữ nguyên thứ tự cho từng trường hợp",
+          "correct": true,
+          "feedback": "Chính xác! Bằng cách phân vùng theo ID trường hợp, tất cả các báo cáo cho Trường hợp-77 sẽ chuyển đến cùng một consumer và được xử lý tuần tự. Các trường hợp khác nhau vẫn có thể được xử lý song song giữa người tiêu dùng. Điều này mang lại cho bạn cả sự đảm bảo đặt hàng và throughput song song."
+        },
+        {
+          "id": "fix-1",
+          "text": "Giảm số lượng người tiêu dùng song song xuống một consumer duy nhất để tất cả các tin nhắn được xử lý tuần tự lần lượt",
+          "correct": false,
+          "feedback": "Điều này sẽ khắc phục việc đặt hàng nhưng sẽ phá hủy throughput. Một consumer duy nhất sẽ trở thành nút thắt cổ chai. Có một giải pháp tốt hơn để duy trì cả tính song song và trật tự."
+        },
+        {
+          "id": "fix-3",
+          "text": "Thêm dấu thời gian đến vào từng báo cáo tội phạm và sắp xếp chúng trong DA database sau khi tất cả các báo cáo đã được chèn",
+          "correct": false,
+          "feedback": "Việc sắp xếp hậu kỳ rất khó thực hiện — bạn cần biết khi nào tất cả báo cáo cho một khoảng thời gian đã đến trước khi sắp xếp. Nó tăng thêm độ phức tạp và latency. Thứ tự dựa trên phân vùng đơn giản hơn và đáng tin cậy hơn."
+        },
+        {
+          "id": "fix-4",
+          "text": "Chuẩn hóa phần cứng máy chủ trên tất cả người tiêu dùng để đảm bảo họ gửi tin nhắn process ở cùng tốc độ",
+          "correct": false,
+          "feedback": "Thời gian xử lý thay đổi tùy theo nội dung tin nhắn chứ không chỉ phần cứng. Network jitter, tạm dừng thu thập rác và I/O đều gây ra biến latency. Bạn không thể đảm bảo thời gian xử lý như nhau — bạn cần một giải pháp kiến ​​trúc."
+        }
+      ]
+    }
+  },
+  "conceptId": "message-ordering",
+  "badge": {
+    "name": "Người giữ đơn hàng",
+    "icon": "📋"
+  }
+}

@@ -1,13 +1,15 @@
 // Daily Drill — deterministic, backend-free selection.
 //
 // Every calendar day (UTC), every player gets the same case. `DRILL_PERMUTATION`
-// is a fixed shuffle of case numbers 1..33 generated once (mulberry32 PRNG,
+// starts with the original fixed shuffle and includes the backend curriculum.
 // seed 20260713) and pasted here as a literal array so the sequence never
 // changes across builds or deploys. Determinism matters more than the
 // shuffling method.
 export const DRILL_PERMUTATION: number[] = [
   26, 18, 4, 30, 16, 33, 7, 6, 24, 10, 11, 23, 32, 12, 8, 19, 14, 22, 15, 31,
   3, 25, 29, 20, 2, 21, 9, 1, 17, 27, 28, 5, 13,
+  45, 34, 52, 39, 57, 41, 50, 36, 48, 55, 43, 58, 37, 46, 51, 40, 54, 35, 49, 56,
+  42, 47, 53, 38, 44,
 ];
 
 const MS_PER_DAY = 86_400_000;
@@ -33,7 +35,7 @@ export function addUtcDays(dateStr: string, days: number): string {
   return getUtcDateString(date);
 }
 
-/** 1..33 case number scheduled for the given day index. */
+/** Case number scheduled for the given day index. */
 export function getDailyCaseNumber(dayIndex: number): number {
   const idx = ((dayIndex % DRILL_PERMUTATION.length) + DRILL_PERMUTATION.length) % DRILL_PERMUTATION.length;
   return DRILL_PERMUTATION[idx];

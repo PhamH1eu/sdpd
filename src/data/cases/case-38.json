@@ -1,0 +1,172 @@
+{
+  "id": "case-38",
+  "number": 38,
+  "title": "The Empty Connection Pool",
+  "subtitle": "Requests wait although the database has spare CPU",
+  "brief": {
+    "narrative": "A slow external HTTP call is made while a database transaction remains open. All 30 pool connections become checked out and new requests time out waiting for a connection.",
+    "symptoms": [
+      "DB Connection Pool metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Requests wait although the database has spare CPU"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "Requests wait although the database has spare CPU"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN DB Connection Pool shows an anomaly",
+            "[09:00:20] WARN Requests wait although the database has spare CPU",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "Requests wait although the database has spare CPU",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "DB Connection Pool",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "DB Connection Pool",
+          "logs": [
+            "DB Connection Pool metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-2",
+          "text": "A read-modify-write race caused a lost update.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Duplicate customer attributes created an update anomaly in a denormalized transactional table.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Transactions hold pooled connections across unrelated network I/O.",
+          "correct": true,
+          "feedback": "Correct. A larger pool can overload the database. Measure checkout time, transaction age, active/idle connections, and slow statements."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "ORM lazy loading produced an N+1 query pattern.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-3",
+          "text": "Separate Customer and Order entities, reference customer_id, and use an explicit immutable shipping snapshot only where history requires it.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Keep transactions short, release connections before external calls, set pool/statement timeouts, and size the pool against database capacity.",
+          "correct": true,
+          "feedback": "Correct. A larger pool can overload the database. Measure checkout time, transaction age, active/idle connections, and slow statements."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Fetch related rows in a bounded join/batch, select only required fields, and verify query count in tests or tracing.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Use an atomic conditional UPDATE or optimistic version check; retry conflicts and enforce the invariant in the database.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "connection-pool-exhaustion",
+  "badge": {
+    "name": "The Empty Connection Pool",
+    "icon": "🏊"
+  }
+}

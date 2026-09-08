@@ -1,0 +1,71 @@
+{
+  "id": "builder-08",
+  "number": 8,
+  "title": "Tìm kiếm lệnh Latency",
+  "subtitle": "Tra cứu lệnh truy nã vượt quá SLA khi lưu lượng truy cập cao nhất",
+  "objective": "Tối ưu hóa kiến ​​trúc query để đọc nhanh trong khi vẫn duy trì khả năng ghi nhất quán.",
+  "constraints": [
+    "Đường dẫn read nhanh",
+    "Sự kiên trì write rõ ràng",
+    "Tránh các thành phần không cần thiết"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "cache",
+    "database",
+    "cdn"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Tối ưu hóa Read",
+      "description": "Thêm cache để tra cứu bảo hành thường xuyên.",
+      "requiredAll": [
+        "api",
+        "cache"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "cache"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Kiểm soát mục nhập",
+      "description": "Phân phối lưu lượng tìm kiếm qua load balancer.",
+      "requiredAll": [
+        "client",
+        "loadBalancer",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        },
+        {
+          "from": "loadBalancer",
+          "to": "api"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Cửa hàng giao dịch",
+      "description": "Kiên trì viết bằng database bền bỉ.",
+      "requiredAll": [
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "database"
+        }
+      ]
+    }
+  ]
+}

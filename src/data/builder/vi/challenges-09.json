@@ -1,0 +1,74 @@
+{
+  "id": "builder-09",
+  "number": 9,
+  "title": "Báo cáo cơn bão dành cho người hâm mộ",
+  "subtitle": "Một báo cáo sự cố kích hoạt nhiều cập nhật tiếp theo",
+  "objective": "Tạo luồng phân xuất không đồng bộ để giúp các API tương tác với người dùng nhanh chóng.",
+  "constraints": [
+    "Tách quạt ra khỏi đường dẫn request",
+    "Sử dụng người tiêu dùng worker",
+    "Trạng thái chia sẻ liên tục"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "queue",
+    "worker",
+    "database",
+    "blobStorage",
+    "cache"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Quạt ra Async",
+      "description": "Cần phải xếp hàng trước khi mở rộng worker.",
+      "requiredAll": [
+        "api",
+        "queue",
+        "worker"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "queue"
+        },
+        {
+          "from": "queue",
+          "to": "worker"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Cấp đầu vào ổn định",
+      "description": "Sử dụng load balancer trước API.",
+      "requiredAll": [
+        "client",
+        "loadBalancer"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Trạng thái bền vững",
+      "description": "Trạng thái phân xuất đã xử lý phải được duy trì.",
+      "requiredAnyOf": [
+        "database",
+        "blobStorage"
+      ],
+      "preferredConnections": [
+        {
+          "from": "worker",
+          "to": "database"
+        }
+      ]
+    }
+  ]
+}

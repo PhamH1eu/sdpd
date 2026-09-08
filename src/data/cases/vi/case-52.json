@@ -1,0 +1,172 @@
+{
+  "id": "case-52",
+  "number": 52,
+  "title": "Vòng lặp rebalance",
+  "subtitle": "Consumer liên tục mất partition và không tạo tiến triển",
+  "brief": {
+    "narrative": "Handler chạy lâu hơn max.poll.interval.ms. Coordinator loại consumer, gán lại partition và consumer tiếp theo lặp lại công việc chậm đó.",
+    "symptoms": [
+      "Metric của Consumer Group khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Consumer liên tục mất partition và không tạo tiến triển"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Consumer liên tục mất partition và không tạo tiến triển"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN Consumer Group xuất hiện anomaly",
+            "[09:00:20] WARN Consumer liên tục mất partition và không tạo tiến triển",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Consumer liên tục mất partition và không tạo tiến triển",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Consumer Group",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Consumer Group",
+          "logs": [
+            "Metric của Consumer Group khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-correct",
+          "text": "Processing vượt poll interval và kích hoạt consumer-group rebalance liên tục.",
+          "correct": true,
+          "feedback": "Chính xác. Rebalance an toàn cần pause intake, finish hoặc cancel work, và chỉ commit offset đã hoàn tất. Tune một timeout không sửa được unbounded work."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Server-Side Request Forgery cho attacker chọn network destination có quyền cao.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Đã có authentication nhưng thiếu object-level authorization.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Create operation thiếu stable idempotency key nên replay side effect đã commit.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-wrong-1",
+          "text": "Allowlist scheme/destination, resolve và validate mọi hop, chặn private/link-local range ở egress, giới hạn redirect và cô lập fetcher.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Enforce authorization tại data-access boundary với tenant/user scope, deny by default và test cross-tenant ID.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Yêu cầu idempotency key có scope, atomic lưu request hash cùng result, trả original result khi replay và từ chối tái dùng key với input khác.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Giảm/giới hạn processing, tune poll records và interval từ worst case đã đo, dùng cooperative rebalancing và cô lập poison/slow record.",
+          "correct": true,
+          "feedback": "Chính xác. Rebalance an toàn cần pause intake, finish hoặc cancel work, và chỉ commit offset đã hoàn tất. Tune một timeout không sửa được unbounded work."
+        }
+      ]
+    }
+  },
+  "conceptId": "kafka-consumer-rebalance",
+  "badge": {
+    "name": "Vòng lặp rebalance",
+    "icon": "🔀"
+  }
+}

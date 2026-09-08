@@ -1,0 +1,72 @@
+{
+  "id": "builder-20",
+  "number": 20,
+  "title": "Xây dựng lại dòng thời gian sự cố",
+  "subtitle": "Xây dựng lại các mốc thời gian sự cố làm quá tải hệ thống OLTP",
+  "objective": "Định tuyến việc tạo dòng thời gian thông qua các nhân viên async và các đường dẫn lưu trữ lưu trữ.",
+  "constraints": [
+    "Không chặn API để xây dựng lại dòng thời gian",
+    "Sử dụng đường dẫn xử lý async",
+    "Lưu trữ các tạo phẩm được tạo một cách lâu dài"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "queue",
+    "worker",
+    "database",
+    "blobStorage",
+    "cache"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Tạo dòng thời gian Async",
+      "description": "Các công việc trên dòng thời gian sẽ chạy theo API -> hàng đợi -> worker.",
+      "requiredAll": [
+        "api",
+        "queue",
+        "worker"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "queue"
+        },
+        {
+          "from": "queue",
+          "to": "worker"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Kho lưu trữ hiện vật",
+      "description": "Các mốc thời gian đã tạo phải được ghi vào bộ lưu trữ blob.",
+      "requiredAll": [
+        "blobStorage"
+      ],
+      "preferredConnections": [
+        {
+          "from": "worker",
+          "to": "blobStorage"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Siêu dữ liệu Index",
+      "description": "Siêu dữ liệu dòng thời gian Index trong database để tìm kiếm.",
+      "requiredAll": [
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "worker",
+          "to": "database"
+        }
+      ]
+    }
+  ]
+}

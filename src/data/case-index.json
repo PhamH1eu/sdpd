@@ -229,5 +229,180 @@
     "title": "The Rate Limiter",
     "subtitle": "One integration floods the system, drowning everyone else",
     "conceptId": "rate-limiting"
+  },
+  {
+    "id": "case-34",
+    "number": 34,
+    "title": "The Repeating Customer",
+    "subtitle": "One address change corrupts hundreds of orders",
+    "conceptId": "database-normalization"
+  },
+  {
+    "id": "case-35",
+    "number": 35,
+    "title": "The Ignored Index",
+    "subtitle": "A composite index exists, yet the query scans millions of rows",
+    "conceptId": "composite-index-design"
+  },
+  {
+    "id": "case-36",
+    "number": 36,
+    "title": "The Function Wrapped Column",
+    "subtitle": "A harmless date conversion defeats the index",
+    "conceptId": "sargable-queries"
+  },
+  {
+    "id": "case-37",
+    "number": 37,
+    "title": "The Thousand Tiny Queries",
+    "subtitle": "The endpoint is fast locally and collapses in production",
+    "conceptId": "n-plus-one-queries"
+  },
+  {
+    "id": "case-38",
+    "number": 38,
+    "title": "The Empty Connection Pool",
+    "subtitle": "Requests wait although the database has spare CPU",
+    "conceptId": "connection-pool-exhaustion"
+  },
+  {
+    "id": "case-39",
+    "number": 39,
+    "title": "The Vanishing Update",
+    "subtitle": "Two valid writes leave the wrong stock count",
+    "conceptId": "lost-update"
+  },
+  {
+    "id": "case-40",
+    "number": 40,
+    "title": "The Crash That Stayed Contained",
+    "subtitle": "One worker dies while its siblings keep serving",
+    "conceptId": "process-isolation"
+  },
+  {
+    "id": "case-41",
+    "number": 41,
+    "title": "The Counter That Lost Requests",
+    "subtitle": "A million increments produce a smaller number",
+    "conceptId": "thread-race-condition"
+  },
+  {
+    "id": "case-42",
+    "number": 42,
+    "title": "The Local Deadlock",
+    "subtitle": "Two threads wait forever with zero CPU",
+    "conceptId": "thread-deadlock"
+  },
+  {
+    "id": "case-43",
+    "number": 43,
+    "title": "The Busy Thread Pool",
+    "subtitle": "More Python threads do not speed up image hashing",
+    "conceptId": "python-gil-cpu-bound"
+  },
+  {
+    "id": "case-44",
+    "number": 44,
+    "title": "The Slower Process Pool",
+    "subtitle": "Parallel work is slower than one process",
+    "conceptId": "multiprocessing-overhead"
+  },
+  {
+    "id": "case-45",
+    "number": 45,
+    "title": "The Frozen Event Loop",
+    "subtitle": "One innocent call stalls every async request",
+    "conceptId": "blocking-event-loop"
+  },
+  {
+    "id": "case-46",
+    "number": 46,
+    "title": "The Growing Heap",
+    "subtitle": "Memory rises after every request and never returns",
+    "conceptId": "memory-leak"
+  },
+  {
+    "id": "case-47",
+    "number": 47,
+    "title": "The Thrashing Host",
+    "subtitle": "CPU is low while latency explodes and disk stays busy",
+    "conceptId": "virtual-memory-thrashing"
+  },
+  {
+    "id": "case-48",
+    "number": 48,
+    "title": "Too Many Open Files",
+    "subtitle": "Healthy dependencies become unreachable after hours",
+    "conceptId": "file-descriptor-exhaustion"
+  },
+  {
+    "id": "case-49",
+    "number": 49,
+    "title": "The Context Switch Tax",
+    "subtitle": "More workers reduce throughput",
+    "conceptId": "scheduler-oversubscription"
+  },
+  {
+    "id": "case-50",
+    "number": 50,
+    "title": "The Missing Order Event",
+    "subtitle": "The database commits but Kafka never hears about it",
+    "conceptId": "transactional-outbox"
+  },
+  {
+    "id": "case-51",
+    "number": 51,
+    "title": "The Message That Returned",
+    "subtitle": "A completed payment is processed twice after a crash",
+    "conceptId": "kafka-offset-commit"
+  },
+  {
+    "id": "case-52",
+    "number": 52,
+    "title": "The Rebalance Loop",
+    "subtitle": "Consumers repeatedly lose partitions and make no progress",
+    "conceptId": "kafka-consumer-rebalance"
+  },
+  {
+    "id": "case-53",
+    "number": 53,
+    "title": "The Celebrity Hot Key",
+    "subtitle": "One Redis shard melts while the cluster looks idle",
+    "conceptId": "cache-hot-key"
+  },
+  {
+    "id": "case-54",
+    "number": 54,
+    "title": "The Search Box Breach",
+    "subtitle": "A filter returns every tenant’s records",
+    "conceptId": "sql-injection"
+  },
+  {
+    "id": "case-55",
+    "number": 55,
+    "title": "The Internal URL",
+    "subtitle": "A thumbnail feature reads cloud credentials",
+    "conceptId": "ssrf-defense"
+  },
+  {
+    "id": "case-56",
+    "number": 56,
+    "title": "The Valid Token, Wrong Account",
+    "subtitle": "Authentication succeeds and data still leaks",
+    "conceptId": "authentication-authorization"
+  },
+  {
+    "id": "case-57",
+    "number": 57,
+    "title": "The Double Charge",
+    "subtitle": "A mobile retry creates a second payment",
+    "conceptId": "api-idempotency-key"
+  },
+  {
+    "id": "case-58",
+    "number": 58,
+    "title": "The Polite Collapse",
+    "subtitle": "The service accepts every request until none finish",
+    "conceptId": "overload-load-shedding"
   }
 ]

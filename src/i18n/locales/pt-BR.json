@@ -44,6 +44,7 @@
 
   "header.localeToggle.toPt": "Mudar para Português",
   "header.localeToggle.toEn": "Switch to English",
+  "settings.language": "Idioma",
 
   "guide.close": "Fechar guia",
 
@@ -198,6 +199,9 @@
   "category.storage": "Armazenamento Distribuído",
   "category.network": "Rede & Comunicação",
   "category.advanced": "Padrões Avançados",
+  "category.database": "Engenharia de Banco de Dados",
+  "category.operatingSystems": "Sistemas Operacionais e Concorrência",
+  "category.backendReliability": "Confiabilidade e Segurança de Backend",
 
   "rankUp.title": "PROMOVIDO",
   "rankUp.subtitle": "Agora você é",
@@ -252,6 +256,8 @@
   "rank.sergeant": "Sargento",
   "rank.lieutenant": "Tenente",
   "rank.chief": "Chefe",
+  "rank.architect": "Arquiteto",
+  "rank.principal": "Engenheiro Principal",
 
   "social.github": "Dar estrela no GitHub",
   "social.linkedin": "Me adicione no LinkedIn",

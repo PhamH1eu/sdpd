@@ -1,0 +1,70 @@
+{
+  "id": "builder-21",
+  "number": 21,
+  "title": "Bằng chứng API Chi phí tăng đột biến",
+  "subtitle": "Cung cấp bằng chứng giống hệt nhau khiến chi phí tính toán tăng lên",
+  "objective": "Cơ cấu lại đường dẫn read để tối đa hóa tỷ lệ trúng cache/CDN và giảm gánh nặng cho API.",
+  "constraints": [
+    "Ưu tiên các đường dẫn response có thể lưu trong bộ nhớ đệm",
+    "Giữ lại nguồn chân lý bền vững",
+    "Tránh các thành phần async không cần thiết"
+  ],
+  "availableComponents": [
+    "client",
+    "cdn",
+    "cache",
+    "loadBalancer",
+    "api",
+    "database",
+    "queue"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Đường dẫn Read Caching",
+      "description": "Sử dụng CDN hoặc cache để giảm số chuyến đi khứ hồi của API.",
+      "requiredAnyOf": [
+        "cdn",
+        "cache"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "cdn"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "API trong vai Người gác cổng",
+      "description": "Quyền truy cập dữ liệu liên tục sẽ ở phía sau API.",
+      "requiredAll": [
+        "api",
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "database"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Độ ổn định xâm nhập",
+      "description": "Sử dụng load balancer để bảo vệ API khỏi bị đột biến.",
+      "requiredAll": [
+        "loadBalancer"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        }
+      ],
+      "discouragedComponents": [
+        "queue"
+      ]
+    }
+  ]
+}

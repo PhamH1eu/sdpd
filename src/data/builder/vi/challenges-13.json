@@ -1,0 +1,74 @@
+{
+  "id": "builder-13",
+  "number": 13,
+  "title": "Tìm kiếm trường hợp Read Replica",
+  "subtitle": "Độ bão hòa DB chính làm chậm các truy vấn điều tra",
+  "objective": "Giới thiệu các lớp tỷ lệ đọc trong khi vẫn giữ đường dẫn write nhất quán.",
+  "constraints": [
+    "Giảm tải read chính",
+    "Giữ quyền write rõ ràng",
+    "Tránh kiến ​​trúc chỉ không đồng bộ"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "cache",
+    "database",
+    "queue"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Lớp chia tỷ lệ Read",
+      "description": "Sử dụng phân lớp cache và API cho các cuộc gọi có mức độ đọc nhiều.",
+      "requiredAll": [
+        "api",
+        "cache"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "cache"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Mục nhập Query ổn định",
+      "description": "Yêu cầu của khách hàng phải được cân bằng trước API.",
+      "requiredAll": [
+        "client",
+        "loadBalancer",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        },
+        {
+          "from": "loadBalancer",
+          "to": "api"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Viết có thẩm quyền",
+      "description": "Giữ lại bộ lưu trữ write bền bỉ với database.",
+      "requiredAll": [
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "database"
+        }
+      ],
+      "discouragedComponents": [
+        "queue"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "id": "builder-12",
+  "number": 12,
+  "title": "Cửa sổ hàng loạt pháp y",
+  "subtitle": "Công việc pháp y hàng đêm tràn vào hoạt động ban ngày",
+  "objective": "Tách riêng việc xử lý hàng loạt khỏi các API trực tuyến bằng cách sử dụng các đường dẫn worker được xếp hàng đợi.",
+  "constraints": [
+    "Giữ API latency ổn định",
+    "Sử dụng xử lý hàng loạt async",
+    "Đầu ra được xử lý liên tục"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "queue",
+    "worker",
+    "database",
+    "blobStorage"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Kênh hàng loạt Async",
+      "description": "Công việc hàng loạt phải được đưa vào hàng đợi chứ không phải chặn API thread.",
+      "requiredAll": [
+        "api",
+        "queue",
+        "worker"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "queue"
+        },
+        {
+          "from": "queue",
+          "to": "worker"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Độ bền đầu ra",
+      "description": "Công nhân nên xuất write vào bộ lưu trữ.",
+      "requiredAnyOf": [
+        "database",
+        "blobStorage"
+      ],
+      "preferredConnections": [
+        {
+          "from": "worker",
+          "to": "blobStorage"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Mục nhập API được bảo vệ",
+      "description": "Lưu lượng khách hàng vẫn phải nhập qua load balancer.",
+      "requiredAll": [
+        "client",
+        "loadBalancer"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        }
+      ]
+    }
+  ]
+}

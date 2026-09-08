@@ -1,0 +1,172 @@
+{
+  "id": "case-39",
+  "number": 39,
+  "title": "The Vanishing Update",
+  "subtitle": "Two valid writes leave the wrong stock count",
+  "brief": {
+    "narrative": "Two workers read stock=10, independently subtract 3 and 4, then write 7 and 6. The final value is 6 although seven units were sold.",
+    "symptoms": [
+      "Inventory Database metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Two valid writes leave the wrong stock count"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "Two valid writes leave the wrong stock count"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Inventory Database shows an anomaly",
+            "[09:00:20] WARN Two valid writes leave the wrong stock count",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "Two valid writes leave the wrong stock count",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Inventory Database",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Inventory Database",
+          "logs": [
+            "Inventory Database metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-3",
+          "text": "The query does not use the leftmost prefix of the composite B-tree index.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "A read-modify-write race caused a lost update.",
+          "correct": true,
+          "feedback": "Correct. Transactions alone do not prevent lost updates at every isolation level. Express invariants atomically and make retries safe."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Transactions hold pooled connections across unrelated network I/O.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Duplicate customer attributes created an update anomaly in a denormalized transactional table.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-correct",
+          "text": "Use an atomic conditional UPDATE or optimistic version check; retry conflicts and enforce the invariant in the database.",
+          "correct": true,
+          "feedback": "Correct. Transactions alone do not prevent lost updates at every isolation level. Express invariants atomically and make retries safe."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Keep transactions short, release connections before external calls, set pool/statement timeouts, and size the pool against database capacity.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Separate Customer and Order entities, reference customer_id, and use an explicit immutable shipping snapshot only where history requires it.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Design an index whose leading columns match equality predicates, then range/order predicates; verify with EXPLAIN ANALYZE instead of guessing.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "lost-update",
+  "badge": {
+    "name": "The Vanishing Update",
+    "icon": "🔄"
+  }
+}

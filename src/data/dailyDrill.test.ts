@@ -10,13 +10,14 @@ import {
   msUntilNextUtcMidnight,
   starsForAttempts,
 } from './dailyDrill';
+import { TOTAL_CASE_COUNT } from '../utils/caseIds';
 
 describe('DRILL_PERMUTATION', () => {
-  it('is a permutation of 1..33 (no duplicates, no gaps)', () => {
-    expect(DRILL_PERMUTATION).toHaveLength(33);
-    expect(new Set(DRILL_PERMUTATION).size).toBe(33);
+  it('contains every campaign case once (no duplicates, no gaps)', () => {
+    expect(DRILL_PERMUTATION).toHaveLength(TOTAL_CASE_COUNT);
+    expect(new Set(DRILL_PERMUTATION).size).toBe(TOTAL_CASE_COUNT);
     expect([...DRILL_PERMUTATION].sort((a, b) => a - b)).toEqual(
-      Array.from({ length: 33 }, (_, i) => i + 1),
+      Array.from({ length: TOTAL_CASE_COUNT }, (_, i) => i + 1),
     );
   });
 });
@@ -57,17 +58,17 @@ describe('getDailyCaseNumber', () => {
     expect(getDailyCaseNumber(dayIndex)).not.toBe(getDailyCaseNumber(dayIndex + 1));
   });
 
-  it('always returns a value within 1..33', () => {
+  it('always returns a valid campaign case number', () => {
     for (let day = 0; day < 100; day++) {
       const num = getDailyCaseNumber(day);
       expect(num).toBeGreaterThanOrEqual(1);
-      expect(num).toBeLessThanOrEqual(33);
+      expect(num).toBeLessThanOrEqual(TOTAL_CASE_COUNT);
     }
   });
 
-  it('cycles every 33 days', () => {
+  it('cycles after every campaign case has appeared', () => {
     const dayIndex = 12345;
-    expect(getDailyCaseNumber(dayIndex)).toBe(getDailyCaseNumber(dayIndex + 33));
+    expect(getDailyCaseNumber(dayIndex)).toBe(getDailyCaseNumber(dayIndex + TOTAL_CASE_COUNT));
   });
 });
 

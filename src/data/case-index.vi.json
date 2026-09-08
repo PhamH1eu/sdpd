@@ -1,0 +1,408 @@
+[
+  {
+    "id": "case-01",
+    "number": 1,
+    "title": "Điểm thất bại duy nhất",
+    "subtitle": "Hồ sơ tội phạm bị che mờ khắp các khu vực",
+    "conceptId": "replication-basics"
+  },
+  {
+    "id": "case-02",
+    "number": 2,
+    "title": "Read cũ kỹ",
+    "subtitle": "Một sĩ quan bắt giữ một người theo lệnh bác bỏ",
+    "conceptId": "leader-follower-replication"
+  },
+  {
+    "id": "case-03",
+    "number": 3,
+    "title": "Bằng chứng bị mất",
+    "subtitle": "16 bức ảnh hiện trường vụ án biến mất trong không khí",
+    "conceptId": "sync-vs-async-replication"
+  },
+  {
+    "id": "case-04",
+    "number": 4,
+    "title": "Split Brain",
+    "subtitle": "Hai khu vực, hai sự thật, một network",
+    "conceptId": "network-partitions"
+  },
+  {
+    "id": "case-05",
+    "number": 5,
+    "title": "Cuộc bỏ phiếu ma quái",
+    "subtitle": "Việc khóa phòng bằng chứng không thành công khi nhiều nút tuyên bố lãnh đạo",
+    "conceptId": "leader-election"
+  },
+  {
+    "id": "case-06",
+    "number": 6,
+    "title": "Lệnh xung đột",
+    "subtitle": "Hai người lãnh đạo, hai nhiệm vụ, một sĩ quan rất bối rối",
+    "conceptId": "multi-leader-replication"
+  },
+  {
+    "id": "case-07",
+    "number": 7,
+    "title": "Vấn đề nan giải của người du hành thời gian",
+    "subtitle": "Dấu thời gian bằng chứng thách thức các định luật vật lý",
+    "conceptId": "clock-synchronization"
+  },
+  {
+    "id": "case-08",
+    "number": 8,
+    "title": "Nhân chứng Byzantine",
+    "subtitle": "Một pháp y lừa đảo node nói dối mọi người - theo những cách khác nhau",
+    "conceptId": "byzantine-faults"
+  },
+  {
+    "id": "case-09",
+    "number": 9,
+    "title": "Cổng choáng ngợp",
+    "subtitle": "Tình trạng khẩn cấp trên toàn thành phố khiến cửa ngõ duy nhất phải bó tay",
+    "conceptId": "load-balancing"
+  },
+  {
+    "id": "case-10",
+    "number": 10,
+    "title": "Đàn sấm sét",
+    "subtitle": "Mọi khu vực đều dập database cùng một lúc",
+    "conceptId": "cache-stampede"
+  },
+  {
+    "id": "case-11",
+    "number": 11,
+    "title": "Partition nóng bỏng",
+    "subtitle": "Một chiếc shard chìm trong khi những chiếc khác đứng im",
+    "conceptId": "data-partitioning"
+  },
+  {
+    "id": "case-12",
+    "number": 12,
+    "title": "Giới hạn dọc",
+    "subtitle": "Máy chủ phân tích tội phạm đạt mức trần phần cứng",
+    "conceptId": "horizontal-scaling"
+  },
+  {
+    "id": "case-13",
+    "number": 13,
+    "title": "Tình huống khó khăn",
+    "subtitle": "Sự cố máy chủ xóa sạch hàng trăm phiên sĩ quan đang hoạt động",
+    "conceptId": "stateless-services"
+  },
+  {
+    "id": "case-14",
+    "number": 14,
+    "title": "Bản ghi ma",
+    "subtitle": "Một hồ sơ tội phạm bị xóa tiếp tục ám ảnh hệ thống",
+    "conceptId": "cache-invalidation"
+  },
+  {
+    "id": "case-15",
+    "number": 15,
+    "title": "Trận tuyết lở Cache",
+    "subtitle": "Tất cả các mục cache hết hạn đồng thời, phá hủy database",
+    "conceptId": "cache-expiry-strategies"
+  },
+  {
+    "id": "case-16",
+    "number": 16,
+    "title": "đống chó",
+    "subtitle": "Hàng trăm yêu cầu dồn dập xây dựng lại một mục cache",
+    "conceptId": "cache-locking"
+  },
+  {
+    "id": "case-17",
+    "number": 17,
+    "title": "Thực đơn cũ",
+    "subtitle": "CDN phục vụ danh sách Truy nã gắt gao đã lỗi thời vài giờ sau khi cập nhật",
+    "conceptId": "cdn-caching"
+  },
+  {
+    "id": "case-18",
+    "number": 18,
+    "title": "Điều phối thất lạc",
+    "subtitle": "Sự cố máy chủ sẽ mất tất cả các cuộc gọi điều phối đang chờ xử lý từ hàng đợi",
+    "conceptId": "message-durability"
+  },
+  {
+    "id": "case-19",
+    "number": 19,
+    "title": "Vụ bắt giữ kép",
+    "subtitle": "Duplicate message delivery khiến cùng một lệnh được xử lý hai lần",
+    "conceptId": "idempotency"
+  },
+  {
+    "id": "case-20",
+    "number": 20,
+    "title": "Đường ống dự phòng",
+    "subtitle": "Hàng đợi điều phối tràn khi consumer service gặp sự cố âm thầm",
+    "conceptId": "backpressure"
+  },
+  {
+    "id": "case-21",
+    "number": 21,
+    "title": "Sự mất trật tự",
+    "subtitle": "Các báo cáo tội phạm đến lộn xộn khi người tiêu dùng song song tranh giành trình tự",
+    "conceptId": "message-ordering"
+  },
+  {
+    "id": "case-22",
+    "number": 22,
+    "title": "Shard bị thiếu",
+    "subtitle": "Toàn bộ phạm vi chữ cái của tội phạm biến mất khỏi database",
+    "conceptId": "sharding"
+  },
+  {
+    "id": "case-23",
+    "number": 23,
+    "title": "Đội hình không nhất quán",
+    "subtitle": "Hai khu vực nhìn thấy các phiên bản khác nhau của cùng một nghi phạm cùng một lúc",
+    "conceptId": "cap-theorem"
+  },
+  {
+    "id": "case-24",
+    "number": 24,
+    "title": "Kho lưu trữ bị hỏng",
+    "subtitle": "Bằng chứng bị hỏng nhưng không ai biết thiệt hại xảy ra ở đâu",
+    "conceptId": "data-integrity"
+  },
+  {
+    "id": "case-25",
+    "number": 25,
+    "title": "Kho tiền quá tải",
+    "subtitle": "Ghi nhật ký bằng chứng nặng nề gây ra sự khuếch đại lưu trữ lớn",
+    "conceptId": "write-amplification"
+  },
+  {
+    "id": "case-26",
+    "number": 26,
+    "title": "Bẫy Timeout",
+    "subtitle": "service xuôi dòng chậm sẽ kích hoạt thời gian chờ xếp tầng trên toàn bộ hệ thống",
+    "conceptId": "cascading-timeouts"
+  },
+  {
+    "id": "case-27",
+    "number": 27,
+    "title": "Cơn bão Retry",
+    "subtitle": "Một request thất bại trở thành triệu người gõ cửa",
+    "conceptId": "retry-strategies"
+  },
+  {
+    "id": "case-28",
+    "number": 28,
+    "title": "Circuit Breaker",
+    "subtitle": "Một quân domino đổ làm lật đổ toàn bộ trung tâm điều phối",
+    "conceptId": "circuit-breakers"
+  },
+  {
+    "id": "case-29",
+    "number": 29,
+    "title": "Thảm họa DNS",
+    "subtitle": "Khi máy chủ di chuyển và không ai nhận được địa chỉ mới",
+    "conceptId": "service-discovery"
+  },
+  {
+    "id": "case-30",
+    "number": 30,
+    "title": "Quận Deadlock",
+    "subtitle": "Hai dịch vụ bị mắc kẹt trong tình trạng bế tắc vĩnh viễn",
+    "conceptId": "distributed-deadlocks"
+  },
+  {
+    "id": "case-31",
+    "number": 31,
+    "title": "Bóng ma Read",
+    "subtitle": "Số liệu thống kê tội phạm đã thay đổi giữa chừng",
+    "conceptId": "isolation-levels"
+  },
+  {
+    "id": "case-32",
+    "number": 32,
+    "title": "Thất bại Saga",
+    "subtitle": "Đặt chỗ process đã quên cách hoàn tác các lỗi của nó",
+    "conceptId": "sagas"
+  },
+  {
+    "id": "case-33",
+    "number": 33,
+    "title": "Bộ giới hạn tỷ lệ",
+    "subtitle": "Một sự tích hợp làm ngập hệ thống, nhấn chìm mọi người khác",
+    "conceptId": "rate-limiting"
+  },
+  {
+    "id": "case-34",
+    "number": 34,
+    "title": "Khách hàng bị nhân bản",
+    "subtitle": "Một lần đổi địa chỉ làm lệch hàng trăm đơn hàng",
+    "conceptId": "database-normalization"
+  },
+  {
+    "id": "case-35",
+    "number": 35,
+    "title": "Index bị bỏ quên",
+    "subtitle": "Đã có composite index nhưng query vẫn scan hàng triệu dòng",
+    "conceptId": "composite-index-design"
+  },
+  {
+    "id": "case-36",
+    "number": 36,
+    "title": "Cột bị bọc bởi function",
+    "subtitle": "Một phép đổi ngày vô hiệu hóa index",
+    "conceptId": "sargable-queries"
+  },
+  {
+    "id": "case-37",
+    "number": 37,
+    "title": "Một nghìn query nhỏ",
+    "subtitle": "Endpoint chạy nhanh ở local nhưng sụp ở production",
+    "conceptId": "n-plus-one-queries"
+  },
+  {
+    "id": "case-38",
+    "number": 38,
+    "title": "Connection pool trống rỗng",
+    "subtitle": "Request phải chờ dù database vẫn còn CPU",
+    "conceptId": "connection-pool-exhaustion"
+  },
+  {
+    "id": "case-39",
+    "number": 39,
+    "title": "Update biến mất",
+    "subtitle": "Hai lần ghi hợp lệ tạo ra tồn kho sai",
+    "conceptId": "lost-update"
+  },
+  {
+    "id": "case-40",
+    "number": 40,
+    "title": "Crash được cô lập",
+    "subtitle": "Một worker chết nhưng các worker khác vẫn phục vụ",
+    "conceptId": "process-isolation"
+  },
+  {
+    "id": "case-41",
+    "number": 41,
+    "title": "Counter làm mất request",
+    "subtitle": "Một triệu lần increment cho ra con số nhỏ hơn",
+    "conceptId": "thread-race-condition"
+  },
+  {
+    "id": "case-42",
+    "number": 42,
+    "title": "Deadlock trong một process",
+    "subtitle": "Hai thread chờ mãi trong khi CPU bằng không",
+    "conceptId": "thread-deadlock"
+  },
+  {
+    "id": "case-43",
+    "number": 43,
+    "title": "Thread pool bận rộn",
+    "subtitle": "Thêm Python thread không làm image hashing nhanh hơn",
+    "conceptId": "python-gil-cpu-bound"
+  },
+  {
+    "id": "case-44",
+    "number": 44,
+    "title": "Process pool chậm hơn",
+    "subtitle": "Chạy parallel lại chậm hơn một process",
+    "conceptId": "multiprocessing-overhead"
+  },
+  {
+    "id": "case-45",
+    "number": 45,
+    "title": "Event loop bị đóng băng",
+    "subtitle": "Một lời gọi tưởng vô hại làm mọi async request đứng lại",
+    "conceptId": "blocking-event-loop"
+  },
+  {
+    "id": "case-46",
+    "number": 46,
+    "title": "Heap cứ lớn dần",
+    "subtitle": "Memory tăng sau mỗi request và không bao giờ giảm",
+    "conceptId": "memory-leak"
+  },
+  {
+    "id": "case-47",
+    "number": 47,
+    "title": "Host bị thrashing",
+    "subtitle": "CPU thấp nhưng latency bùng nổ và disk luôn bận",
+    "conceptId": "virtual-memory-thrashing"
+  },
+  {
+    "id": "case-48",
+    "number": 48,
+    "title": "Quá nhiều file đang mở",
+    "subtitle": "Dependency khỏe nhưng không truy cập được sau vài giờ",
+    "conceptId": "file-descriptor-exhaustion"
+  },
+  {
+    "id": "case-49",
+    "number": 49,
+    "title": "Thuế context switch",
+    "subtitle": "Thêm worker lại làm throughput giảm",
+    "conceptId": "scheduler-oversubscription"
+  },
+  {
+    "id": "case-50",
+    "number": 50,
+    "title": "Order event bị thất lạc",
+    "subtitle": "Database đã commit nhưng Kafka không nhận được gì",
+    "conceptId": "transactional-outbox"
+  },
+  {
+    "id": "case-51",
+    "number": 51,
+    "title": "Message quay trở lại",
+    "subtitle": "Payment đã hoàn thành nhưng bị xử lý lần hai sau crash",
+    "conceptId": "kafka-offset-commit"
+  },
+  {
+    "id": "case-52",
+    "number": 52,
+    "title": "Vòng lặp rebalance",
+    "subtitle": "Consumer liên tục mất partition và không tạo tiến triển",
+    "conceptId": "kafka-consumer-rebalance"
+  },
+  {
+    "id": "case-53",
+    "number": 53,
+    "title": "Celebrity hot key",
+    "subtitle": "Một Redis shard quá tải trong khi cả cluster trông vẫn rảnh",
+    "conceptId": "cache-hot-key"
+  },
+  {
+    "id": "case-54",
+    "number": 54,
+    "title": "Search box bị khai thác",
+    "subtitle": "Một filter trả về record của mọi tenant",
+    "conceptId": "sql-injection"
+  },
+  {
+    "id": "case-55",
+    "number": 55,
+    "title": "URL nội bộ",
+    "subtitle": "Tính năng tạo thumbnail đọc được cloud credential",
+    "conceptId": "ssrf-defense"
+  },
+  {
+    "id": "case-56",
+    "number": 56,
+    "title": "Token hợp lệ, tài khoản sai",
+    "subtitle": "Authentication thành công nhưng dữ liệu vẫn bị lộ",
+    "conceptId": "authentication-authorization"
+  },
+  {
+    "id": "case-57",
+    "number": 57,
+    "title": "Thanh toán hai lần",
+    "subtitle": "Mobile retry tạo thêm một payment",
+    "conceptId": "api-idempotency-key"
+  },
+  {
+    "id": "case-58",
+    "number": 58,
+    "title": "Sụp đổ vì quá lịch sự",
+    "subtitle": "Service nhận mọi request cho đến khi không request nào xong",
+    "conceptId": "overload-load-shedding"
+  }
+]

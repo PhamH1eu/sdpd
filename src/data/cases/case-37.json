@@ -1,0 +1,172 @@
+{
+  "id": "case-37",
+  "number": 37,
+  "title": "The Thousand Tiny Queries",
+  "subtitle": "The endpoint is fast locally and collapses in production",
+  "brief": {
+    "narrative": "Listing 500 orders issues one query for orders and one lazy-loaded customer query per order. Database CPU is moderate, but network round trips dominate latency.",
+    "symptoms": [
+      "FastAPI Service metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "The endpoint is fast locally and collapses in production"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "The endpoint is fast locally and collapses in production"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN FastAPI Service shows an anomaly",
+            "[09:00:20] WARN The endpoint is fast locally and collapses in production",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "The endpoint is fast locally and collapses in production",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "FastAPI Service",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "FastAPI Service",
+          "logs": [
+            "FastAPI Service metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-1",
+          "text": "Applying a function to the indexed column made the predicate non-sargable.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Transactions hold pooled connections across unrelated network I/O.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "A read-modify-write race caused a lost update.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "ORM lazy loading produced an N+1 query pattern.",
+          "correct": true,
+          "feedback": "Correct. N+1 is a latency and connection-pool problem. Eager loading is not universally correct; bound result size and avoid cartesian explosions."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-2",
+          "text": "Keep transactions short, release connections before external calls, set pool/statement timeouts, and size the pool against database capacity.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Use an atomic conditional UPDATE or optimistic version check; retry conflicts and enforce the invariant in the database.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Fetch related rows in a bounded join/batch, select only required fields, and verify query count in tests or tracing.",
+          "correct": true,
+          "feedback": "Correct. N+1 is a latency and connection-pool problem. Eager loading is not universally correct; bound result size and avoid cartesian explosions."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Rewrite as created_at >= start AND created_at < next_day, or add a justified expression index.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "n-plus-one-queries",
+  "badge": {
+    "name": "The Thousand Tiny Queries",
+    "icon": "📡"
+  }
+}

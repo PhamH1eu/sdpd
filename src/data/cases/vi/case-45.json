@@ -1,0 +1,172 @@
+{
+  "id": "case-45",
+  "number": 45,
+  "title": "Event loop bị đóng băng",
+  "subtitle": "Một lời gọi tưởng vô hại làm mọi async request đứng lại",
+  "brief": {
+    "narrative": "Async handler của FastAPI gọi synchronous SDK block ba giây. Event-loop lag tăng và request không liên quan cũng không tiến triển.",
+    "symptoms": [
+      "Metric của FastAPI Event Loop khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Một lời gọi tưởng vô hại làm mọi async request đứng lại"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Một lời gọi tưởng vô hại làm mọi async request đứng lại"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN FastAPI Event Loop xuất hiện anomaly",
+            "[09:00:20] WARN Một lời gọi tưởng vô hại làm mọi async request đứng lại",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Một lời gọi tưởng vô hại làm mọi async request đứng lại",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "FastAPI Event Loop",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "FastAPI Event Loop",
+          "logs": [
+            "Metric của FastAPI Event Loop khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-wrong-1",
+          "text": "Failure boundary là process chứ không phải thread; memory được cô lập giữa các process.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Data race trên shared counter không atomic làm mất increment.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Thứ tự lấy lock ngược nhau tạo circular wait.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Blocking I/O chạy trực tiếp trên event-loop thread.",
+          "correct": true,
+          "feedback": "Chính xác. async chỉ tăng concurrency khi task chịu yield. Offload không giới hạn chỉ chuyển saturation sang thread pool."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-wrong-2",
+          "text": "Dùng atomic primitive hoặc lock quanh critical section nhỏ nhất; hoặc loại shared mutable state bằng partitioning/message passing.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Định nghĩa global lock order, luôn acquire theo thứ tự đó, thu nhỏ lock scope; timeout chỉ là safety net để recovery.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Dùng async client, chuyển blocking call sang bounded thread pool, đặt timeout và theo dõi event-loop lag.",
+          "correct": true,
+          "feedback": "Chính xác. async chỉ tăng concurrency khi task chịu yield. Offload không giới hạn chỉ chuyển saturation sang thread pool."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Chạy công việc không an toàn hoặc CPU-bound trong worker process được supervisor quản lý; thiết kế IPC, restart, timeout và idempotency.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    }
+  },
+  "conceptId": "blocking-event-loop",
+  "badge": {
+    "name": "Event loop bị đóng băng",
+    "icon": "⏳"
+  }
+}

@@ -1,0 +1,262 @@
+{
+  "id": "case-09",
+  "number": 9,
+  "title": "Cổng choáng ngợp",
+  "subtitle": "Tình trạng khẩn cấp trên toàn thành phố khiến cửa ngõ duy nhất phải bó tay",
+  "brief": {
+    "narrative": "Một trận động đất lớn đã xảy ra ở Distributia. Mọi khu vực, trung tâm điều phối khẩn cấp và xe tuần tra đang tràn ngập cổng API trung tâm với các yêu cầu - vị trí của sĩ quan, cuộc gọi khẩn cấp, tra cứu nghi phạm, báo cáo sự cố. Cổng API duy nhất định tuyến tất cả lưu lượng truy cập giữa các khu vực bầu cử và dịch vụ phụ trợ đã đạt đến giới hạn kết nối và đang loại bỏ các yêu cầu. Phân khu phía Bắc không thể điều động xe cứu thương. South Precinct mất liên lạc với các sĩ quan tại hiện trường. Các cuộc gọi khẩn cấp 911 không được trả lời. Cổng được thiết kế để tải bình thường nhưng không ai lên kế hoạch cho mọi hệ thống trong thành phố sẽ tấn công đồng thời khi có khủng hoảng.",
+    "symptoms": [
+      "Cổng API trung tâm trả lại HTTP 503 (Service không khả dụng) cho 60% yêu cầu",
+      "Thời gian Response tăng từ 50 mili giây lên 12 giây đối với các yêu cầu được thực hiện",
+      "Cả 5 phường và 3 trung tâm điều độ đều cạnh tranh năng lực cửa ngõ",
+      "Định tuyến 911 khẩn cấp không thành công cùng với các truy vấn quản trị thông thường"
+    ],
+    "objective": "Xác định lý do tại sao một cổng API lại bị tắc nghẽn và xác định chiến lược tốt nhất để phân phối tải trên toàn hệ thống."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "api-gateway",
+        "type": "server",
+        "label": "Cổng API trung tâm",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cổng API trung tâm",
+          "logs": [
+            "[06:32:00] INFO: Earthquake alert received — all systems activating",
+            "[06:32:05] WARN: Connection count: 8,400 / 10,000 max",
+            "[06:32:10] ERROR: Connection count: 10,000 / 10,000 — MAX REACHED",
+            "[06:32:10] ERROR: Dropping new connections — HTTP 503",
+            "[06:32:15] WARN: CPU utilization: 98%",
+            "[06:32:20] ERROR: Request queue depth: 45,000 (overflow)",
+            "[06:32:25] WARN: Average response time: 12,340ms",
+            "[06:32:30] ERROR: 60% of requests being rejected"
+          ],
+          "data": {
+            "Status": "QUÁ TẢI",
+            "Connections": "10.000 / 10.000 (TỐI ĐA)",
+            "CPU": "98%",
+            "Memory": "94%",
+            "Requests/sec (normal)": "2.000",
+            "Requests/sec (current)": "15.000",
+            "Rejected Rate": "60%",
+            "Avg Response Time": "12.340ms (bình thường: 50ms)",
+            "Instances": "1 (không có cấu hình chia tỷ lệ)"
+          },
+          "status": "Phiên bản cổng đơn bị choáng ngợp. Không tự động chia tỷ lệ, không load balancing, không rate limiting."
+        }
+      },
+      {
+        "id": "precinct-north",
+        "type": "client",
+        "label": "Phân khu phía Bắc",
+        "status": "thất bại",
+        "position": {
+          "x": 80,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hệ thống phân khu phía Bắc",
+          "logs": [
+            "[06:32:11] ERROR: Dispatch request FAILED — gateway returned 503",
+            "[06:32:15] ERROR: Ambulance dispatch for earthquake victims FAILED",
+            "[06:32:20] ERROR: 14 consecutive 503 errors",
+            "[06:32:25] WARN: Retrying all failed requests — adding more load to gateway"
+          ],
+          "data": {
+            "Failed Requests": "847 trong 5 phút qua",
+            "Pending Dispatches": "23 xe cứu thương, 15 xe cứu hỏa",
+            "Emergency Calls Dropped": "31",
+            "Retry Strategy": "retry ngay lập tức (khiến mọi việc trở nên tồi tệ hơn)"
+          },
+          "status": "Điều phối khẩn cấp quan trọng không thành công. Cơn bão Retry làm cổng thêm quá tải."
+        }
+      },
+      {
+        "id": "precinct-south",
+        "type": "client",
+        "label": "Phân khu Nam",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 350
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hệ thống phân khu phía Nam",
+          "logs": [
+            "[06:32:12] ERROR: Officer GPS tracking update FAILED — gateway 503",
+            "[06:32:18] WARN: Lost contact with 8 officers in earthquake zone",
+            "[06:32:22] ERROR: Cannot route 911 calls — gateway overwhelmed"
+          ],
+          "data": {
+            "Officers Out of Contact": "8",
+            "Failed 911 Routes": "19",
+            "Gateway Success Rate": "35%"
+          },
+          "status": "Mất liên lạc với các sĩ quan hiện trường. Định tuyến 911 không thành công."
+        }
+      },
+      {
+        "id": "dispatch-911",
+        "type": "client",
+        "label": "Trung tâm điều phối 911",
+        "status": "thất bại",
+        "position": {
+          "x": 620,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Điều phối khẩn cấp 911",
+          "logs": [
+            "[06:32:10] ERROR: Call routing API returned 503",
+            "[06:32:12] ERROR: Cannot determine nearest available unit",
+            "[06:32:15] CRITICAL: 911 calls queuing — average wait time 4 minutes",
+            "[06:32:20] WARN: Emergency and routine requests share same gateway — no priority"
+          ],
+          "data": {
+            "Calls Waiting": "47",
+            "Average Wait": "4 phút 12 giây (mục tiêu: 10 giây)",
+            "Calls Dropped": "12",
+            "Priority Level": "GIỐNG NHƯ GIAO THÔNG THƯỜNG XUYÊN (không phân biệt)"
+          },
+          "status": "Các cuộc gọi 911 cạnh tranh với lưu lượng thông thường qua cùng một cổng quá tải. Không có cơ chế ưu tiên"
+        }
+      },
+      {
+        "id": "backend-services",
+        "type": "server",
+        "label": "Dịch vụ phụ trợ",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 350,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Dịch vụ phụ trợ Cluster",
+          "logs": [
+            "[06:32:00] INFO: All backend services healthy",
+            "[06:32:10] INFO: Capacity available — only receiving 40% of normal traffic",
+            "[06:32:15] INFO: Database responding in 5ms",
+            "[06:32:20] WARN: Most requests never reaching us — gateway is the bottleneck"
+          ],
+          "data": {
+            "Status": "KHỎE MẠNH",
+            "CPU": "25%",
+            "Capacity Used": "40%",
+            "Response Time": "5 mili giây",
+            "Note": "Phần cuối vẫn ổn - cổng là nút cổ chai"
+          },
+          "status": "Các dịch vụ phụ trợ vẫn hoạt động tốt và không được sử dụng đúng mức. Cổng là nút cổ chai duy nhất."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-north-gw",
+        "source": "precinct-north",
+        "target": "api-gateway",
+        "label": "yêu cầu",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-south-gw",
+        "source": "precinct-south",
+        "target": "api-gateway",
+        "label": "yêu cầu",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-911-gw",
+        "source": "dispatch-911",
+        "target": "api-gateway",
+        "label": "cuộc gọi khẩn cấp",
+        "animated": true,
+        "style": "broken"
+      },
+      {
+        "id": "e-gw-backend",
+        "source": "api-gateway",
+        "target": "backend-services",
+        "label": "yêu cầu được chuyển tiếp",
+        "animated": true,
+        "style": "slow"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của sự cố toàn hệ thống trong trận động đất là gì?",
+      "options": [
+        {
+          "id": "rc-4",
+          "text": "Trận động đất đã gây ra thiệt hại phần cứng vật lý trực tiếp cho cơ sở hạ tầng máy chủ cổng API",
+          "correct": false,
+          "feedback": "Máy chủ cổng hoạt động tốt về mặt vật lý — nó chạy ở mức 98% CPU, tích cực xử lý các yêu cầu và trả về lỗi 503. Nó không bị hư hỏng; nó chỉ đơn giản là bị choáng ngợp bởi lưu lượng truy cập mà nó không bao giờ được thiết kế để xử lý một mình."
+        },
+        {
+          "id": "rc-1",
+          "text": "Bản thân các dịch vụ phụ trợ không thể xử lý sự gia tăng đột ngột về lưu lượng truy cập liên quan đến động đất trên tất cả các khu vực",
+          "correct": false,
+          "feedback": "Các dịch vụ phụ trợ thực sự hoạt động tốt và không được sử dụng đúng mức chỉ ở mức 25% CPU và 40% công suất. Các yêu cầu không bao giờ đến được phần phụ trợ vì cổng API duy nhất là nút cổ chai, làm giảm 60% yêu cầu trước khi chúng được thực hiện."
+        },
+        {
+          "id": "rc-2",
+          "text": "Một phiên bản cổng API duy nhất là một nút thắt cổ chai — nó không thể mở rộng quy mô để xử lý lưu lượng tăng đột biến và không có cơ chế ưu tiên hoặc phân phối tải",
+          "correct": true,
+          "feedback": "Chính xác! Cổng API duy nhất là một nút cổ chai (và một điểm lỗi duy nhất). Nó có giới hạn kết nối cố định là 10.000 và với 15.000 yêu cầu/giây trong trận động đất, nó từ chối 60%. Các dịch vụ phụ trợ có rất nhiều dung lượng, nhưng cổng chính là điểm nghẽn. Ngoài ra, không có ưu tiên lưu lượng truy cập — các cuộc gọi 911 khẩn cấp cạnh tranh bình đẳng với các truy vấn quản trị thông thường."
+        },
+        {
+          "id": "rc-3",
+          "text": "Các cơn bão retry khổng lồ từ tất cả các khu vực bị hỏng đồng thời đang tăng tải và khiến cổng bị sập",
+          "correct": false,
+          "feedback": "Các cơn bão Retry đang khiến tình hình trở nên tồi tệ hơn (khuếch đại tải trọng), nhưng chúng chỉ là một triệu chứng chứ không phải root cause. Cổng đã bị quá tải trước khi bắt đầu thử lại. Ngay cả khi không thử lại, 15.000 yêu cầu/giây vẫn vượt quá giới hạn 10.000 kết nối của cổng."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách tiếp cận tốt nhất để ngăn chặn tình trạng quá tải cổng khi lưu lượng truy cập tăng đột biến là gì?",
+      "options": [
+        {
+          "id": "fix-3",
+          "text": "Triển khai rate limiting trên cổng để từ chối các yêu cầu vượt mức ở biên và bảo vệ các dịch vụ phụ trợ khi lưu lượng truy cập tăng đột biến",
+          "correct": false,
+          "feedback": "Rate limiting bảo vệ cổng khỏi quá tải nhưng không tăng công suất — nó vẫn từ chối các yêu cầu, chỉ theo cách được kiểm soát nhiều hơn. Khi xảy ra động đất, bạn cần NHIỀU năng lực hơn chứ không phải những cách tốt hơn để từ chối giao thông. Rate limiting nên bổ sung cho load balancing chứ không phải thay thế nó."
+        },
+        {
+          "id": "fix-4",
+          "text": "Loại bỏ hoàn toàn cổng API và để mỗi khu vực kết nối trực tiếp với các dịch vụ phụ trợ mà không cần bất kỳ lớp trung gian nào",
+          "correct": false,
+          "feedback": "Việc loại bỏ cổng sẽ loại bỏ tắc nghẽn nhưng làm mất tất cả các lợi ích mà cổng mang lại: xác thực, rate limiting, định tuyến, giám sát và dịch giao thức. Cách tiếp cận đúng là chia tỷ lệ lớp cổng theo chiều ngang chứ không phải loại bỏ nó."
+        },
+        {
+          "id": "fix-1",
+          "text": "Triển khai nhiều phiên bản cổng phía sau load balancer với khả năng tự động mở rộng quy mô và triển khai hàng đợi ưu tiên cho lưu lượng khẩn cấp",
+          "correct": true,
+          "feedback": "Chính xác! Giải pháp có nhiều thành phần: (1) Nhiều phiên bản cổng phía sau load balancer phân phối lưu lượng truy cập trên một số máy chủ, loại bỏ tình trạng thắt cổ chai duy nhất. (2) Tự động mở rộng quy mô tự động thêm nhiều phiên bản cổng hơn khi lưu lượng truy cập tăng đột biến. (3) Hàng đợi ưu tiên đảm bảo lưu lượng 911 khẩn cấp được xử lý trước, ngay cả khi đang tải. Đây là mẫu sản xuất tiêu chuẩn — không có thành phần đơn lẻ nào là đường dẫn duy nhất cho tất cả lưu lượng truy cập."
+        },
+        {
+          "id": "fix-2",
+          "text": "Nâng cấp cổng API duy nhất lên một máy mạnh hơn nhiều với giới hạn kết nối và CPU cao hơn đáng kể",
+          "correct": false,
+          "feedback": "Chia tỷ lệ theo chiều dọc (máy lớn hơn) có giới hạn — cuối cùng bạn sẽ lại đạt đến mức trần với sự kiện lớn tiếp theo. Nó cũng không giải quyết được điểm duy nhất của vấn đề thất bại. Chia tỷ lệ theo chiều ngang (nhiều trường hợp) có khả năng phục hồi cao hơn và có thể mở rộng quy mô hơn nữa."
+        }
+      ]
+    }
+  },
+  "conceptId": "load-balancing",
+  "badge": {
+    "name": "Tải chủ",
+    "icon": "⚖️"
+  }
+}

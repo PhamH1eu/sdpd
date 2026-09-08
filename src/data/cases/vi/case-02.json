@@ -1,0 +1,252 @@
+{
+  "id": "case-02",
+  "number": 2,
+  "title": "Read cũ kỹ",
+  "subtitle": "Một sĩ quan bắt giữ một người theo lệnh bác bỏ",
+  "brief": {
+    "narrative": "Cảnh sát Chen vừa bắt giữ Marcus Webb tại một điểm dừng giao thông dựa trên lệnh truy nã còn hiệu lực về tội hành hung. Vấn đề? Lệnh đó đã bị Thẩm phán Torres bác bỏ ba giờ trước. Luật sư của Webb đã đe dọa khởi kiện bắt giữ trái pháp luật. Lệnh bãi bỏ lệnh đã được nhập vào leader database ở Trung tâm, nhưng xe tuần tra của Sĩ quan Chen truy vấn follower Phân khu phía Nam - dường như vẫn chưa theo kịp. Cảnh sát trưởng Partition đang rất tức giận. Làm thế nào mà hệ thống của chúng ta lại phản bội chúng ta, thám tử?",
+    "symptoms": [
+      "Lệnh đã bị hủy bỏ 3 giờ trước trên leader database",
+      "Phân khu phía Nam follower vẫn hiển thị lệnh có hiệu lực",
+      "Phân khu phía Bắc follower hiển thị chính xác lệnh đã bị bác bỏ",
+      "Độ trễ của Replication ở South Precinct follower là hơn 4 giờ"
+    ],
+    "objective": "Xác định lý do tại sao Khu vực phía Nam follower có dữ liệu cũ và đề xuất giải pháp khắc phục để ngăn cảnh sát hành động dựa trên thông tin lỗi thời."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "db-leader",
+        "type": "database",
+        "label": "Leader DB (Trung tâm)",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 350,
+          "y": 30
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Leader Database — Trụ sở trung tâm",
+          "logs": [
+            "[14:22:01] INFO: UPDATE warrants SET status='DISMISSED' WHERE id=W-4471",
+            "[14:22:01] INFO: Write acknowledged, replicating to followers...",
+            "[14:22:02] INFO: Replication to north-follower: OK (lag: 200ms)",
+            "[14:22:02] WARN: Replication to south-follower: PENDING (lag: 4h 12m)",
+            "[17:30:00] INFO: South follower replication still behind by 4+ hours"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Warrant W-4471": "BỊ BỎ QUA (cập nhật 3h trước)",
+            "Replication Mode": "Không đồng bộ",
+            "North Follower Lag": "200 mili giây",
+            "South Follower Lag": "4h 12p"
+          },
+          "status": "Leader khỏe mạnh. Nam follower có độ trễ replication nghiêm trọng."
+        }
+      },
+      {
+        "id": "db-north",
+        "type": "database",
+        "label": "Bắc Follower",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 100,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Phân khu phía Bắc Follower DB",
+          "logs": [
+            "[14:22:02] INFO: Received replication event for W-4471",
+            "[14:22:02] INFO: Applied: warrant W-4471 → DISMISSED",
+            "[17:30:00] INFO: Replication lag: 180ms"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN - ĐỒNG BỘ",
+            "Warrant W-4471": "BỎ CUỘC",
+            "Replication Lag": "180 mili giây",
+            "Last Sync": "Vừa rồi"
+          },
+          "status": "Khỏe mạnh và cập nhật với leader."
+        }
+      },
+      {
+        "id": "db-south",
+        "type": "database",
+        "label": "Nam Follower",
+        "status": "xuống cấp",
+        "position": {
+          "x": 600,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Phân khu phía Nam Follower DB",
+          "logs": [
+            "[13:18:00] WARN: Replication consumer falling behind",
+            "[13:45:00] WARN: Replication lag exceeding 1 hour",
+            "[14:22:02] INFO: Replication event for W-4471 QUEUED (not yet applied)",
+            "[17:30:00] ERROR: Replication lag: 4h 12m — serving stale data"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN — TẬP LẠI",
+            "Warrant W-4471": "HOẠT ĐỘNG ⚠️ (cũ!)",
+            "Replication Lag": "4h 12p",
+            "Last Sync": "4 giờ trước",
+            "Cause": "disk I/O chậm trên follower"
+          },
+          "status": "Trực tuyến nhưng bị tụt lại phía sau nghiêm trọng. Cung cấp dữ liệu bảo hành cũ."
+        }
+      },
+      {
+        "id": "officer-chen",
+        "type": "client",
+        "label": "Sĩ quan Chen",
+        "status": "xuống cấp",
+        "position": {
+          "x": 600,
+          "y": 380
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Trạm tuần tra của sĩ quan Chen",
+          "logs": [
+            "[17:25:00] INFO: Querying warrants for Marcus Webb...",
+            "[17:25:00] INFO: Routed to south-follower (nearest)",
+            "[17:25:01] INFO: Result: Warrant W-4471 — ACTIVE",
+            "[17:25:15] INFO: Arrest initiated based on active warrant"
+          ],
+          "data": {
+            "Connected To": "Phân khu phía Nam Follower",
+            "Query Result": "Lệnh W-4471: HOẠT ĐỘNG",
+            "Actual Status": "BỊ BỎ QUA (3 giờ trước)"
+          },
+          "status": "Dữ liệu cũ của Read do follower bị trễ. Bắt giữ sai trái."
+        }
+      },
+      {
+        "id": "judge",
+        "type": "client",
+        "label": "Thẩm phán Torres",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 350,
+          "y": 380
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Thiết bị đầu cuối của Thẩm phán Torres",
+          "logs": [
+            "[14:22:00] INFO: Dismissing warrant W-4471 for Marcus Webb",
+            "[14:22:01] INFO: Write sent to Leader DB — acknowledged"
+          ],
+          "data": {
+            "Action": "Lệnh W-4471 BỎ BỎ",
+            "Written To": "Leader DB (Trung tâm)",
+            "Time": "3 giờ trước"
+          },
+          "status": "Việc sa thải đã được ghi chính xác vào leader database."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-judge-leader",
+        "source": "judge",
+        "target": "db-leader",
+        "label": "write",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-leader-north",
+        "source": "db-leader",
+        "target": "db-north",
+        "label": "replication (nhanh)",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-leader-south",
+        "source": "db-leader",
+        "target": "db-south",
+        "label": "replication (tụt hậu!)",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-south-chen",
+        "source": "db-south",
+        "target": "officer-chen",
+        "label": "read cũ",
+        "animated": false,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Tại sao sĩ quan Chen nhìn thấy lệnh có hiệu lực đã bị bác bỏ?",
+      "options": [
+        {
+          "id": "rc-3",
+          "text": "network partition đã chặn South Precinct nhận bất kỳ bản cập nhật database nào từ leader node",
+          "correct": false,
+          "feedback": "follower phía Nam đang trực tuyến và nhận các sự kiện replication - chúng chỉ bị trì hoãn. Nhật ký hiển thị các sự kiện được xếp hàng đợi, không bị chặn. Đây là độ trễ replication, không phải network partition."
+        },
+        {
+          "id": "rc-4",
+          "text": "leader database có lỗi phần mềm khiến nó không chuyển tiếp các bản cập nhật bảo đảm tới miền Nam follower",
+          "correct": false,
+          "feedback": "Nhật ký leader cho thấy sự kiện replication đã được gửi nhưng đang ĐANG XỬ LÝ ở phía nam follower. follower đã nhận được nhưng chưa áp dụng do độ trễ của chính nó."
+        },
+        {
+          "id": "rc-2",
+          "text": "Thiết bị đầu cuối của sĩ quan Chen đã được chuyển đến follower database có độ trễ replication cao, cung cấp dữ liệu cũ",
+          "correct": true,
+          "feedback": "Chính xác! Khu vực phía Nam follower có độ trễ replication hơn 4 giờ. Khi cảnh sát Chen truy vấn, lệnh bãi bỏ lệnh vẫn chưa được lặp lại. Đây là sự cố 'read cũ' trong leader-follower replication - người theo dõi có thể cung cấp dữ liệu lỗi thời."
+        },
+        {
+          "id": "rc-1",
+          "text": "Lệnh bác bỏ lệnh của thẩm phán không bao giờ được lưu vì write transaction đến leader database âm thầm thất bại",
+          "correct": false,
+          "feedback": "Nhật ký leader database xác nhận lệnh đã được cập nhật thành BỎ QUA. write đã thành công - vấn đề nằm ở phía read."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách tiếp cận tốt nhất để ngăn chặn các quan chức hành động dựa trên dữ liệu lệnh cũ là gì?",
+      "options": [
+        {
+          "id": "fix-4",
+          "text": "Cache trạng thái bảo hành cục bộ trên mỗi thiết bị đầu cuối của sĩ quan để giảm tải database và tăng tốc truy vấn",
+          "correct": false,
+          "feedback": "caching cục bộ sẽ khiến vấn đề về độ cứng trở nên tồi tệ hơn! Nếu database đã bị trễ thì việc thêm một lớp caching khác có nghĩa là dữ liệu có thể còn lỗi thời hơn nữa."
+        },
+        {
+          "id": "fix-1",
+          "text": "Định tuyến các truy vấn quan trọng (như kiểm tra lệnh) tới leader database thay vì người theo dõi",
+          "correct": true,
+          "feedback": "Chính xác! Đối với các dữ liệu quan trọng về an toàn như trạng thái bảo hành, việc truy vấn leader đảm bảo bạn luôn nhận được dữ liệu mới nhất. Đây là mẫu 'đọc từ người lãnh đạo' cho các truy vấn quan trọng. Các truy vấn ít quan trọng hơn (như số liệu thống kê) vẫn có thể sử dụng người theo dõi để phân phối tải."
+        },
+        {
+          "id": "fix-3",
+          "text": "Thêm cơ sở dữ liệu follower bổ sung trên nhiều khu vực hơn để giúp phân phối tải read query tổng thể",
+          "correct": false,
+          "feedback": "Nhiều người theo dõi hơn không giải quyết được độ trễ của replication — họ có thể khiến tình hình trở nên tồi tệ hơn. Sự cố không tải được; đó là follower phía Nam đứng sau và cung cấp dữ liệu cũ cho các truy vấn quan trọng."
+        },
+        {
+          "id": "fix-2",
+          "text": "Chuyển tất cả những người theo dõi từ không đồng bộ sang synchronous replication để việc ghi được xác nhận trên tất cả các bản sao",
+          "correct": false,
+          "feedback": "Synchronous replication sẽ đảm bảo tất cả những người theo dõi đều được cập nhật, nhưng điều đó có nghĩa là mọi write phải đợi TẤT CẢ những người theo dõi xác nhận - bao gồm cả follower phía Nam chậm chạp. Điều này sẽ làm cho toàn bộ hệ thống chậm như follower chậm nhất. Cách tiếp cận tốt hơn là có chọn lọc: định tuyến các lần đọc quan trọng tới leader."
+        }
+      ]
+    }
+  },
+  "conceptId": "leader-follower-replication",
+  "badge": {
+    "name": "Thợ săn độ trễ",
+    "icon": "⏱️"
+  }
+}

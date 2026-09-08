@@ -1,0 +1,172 @@
+{
+  "id": "case-39",
+  "number": 39,
+  "title": "Update biến mất",
+  "subtitle": "Hai lần ghi hợp lệ tạo ra tồn kho sai",
+  "brief": {
+    "narrative": "Hai worker cùng đọc stock=10, độc lập trừ 3 và 4 rồi ghi 7 và 6. Giá trị cuối là 6 dù đã bán tổng cộng 7 sản phẩm.",
+    "symptoms": [
+      "Metric của Inventory Database khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Hai lần ghi hợp lệ tạo ra tồn kho sai"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Hai lần ghi hợp lệ tạo ra tồn kho sai"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN Inventory Database xuất hiện anomaly",
+            "[09:00:20] WARN Hai lần ghi hợp lệ tạo ra tồn kho sai",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Hai lần ghi hợp lệ tạo ra tồn kho sai",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Inventory Database",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Inventory Database",
+          "logs": [
+            "Metric của Inventory Database khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-wrong-3",
+          "text": "Query không sử dụng leftmost prefix của composite B-tree index.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Race trong chuỗi read-modify-write gây lost update.",
+          "correct": true,
+          "feedback": "Chính xác. Chỉ mở transaction chưa chắc ngăn lost update ở mọi isolation level. Hãy biểu diễn invariant bằng thao tác atomic và làm retry an toàn."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Transaction giữ connection trong pool qua một đoạn network I/O không liên quan.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Thuộc tính khách hàng bị lặp đã tạo update anomaly trong bảng giao dịch denormalized.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-correct",
+          "text": "Dùng atomic conditional UPDATE hoặc optimistic version check; retry conflict và enforce invariant tại database.",
+          "correct": true,
+          "feedback": "Chính xác. Chỉ mở transaction chưa chắc ngăn lost update ở mọi isolation level. Hãy biểu diễn invariant bằng thao tác atomic và làm retry an toàn."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Giữ transaction ngắn, trả connection trước external call, đặt pool/statement timeout và tính pool size theo capacity của database.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Tách Customer và Order, tham chiếu bằng customer_id; chỉ lưu shipping snapshot bất biến khi nghiệp vụ cần lịch sử.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Thiết kế index với các cột equality ở đầu, sau đó là range/order; kiểm chứng bằng EXPLAIN ANALYZE thay vì đoán.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    }
+  },
+  "conceptId": "lost-update",
+  "badge": {
+    "name": "Update biến mất",
+    "icon": "🔄"
+  }
+}

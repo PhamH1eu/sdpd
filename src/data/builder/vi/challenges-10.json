@@ -1,0 +1,71 @@
+{
+  "id": "builder-10",
+  "number": 10,
+  "title": "Khởi động vùng lạnh",
+  "subtitle": "Một vùng mới không thể nóng lên đủ nhanh sau failover",
+  "objective": "Thiết kế các thành phần đường dẫn ấm để giảm tác động khởi động nguội sau failover khu vực.",
+  "constraints": [
+    "Tăng tốc lần đọc đầu tiên",
+    "Giữ riêng nguồn bền",
+    "Tránh kết nối trực tiếp máy khách với bộ lưu trữ"
+  ],
+  "availableComponents": [
+    "client",
+    "cdn",
+    "cache",
+    "loadBalancer",
+    "api",
+    "database",
+    "blobStorage"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Con đường ấm áp cạnh",
+      "description": "CDN hoặc cache phải có mặt để đọc khởi động.",
+      "requiredAnyOf": [
+        "cdn",
+        "cache"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "cdn"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Hòa giải API",
+      "description": "Khách hàng sẽ tiếp cận bộ lưu trữ thông qua lớp API.",
+      "requiredAll": [
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "loadBalancer",
+          "to": "api"
+        },
+        {
+          "from": "api",
+          "to": "database"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Durability khu vực",
+      "description": "Duy trì dữ liệu nguồn trong bộ lưu trữ hỗ trợ bền bỉ.",
+      "requiredAnyOf": [
+        "database",
+        "blobStorage"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "blobStorage"
+        }
+      ]
+    }
+  ]
+}

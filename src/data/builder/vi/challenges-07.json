@@ -1,0 +1,70 @@
+{
+  "id": "builder-07",
+  "number": 7,
+  "title": "Gương bằng chứng xuyên khu vực",
+  "subtitle": "Sự cố ngừng hoạt động của phương tiện truyền thông trong một khu vực ngăn chặn các cuộc điều tra",
+  "objective": "Thiết kế bộ lưu trữ và thiết lập delivery giúp giữ cho phương tiện có thể truy cập được trong các sự cố trong khu vực.",
+  "constraints": [
+    "Giữ đường dẫn read linh hoạt",
+    "Sử dụng delivery có thể lưu vào bộ nhớ đệm trên toàn cầu",
+    "Giữ lại siêu dữ liệu có thẩm quyền"
+  ],
+  "availableComponents": [
+    "client",
+    "cdn",
+    "loadBalancer",
+    "api",
+    "blobStorage",
+    "database",
+    "cache"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Phân phối toàn cầu",
+      "description": "Đặt CDN vào đường dẫn delivery để có khả năng đọc linh hoạt.",
+      "requiredAll": [
+        "client",
+        "cdn"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "cdn"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Lưu trữ phương tiện phù hợp",
+      "description": "Bộ lưu trữ blob sẽ chứa các đối tượng bằng chứng khu vực.",
+      "requiredAll": [
+        "api",
+        "blobStorage"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "blobStorage"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Cơ quan siêu dữ liệu",
+      "description": "Sử dụng database cho siêu dữ liệu chứ không phải trực tiếp các đốm màu.",
+      "requiredAll": [
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "database"
+        }
+      ],
+      "discouragedComponents": [
+        "cache"
+      ]
+    }
+  ]
+}

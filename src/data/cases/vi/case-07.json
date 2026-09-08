@@ -1,0 +1,233 @@
+{
+  "id": "case-07",
+  "number": 7,
+  "title": "Vấn đề nan giải của người du hành thời gian",
+  "subtitle": "Dấu thời gian bằng chứng thách thức các định luật vật lý",
+  "brief": {
+    "narrative": "Có điều gì đó kỳ lạ đang xảy ra trong hệ thống bằng chứng pháp y của Distributia. Mẫu máu được lấy lúc 10:15 tối có dấu thời gian phân tích trong phòng thí nghiệm là 10:10 tối — năm phút trước khi lấy mẫu. Luật sư bào chữa cho rằng bằng chứng là bịa đặt vì 'bạn không thể phân tích điều gì đó trước khi nó tồn tại'. Nhưng đội pháp y thề rằng họ đã làm theo đúng quy trình. Vấn đề thực sự? Máy chủ thu thập bằng chứng và máy chủ phân tích phòng thí nghiệm có đồng hồ cách nhau 8 phút. Đồng bộ hóa NTP của họ đã thất bại ba ngày trước và không ai để ý. Giờ đây, hàng trăm hồ sơ bằng chứng không thể đánh dấu thời gian và các vụ án có nguy cơ bị loại bỏ.",
+    "symptoms": [
+      "Dấu thời gian phân tích bằng chứng xuất hiện trước dấu thời gian thu thập",
+      "Đồng hồ của máy chủ phòng thí nghiệm pháp y chậm hơn máy chủ thu thập 8 phút",
+      "Đồng bộ hóa NTP đã không thành công trong 3 ngày",
+      "Luật sư bào chữa đang thách thức tính toàn vẹn của bằng chứng dựa trên sự không nhất quán về dấu thời gian"
+    ],
+    "objective": "Hiểu cách độ lệch đồng hồ giữa các máy chủ làm hỏng thứ tự sự kiện và xác định cách thiết lập thứ tự đáng tin cậy trong hệ thống phân tán."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "collection-server",
+        "type": "server",
+        "label": "Thu thập bằng chứng",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Máy chủ thu thập bằng chứng",
+          "logs": [
+            "[22:15:00] INFO: Evidence #E-9934 (blood sample) collected by Officer Tanaka",
+            "[22:15:00] INFO: Timestamp assigned: 22:15:00 (local clock)",
+            "[22:15:01] INFO: Sent to Forensic Lab for analysis",
+            "[22:15:02] WARN: NTP sync status: FAILED (last sync 3 days ago)",
+            "[22:15:02] INFO: Local clock source: hardware RTC (drifting)"
+          ],
+          "data": {
+            "Server Clock": "22:15:00",
+            "Actual UTC Time": "22:12:00",
+            "Clock Drift": "+3 phút trước UTC",
+            "NTP Status": "THẤT ​​BẠI — đồng bộ hóa lần cuối 72 giờ trước",
+            "NTP Server": "ntp.distributia.gov (không thể truy cập)",
+            "Evidence #E-9934 Timestamp": "22:15:00 (địa phương)"
+          },
+          "status": "Đồng hồ sớm hơn 3 phút so với UTC. Đồng bộ hóa NTP bị hỏng trong 3 ngày."
+        }
+      },
+      {
+        "id": "lab-server",
+        "type": "server",
+        "label": "Máy chủ phòng thí nghiệm pháp y",
+        "status": "xuống cấp",
+        "position": {
+          "x": 550,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Máy chủ phân tích phòng thí nghiệm pháp y",
+          "logs": [
+            "[22:07:01] INFO: Received Evidence #E-9934 for analysis",
+            "[22:10:00] INFO: Analysis complete for Evidence #E-9934",
+            "[22:10:00] INFO: Timestamp assigned: 22:10:00 (local clock)",
+            "[22:10:01] WARN: NTP sync status: FAILED (last sync 3 days ago)"
+          ],
+          "data": {
+            "Server Clock": "22:10:00",
+            "Actual UTC Time": "22:15:00",
+            "Clock Drift": "-5 phút sau UTC",
+            "NTP Status": "THẤT ​​BẠI — đồng bộ hóa lần cuối 72 giờ trước",
+            "Evidence #E-9934 Analysis Timestamp": "22:10:00 (địa phương)",
+            "Total Clock Skew vs Collection Server": "8 phút"
+          },
+          "status": "Đồng hồ là 5 phút SAU UTC. Độ lệch kết hợp là 8 phút so với máy chủ Bộ sưu tập."
+        }
+      },
+      {
+        "id": "evidence-db",
+        "type": "database",
+        "label": "Bằng chứng Database",
+        "status": "xuống cấp",
+        "position": {
+          "x": 325,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng trung tâm Database",
+          "logs": [
+            "[22:15:01] INFO: INSERT Evidence #E-9934 — collected at 22:15:00",
+            "[22:15:05] INFO: UPDATE Evidence #E-9934 — analysis complete at 22:10:00",
+            "[22:15:05] WARN: TEMPORAL ANOMALY — analysis (22:10:00) before collection (22:15:00)",
+            "[22:15:05] WARN: 147 records with temporal anomalies in the last 72 hours"
+          ],
+          "data": {
+            "Evidence #E-9934 Collected": "22:15:00",
+            "Evidence #E-9934 Analyzed": "22:10:00",
+            "Time Paradox": "Phân tích xuất hiện 5 phút TRƯỚC KHI thu thập",
+            "Records With Anomalies": "147 (72 giờ qua)",
+            "Cases Potentially Affected": "23"
+          },
+          "status": "Các bất thường về thời gian được phát hiện trong hồ sơ bằng chứng do lệch đồng hồ giữa các máy chủ nguồn."
+        }
+      },
+      {
+        "id": "ntp-server",
+        "type": "server",
+        "label": "Máy chủ NTP",
+        "status": "thất bại",
+        "position": {
+          "x": 325,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Máy chủ thời gian NTP (ntp.distributia.gov)",
+          "logs": [
+            "[3 days ago] INFO: Serving time to 12 clients",
+            "[3 days ago] ERROR: Network interface failure",
+            "[3 days ago] FATAL: NTP service unreachable",
+            "[3 days ago] WARN: No alerting configured for NTP outage"
+          ],
+          "data": {
+            "Status": "NGOẠI TUYẾN",
+            "Downtime": "72 giờ",
+            "Clients Affected": "12 máy chủ",
+            "Alert Sent": "KHÔNG - không có cấu hình giám sát"
+          },
+          "status": "Máy chủ NTP ngoại tuyến trong 72 giờ. Không có cảnh báo nào được định cấu hình cho service quan trọng này."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-collect-db",
+        "source": "collection-server",
+        "target": "evidence-db",
+        "label": "dấu thời gian",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-lab-db",
+        "source": "lab-server",
+        "target": "evidence-db",
+        "label": "dấu thời gian",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-ntp-collect",
+        "source": "ntp-server",
+        "target": "collection-server",
+        "label": "đồng bộ thời gian",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-ntp-lab",
+        "source": "ntp-server",
+        "target": "lab-server",
+        "label": "đồng bộ thời gian",
+        "animated": false,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của dấu thời gian bằng chứng không thể tin được là gì?",
+      "options": [
+        {
+          "id": "rc-2",
+          "text": "Lỗi NTP khiến đồng hồ bị lệch, khiến dấu thời gian giữa các máy chủ không thể so sánh được",
+          "correct": true,
+          "feedback": "Chính xác! Trong các hệ thống phân tán, mỗi máy có đồng hồ vật lý riêng và các đồng hồ này trôi với tốc độ khác nhau. NTP thường giữ cho chúng được đồng bộ hóa trong vòng một phần nghìn giây, nhưng khi NTP bị lỗi, các đồng hồ đã lệch nhau tổng cộng 8 phút. Đây là lý do tại sao việc sử dụng dấu thời gian của đồng hồ treo tường để sắp xếp các sự kiện trên các máy khác nhau về cơ bản là không đáng tin cậy — đồng hồ vật lý không được đồng bộ hóa hoàn hảo và không bao giờ có thể như vậy."
+        },
+        {
+          "id": "rc-3",
+          "text": "database đang ghi các bản ghi theo thứ tự không chính xác do lỗi phần mềm trong logic đường dẫn write",
+          "correct": false,
+          "feedback": "database đang ghi lại chính xác dấu thời gian mà nó nhận được. Vấn đề nằm ở thượng nguồn — bản thân các dấu thời gian cũng sai vì đồng hồ của máy chủ không đồng bộ. database không có cách nào để biết dấu thời gian bị sai lệch."
+        },
+        {
+          "id": "rc-1",
+          "text": "Bằng chứng thực sự được tạo ra bởi các kỹ thuật viên phòng thí nghiệm - dấu thời gian không thể tin được là bằng chứng cho thấy chuỗi hành trình sản phẩm đã bị phá vỡ",
+          "correct": false,
+          "feedback": "Dấu thời gian không chứng minh được sự bịa đặt - chúng chứng minh sự sai lệch của đồng hồ. Đồng hồ của máy chủ Bộ sưu tập nhanh hơn UTC 3 phút trong khi đồng hồ của máy chủ Lab chậm hơn UTC 5 phút, tạo ra độ lệch tổng cộng là 8 phút. Các sự kiện thực sự đã xảy ra theo đúng thứ tự có vẻ như đã bị đảo ngược vì mỗi máy chủ đều đánh dấu các sự kiện bằng đồng hồ cục bộ bị lệch của riêng nó."
+        },
+        {
+          "id": "rc-4",
+          "text": "Network latency giữa máy chủ thu thập và máy chủ phòng thí nghiệm đang khiến các sự kiện đến database không theo thứ tự",
+          "correct": false,
+          "feedback": "Network latency có thể khiến các sự kiện diễn ra không theo thứ tự, nhưng đó không phải là vấn đề ở đây. Bản thân các dấu thời gian đều sai — ngay cả khi các sự kiện đến theo đúng thứ tự, dấu thời gian vẫn sẽ hiển thị phân tích trước khi thu thập vì đồng hồ của máy chủ Lab bị trễ."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách tốt nhất để thiết lập thứ tự sự kiện đáng tin cậy trên các máy chủ là gì?",
+      "options": [
+        {
+          "id": "fix-4",
+          "text": "Thêm độ trễ bộ đệm tĩnh trước khi ghi bất kỳ dấu thời gian nào để bù cho độ lệch đồng hồ dự kiến ​​tối đa đã biết trên các máy chủ",
+          "correct": false,
+          "feedback": "Bộ đệm tùy ý không giải quyết được vấn đề - bạn cần biết trước độ lệch chính xác, độ lệch này thay đổi theo thời gian. Và nó bổ sung thêm latency không cần thiết vào mọi hoạt động. Đồng hồ logic giải quyết vấn đề sắp xếp thứ tự mà không cần thêm độ trễ hoặc yêu cầu kiến ​​thức về độ lệch của đồng hồ."
+        },
+        {
+          "id": "fix-1",
+          "text": "Sửa cấu hình máy chủ NTP và đảm bảo tất cả đồng hồ máy chủ được đồng bộ hóa chặt chẽ với độ chính xác đến mili giây",
+          "correct": false,
+          "feedback": "Sửa NTP là cần thiết nhưng chưa đủ. Ngay cả với NTP, đồng hồ có thể trôi giữa các khoảng thời gian đồng bộ hóa và độ chính xác của NTP thường cao nhất là 1-10 mili giây. Đối với các yêu cầu đặt hàng quan trọng, bạn không thể chỉ dựa vào đồng bộ hóa đồng hồ vật lý. Bạn cũng cần một cơ chế sắp xếp hợp lý."
+        },
+        {
+          "id": "fix-2",
+          "text": "Sử dụng đồng hồ logic (như dấu thời gian Lamport hoặc đồng hồ vectơ) để theo dõi thứ tự nguyên nhân của các sự kiện trên các máy chủ",
+          "correct": true,
+          "feedback": "Chính xác! Đồng hồ logic hoàn toàn không phụ thuộc vào thời gian vật lý. Dấu thời gian Lamport là bộ đếm tăng dần theo từng sự kiện và được chuyển giữa các máy chủ với mỗi tin nhắn. Nếu sự kiện A xảy ra trước sự kiện B một cách nhân quả thì dấu thời gian logic của A được đảm bảo nhỏ hơn dấu thời gian logic của B. Đồng hồ vectơ mở rộng điều này để theo dõi quan hệ nhân quả trên mỗi nút. Kết hợp với NTP để có thời gian gần đúng theo đồng hồ treo tường, đồng hồ logic cung cấp cho bạn thứ tự nhân quả đáng tin cậy bất kể độ lệch của đồng hồ."
+        },
+        {
+          "id": "fix-3",
+          "text": "Chỉ định một máy chủ thời gian tập trung duy nhất gán dấu thời gian cho tất cả các sự kiện được gửi từ bất kỳ đâu trong hệ thống",
+          "correct": false,
+          "feedback": "Máy chủ dấu thời gian trung tâm tạo ra một điểm lỗi duy nhất và tắc nghẽn hiệu suất — mọi sự kiện trên toàn bộ hệ thống đều phải chờ response từ một máy chủ này. Nó cũng bổ sung network latency vào mọi hoạt động. Đồng hồ logic đạt được thứ tự đáng tin cậy mà không cần bất kỳ sự phối hợp trung tâm nào."
+        }
+      ]
+    }
+  },
+  "conceptId": "clock-synchronization",
+  "badge": {
+    "name": "Người giữ thời gian",
+    "icon": "⏰"
+  }
+}

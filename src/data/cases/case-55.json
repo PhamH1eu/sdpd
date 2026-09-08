@@ -1,0 +1,172 @@
+{
+  "id": "case-55",
+  "number": 55,
+  "title": "The Internal URL",
+  "subtitle": "A thumbnail feature reads cloud credentials",
+  "brief": {
+    "narrative": "The server fetches any user-provided URL. Redirects and alternate IP formats reach the instance metadata endpoint and private services.",
+    "symptoms": [
+      "URL Fetcher metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "A thumbnail feature reads cloud credentials"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "A thumbnail feature reads cloud credentials"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN URL Fetcher shows an anomaly",
+            "[09:00:20] WARN A thumbnail feature reads cloud credentials",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "A thumbnail feature reads cloud credentials",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "URL Fetcher",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "URL Fetcher",
+          "logs": [
+            "URL Fetcher metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-3",
+          "text": "At-least-once delivery replayed a record whose side effect was already committed.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Server-Side Request Forgery let an attacker choose a privileged network destination.",
+          "correct": true,
+          "feedback": "Correct. String-prefix checks are bypassable through DNS, redirects, IPv6, and encoding. Defense needs application validation plus network controls."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Unbounded queueing and retries turned overload into congestion collapse.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "A dual write to the database and broker was not atomic.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-correct",
+          "text": "Allowlist schemes/destinations, resolve and validate every hop, block private/link-local ranges at egress, limit redirects, and isolate the fetcher.",
+          "correct": true,
+          "feedback": "Correct. String-prefix checks are bypassable through DNS, redirects, IPv6, and encoding. Defense needs application validation plus network controls."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Set admission limits, bounded queues and deadlines; shed low-priority work, apply retry budgets/backoff, degrade gracefully, and scale from saturation signals.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Write the business row and outbox row in one database transaction, relay with retries, and make consumers idempotent.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Use an idempotency/inbox key in the same transaction as the side effect, then commit offsets; choose Kafka transactions only when their boundary fits.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "ssrf-defense",
+  "badge": {
+    "name": "The Internal URL",
+    "icon": "🌐"
+  }
+}

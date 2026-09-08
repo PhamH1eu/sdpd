@@ -1,0 +1,172 @@
+{
+  "id": "case-43",
+  "number": 43,
+  "title": "The Busy Thread Pool",
+  "subtitle": "More Python threads do not speed up image hashing",
+  "brief": {
+    "narrative": "Eight threads run pure-Python CPU work. All cores except one remain mostly idle while context switches increase.",
+    "symptoms": [
+      "Python Runtime metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "More Python threads do not speed up image hashing"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "More Python threads do not speed up image hashing"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Python Runtime shows an anomaly",
+            "[09:00:20] WARN More Python threads do not speed up image hashing",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "More Python threads do not speed up image hashing",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Python Runtime",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Python Runtime",
+          "logs": [
+            "Python Runtime metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-3",
+          "text": "The failure boundary is a process, not a thread; memory is isolated between processes.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "CPython’s GIL serializes execution of Python bytecode for CPU-bound threads.",
+          "correct": true,
+          "feedback": "Correct. Threads are effective for blocking I/O. For CPU-bound Python code, measure whether the workload releases the GIL before choosing concurrency."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "A socket/file-descriptor leak exhausted the per-process limit.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "CPU oversubscription created scheduling and cache-locality overhead.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-correct",
+          "text": "Use multiprocessing, a native library that releases the GIL, or a separate compute service; benchmark serialization and memory costs.",
+          "correct": true,
+          "feedback": "Correct. Threads are effective for blocking I/O. For CPU-bound Python code, measure whether the workload releases the GIL before choosing concurrency."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Close resources with context managers/finally, reuse bounded client pools, expose descriptor metrics, and keep a deliberate ulimit.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Size CPU-bound workers near the effective CPU quota, batch work, and measure run queue, throttling, switches, and throughput.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Run unsafe or CPU-heavy work in supervised worker processes and define IPC, restart, timeout, and idempotency behavior.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "python-gil-cpu-bound",
+  "badge": {
+    "name": "The Busy Thread Pool",
+    "icon": "🐍"
+  }
+}

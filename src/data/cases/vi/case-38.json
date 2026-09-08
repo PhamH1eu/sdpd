@@ -1,0 +1,172 @@
+{
+  "id": "case-38",
+  "number": 38,
+  "title": "Connection pool trống rỗng",
+  "subtitle": "Request phải chờ dù database vẫn còn CPU",
+  "brief": {
+    "narrative": "Một external HTTP call chậm được gọi khi database transaction vẫn mở. Cả 30 connection đều bị checkout và request mới timeout khi chờ connection.",
+    "symptoms": [
+      "Metric của DB Connection Pool khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Request phải chờ dù database vẫn còn CPU"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Request phải chờ dù database vẫn còn CPU"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN DB Connection Pool xuất hiện anomaly",
+            "[09:00:20] WARN Request phải chờ dù database vẫn còn CPU",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Request phải chờ dù database vẫn còn CPU",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "DB Connection Pool",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "DB Connection Pool",
+          "logs": [
+            "Metric của DB Connection Pool khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-wrong-2",
+          "text": "Race trong chuỗi read-modify-write gây lost update.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Thuộc tính khách hàng bị lặp đã tạo update anomaly trong bảng giao dịch denormalized.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Transaction giữ connection trong pool qua một đoạn network I/O không liên quan.",
+          "correct": true,
+          "feedback": "Chính xác. Tăng pool vô hạn có thể làm database quá tải. Cần đo checkout time, transaction age, active/idle connection và slow statement."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "ORM lazy loading tạo ra N+1 query pattern.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-wrong-3",
+          "text": "Tách Customer và Order, tham chiếu bằng customer_id; chỉ lưu shipping snapshot bất biến khi nghiệp vụ cần lịch sử.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Giữ transaction ngắn, trả connection trước external call, đặt pool/statement timeout và tính pool size theo capacity của database.",
+          "correct": true,
+          "feedback": "Chính xác. Tăng pool vô hạn có thể làm database quá tải. Cần đo checkout time, transaction age, active/idle connection và slow statement."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Lấy relation bằng join/batch có giới hạn, chỉ select field cần thiết và kiểm tra query count bằng test hoặc tracing.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Dùng atomic conditional UPDATE hoặc optimistic version check; retry conflict và enforce invariant tại database.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    }
+  },
+  "conceptId": "connection-pool-exhaustion",
+  "badge": {
+    "name": "Connection pool trống rỗng",
+    "icon": "🏊"
+  }
+}

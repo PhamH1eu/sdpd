@@ -1,0 +1,74 @@
+{
+  "id": "builder-23",
+  "number": 23,
+  "title": "Bộ định tuyến cảnh báo đa kênh",
+  "subtitle": "Việc gửi cảnh báo tới nhiều kênh không đáng tin cậy",
+  "objective": "Xây dựng kiến ​​trúc đa kênh đáng tin cậy với nhật ký điều phối ổn định và đệm.",
+  "constraints": [
+    "Đảm bảo phân bổ kênh async",
+    "Tránh phân tán đồng bộ trực tiếp",
+    "Duy trì kết quả cuối cùng của kênh"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "queue",
+    "worker",
+    "database",
+    "blobStorage",
+    "cache"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Phân bổ kênh đệm",
+      "description": "Việc gửi đi sẽ diễn ra thông qua hàng đợi và lớp worker.",
+      "requiredAll": [
+        "api",
+        "queue",
+        "worker"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "queue"
+        },
+        {
+          "from": "queue",
+          "to": "worker"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Đầu vào đáng tin cậy",
+      "description": "Sử dụng load balancer trước cảnh báo API.",
+      "requiredAll": [
+        "client",
+        "loadBalancer"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Đường mòn kiểm tra điều phối",
+      "description": "Duy trì kết quả trên mỗi kênh trong bộ lưu trữ.",
+      "requiredAnyOf": [
+        "database",
+        "blobStorage"
+      ],
+      "preferredConnections": [
+        {
+          "from": "worker",
+          "to": "database"
+        }
+      ]
+    }
+  ]
+}

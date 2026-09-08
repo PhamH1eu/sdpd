@@ -1,0 +1,172 @@
+{
+  "id": "case-53",
+  "number": 53,
+  "title": "The Celebrity Hot Key",
+  "subtitle": "One Redis shard melts while the cluster looks idle",
+  "brief": {
+    "narrative": "A viral profile key receives 40% of all reads. Hash partitioning maps that key to one shard, which saturates while other shards remain quiet.",
+    "symptoms": [
+      "Redis Cluster metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "One Redis shard melts while the cluster looks idle"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "One Redis shard melts while the cluster looks idle"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Redis Cluster shows an anomaly",
+            "[09:00:20] WARN One Redis shard melts while the cluster looks idle",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "One Redis shard melts while the cluster looks idle",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Redis Cluster",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Redis Cluster",
+          "logs": [
+            "Redis Cluster metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-1",
+          "text": "Authentication was present, but object-level authorization was missing.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "The create operation lacked a stable idempotency key and replayed a committed side effect.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Unbounded queueing and retries turned overload into congestion collapse.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "A single hot key concentrated traffic on one partition.",
+          "correct": true,
+          "feedback": "Correct. Adding shards does not split one key. Mitigation depends on staleness tolerance, write rate, value size, and invalidation cost."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-2",
+          "text": "Require a scoped idempotency key, atomically store request hash and result, return the original result on replay, and reject key reuse with different input.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Set admission limits, bounded queues and deadlines; shed low-priority work, apply retry budgets/backoff, degrade gracefully, and scale from saturation signals.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Use near-cache/request coalescing, replicate or split the hot value when safe, protect origin with limits, and track per-key/per-shard load.",
+          "correct": true,
+          "feedback": "Correct. Adding shards does not split one key. Mitigation depends on staleness tolerance, write rate, value size, and invalidation cost."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Enforce authorization in the data access boundary with tenant/user scope, deny by default, and test cross-tenant IDs.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "cache-hot-key",
+  "badge": {
+    "name": "The Celebrity Hot Key",
+    "icon": "🔥"
+  }
+}

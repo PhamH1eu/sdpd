@@ -1,0 +1,172 @@
+{
+  "id": "case-35",
+  "number": 35,
+  "title": "The Ignored Index",
+  "subtitle": "A composite index exists, yet the query scans millions of rows",
+  "brief": {
+    "narrative": "The table has an index on (tenant_id, status, created_at). A query filters status and created_at but omits tenant_id, so PostgreSQL chooses a sequential scan.",
+    "symptoms": [
+      "PostgreSQL metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "A composite index exists, yet the query scans millions of rows"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "A composite index exists, yet the query scans millions of rows"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN PostgreSQL shows an anomaly",
+            "[09:00:20] WARN A composite index exists, yet the query scans millions of rows",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "A composite index exists, yet the query scans millions of rows",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "PostgreSQL",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "PostgreSQL",
+          "logs": [
+            "PostgreSQL metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-3",
+          "text": "ORM lazy loading produced an N+1 query pattern.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "The query does not use the leftmost prefix of the composite B-tree index.",
+          "correct": true,
+          "feedback": "Correct. Composite index order follows access patterns. Indexes cost memory and write I/O, so validate selectivity and remove redundant indexes."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Duplicate customer attributes created an update anomaly in a denormalized transactional table.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Applying a function to the indexed column made the predicate non-sargable.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-correct",
+          "text": "Design an index whose leading columns match equality predicates, then range/order predicates; verify with EXPLAIN ANALYZE instead of guessing.",
+          "correct": true,
+          "feedback": "Correct. Composite index order follows access patterns. Indexes cost memory and write I/O, so validate selectivity and remove redundant indexes."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Separate Customer and Order entities, reference customer_id, and use an explicit immutable shipping snapshot only where history requires it.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Rewrite as created_at >= start AND created_at < next_day, or add a justified expression index.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Fetch related rows in a bounded join/batch, select only required fields, and verify query count in tests or tracing.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "composite-index-design",
+  "badge": {
+    "name": "The Ignored Index",
+    "icon": "🗂️"
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "id": "case-51",
+  "number": 51,
+  "title": "Message quay trở lại",
+  "subtitle": "Payment đã hoàn thành nhưng bị xử lý lần hai sau crash",
+  "brief": {
+    "narrative": "Consumer ghi payment result rồi crash trước khi commit offset. Sau restart, nó nhận lại đúng record đó.",
+    "symptoms": [
+      "Metric của Kafka Consumer khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Payment đã hoàn thành nhưng bị xử lý lần hai sau crash"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Payment đã hoàn thành nhưng bị xử lý lần hai sau crash"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN Kafka Consumer xuất hiện anomaly",
+            "[09:00:20] WARN Payment đã hoàn thành nhưng bị xử lý lần hai sau crash",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Payment đã hoàn thành nhưng bị xử lý lần hai sau crash",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Kafka Consumer",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Kafka Consumer",
+          "logs": [
+            "Metric của Kafka Consumer khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-wrong-3",
+          "text": "Đã có authentication nhưng thiếu object-level authorization.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-correct",
+          "text": "At-least-once delivery replay record có side effect đã commit.",
+          "correct": true,
+          "feedback": "Chính xác. Offset commit ghi nhận tiến độ đọc, không chứng minh business completion. Cam kết exactly-once luôn bị giới hạn bởi các hệ thống cùng tham gia transaction."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Untrusted input bị database hiểu thành SQL code.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Server-Side Request Forgery cho attacker chọn network destination có quyền cao.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-correct",
+          "text": "Dùng idempotency/inbox key trong cùng transaction với side effect rồi commit offset; chỉ chọn Kafka transaction khi transaction boundary phù hợp.",
+          "correct": true,
+          "feedback": "Chính xác. Offset commit ghi nhận tiến độ đọc, không chứng minh business completion. Cam kết exactly-once luôn bị giới hạn bởi các hệ thống cùng tham gia transaction."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Dùng parameterized query cho value, allowlist identifier/operator động, giảm DB privilege và test authorization độc lập.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Allowlist scheme/destination, resolve và validate mọi hop, chặn private/link-local range ở egress, giới hạn redirect và cô lập fetcher.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Enforce authorization tại data-access boundary với tenant/user scope, deny by default và test cross-tenant ID.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    }
+  },
+  "conceptId": "kafka-offset-commit",
+  "badge": {
+    "name": "Message quay trở lại",
+    "icon": "📍"
+  }
+}

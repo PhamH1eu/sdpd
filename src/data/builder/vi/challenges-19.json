@@ -1,0 +1,67 @@
+{
+  "id": "builder-19",
+  "number": 19,
+  "title": "Điều phối khu vực Cache",
+  "subtitle": "Bảng điều khiển khu vực query ghi lại các bản ghi giống nhau nhiều lần",
+  "objective": "Tối ưu hóa các lần đọc khu vực lặp lại với caching biên và cấp độ dịch vụ.",
+  "constraints": [
+    "Sử dụng ít nhất một cạnh/lớp read cache",
+    "Bảo vệ API bằng load balancer",
+    "Giữ nguồn gốc bền vững"
+  ],
+  "availableComponents": [
+    "client",
+    "cdn",
+    "cache",
+    "loadBalancer",
+    "api",
+    "database",
+    "blobStorage"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Lớp Read cạnh",
+      "description": "CDN hoặc cache sẽ phục vụ các lần đọc khu vực lặp đi lặp lại.",
+      "requiredAnyOf": [
+        "cdn",
+        "cache"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "cdn"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Mục nhập API được bảo vệ",
+      "description": "Các yêu cầu phải chuyển từ load balancer đến API.",
+      "requiredAll": [
+        "loadBalancer",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "loadBalancer",
+          "to": "api"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Xuất xứ Durability",
+      "description": "Trạng thái gốc phải được giữ lại trong database.",
+      "requiredAll": [
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "database"
+        }
+      ]
+    }
+  ]
+}

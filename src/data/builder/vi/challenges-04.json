@@ -1,0 +1,78 @@
+{
+  "id": "builder-04",
+  "number": 4,
+  "title": "Nguồn cấp dữ liệu tuần tra Failover",
+  "subtitle": "Nguồn cấp dữ liệu tuần tra trực tiếp giảm xuống bất cứ khi nào một API node bị lỗi",
+  "objective": "Xây dựng tính dự phòng trong quá trình xâm nhập và xử lý để một lỗi API không làm hỏng delivery.",
+  "constraints": [
+    "Tránh các điểm xâm nhập đơn lẻ",
+    "Duy trì async delivery khi gặp lỗi API",
+    "Kiên trì các sự kiện cuối cùng một cách lâu dài"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "queue",
+    "worker",
+    "database",
+    "blobStorage",
+    "cache"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Sự xâm nhập dư thừa",
+      "description": "Định tuyến máy khách thông qua load balancer trước API.",
+      "requiredAll": [
+        "client",
+        "loadBalancer",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        },
+        {
+          "from": "loadBalancer",
+          "to": "api"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Bộ đệm Delivery",
+      "description": "Hàng đợi và worker xử lý các lỗi API node tạm thời.",
+      "requiredAll": [
+        "queue",
+        "worker"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "queue"
+        },
+        {
+          "from": "queue",
+          "to": "worker"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Viết bền",
+      "description": "Người lao động nên lưu giữ các sự kiện đã xử lý vào bộ lưu trữ.",
+      "requiredAnyOf": [
+        "database",
+        "blobStorage"
+      ],
+      "preferredConnections": [
+        {
+          "from": "worker",
+          "to": "database"
+        }
+      ]
+    }
+  ]
+}

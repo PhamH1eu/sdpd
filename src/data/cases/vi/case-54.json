@@ -1,0 +1,172 @@
+{
+  "id": "case-54",
+  "number": 54,
+  "title": "Search box bị khai thác",
+  "subtitle": "Một filter trả về record của mọi tenant",
+  "brief": {
+    "narrative": "API nối trực tiếp user filter vào SQL. Attacker thay đổi cấu trúc query bằng quote và boolean syntax.",
+    "symptoms": [
+      "Metric của Search API khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Một filter trả về record của mọi tenant"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Một filter trả về record của mọi tenant"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN Search API xuất hiện anomaly",
+            "[09:00:20] WARN Một filter trả về record của mọi tenant",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Một filter trả về record của mọi tenant",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Search API",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Search API",
+          "logs": [
+            "Metric của Search API khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-wrong-2",
+          "text": "Unbounded queueing cùng retry biến overload thành congestion collapse.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Dual write vào database và broker không atomic.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Untrusted input bị database hiểu thành SQL code.",
+          "correct": true,
+          "feedback": "Chính xác. Tự escape bằng tay rất dễ sai. Parameterization tách code khỏi data nhưng không thay thế tenant authorization."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Create operation thiếu stable idempotency key nên replay side effect đã commit.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-wrong-3",
+          "text": "Ghi business row và outbox row trong cùng database transaction, relay có retry và consumer phải idempotent.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Dùng parameterized query cho value, allowlist identifier/operator động, giảm DB privilege và test authorization độc lập.",
+          "correct": true,
+          "feedback": "Chính xác. Tự escape bằng tay rất dễ sai. Parameterization tách code khỏi data nhưng không thay thế tenant authorization."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Yêu cầu idempotency key có scope, atomic lưu request hash cùng result, trả original result khi replay và từ chối tái dùng key với input khác.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Đặt admission limit, bounded queue và deadline; shed low-priority work, áp dụng retry budget/backoff, graceful degradation và scale theo saturation signal.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    }
+  },
+  "conceptId": "sql-injection",
+  "badge": {
+    "name": "Search box bị khai thác",
+    "icon": "🛡️"
+  }
+}

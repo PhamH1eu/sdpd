@@ -1,0 +1,218 @@
+{
+  "id": "case-23",
+  "number": 23,
+  "title": "Đội hình không nhất quán",
+  "subtitle": "Hai khu vực nhìn thấy các phiên bản khác nhau của cùng một nghi phạm cùng một lúc",
+  "brief": {
+    "narrative": "Phân phối có một vấn đề lớn. Khu vực phía Bắc vừa trả tự do cho nghi phạm Viktor Reznikov vì hệ thống của họ hiển thị trạng thái của anh ta là 'Đã xóa - không bị buộc tội'. Trong khi đó, Phân khu phía Nam đang tích cực chuẩn bị lệnh bắt giữ Viktor Reznikov, người có địa vị trong hệ thống của họ là 'Nghi phạm chính - có vũ trang và nguy hiểm'. Cùng một người, cùng một khoảnh khắc, hai khuôn mặt hoàn toàn khác nhau. database bị nghi ngờ gần đây đã được phân phối trên hai trung tâm dữ liệu dành cho availability, nhưng có vẻ như hai bản sao này không kể cùng một câu chuyện. Cảnh sát trưởng Partition cần hiểu cách hai khu vực có thể xem dữ liệu trái ngược nhau cùng một lúc.",
+    "symptoms": [
+      "Phân khu phía Bắc hiển thị Viktor Reznikov là 'Đã xóa' trong khi Phân khu phía Nam hiển thị anh ta là 'Nghi phạm chính'",
+      "Hồ sơ nghi phạm đã được cập nhật 10 phút trước tại trung tâm dữ liệu phía Nam",
+      "Bản cập nhật chưa lan truyền tới trung tâm dữ liệu phía Bắc",
+      "Cả hai khu vực bầu cử đều có thể read và write sang database mà không gặp lỗi"
+    ],
+    "objective": "Hiểu lý do tại sao hai khu vực nhìn thấy dữ liệu khác nhau và đề xuất chiến lược consistency cân bằng giữa availability và tính chính xác."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "north-precinct",
+        "type": "client",
+        "label": "Phân khu phía Bắc",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 100,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Đồn cảnh sát phía Bắc",
+          "logs": [
+            "[16:30:00] INFO: Query suspect 'Reznikov' — reading from DC-North",
+            "[16:30:00] INFO: Result: Status='Cleared', Last Updated='15:50:00'",
+            "[16:30:05] INFO: Officer released suspect based on 'Cleared' status"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Data Center": "DC-Bắc",
+            "Read Consistency": "Địa phương (cuối cùng)",
+            "Reznikov Status Seen": "Đã xóa - không tính phí"
+          },
+          "status": "Đọc dữ liệu cũ từ DC-North replica cục bộ. Không thấy update làm ở DC-South."
+        }
+      },
+      {
+        "id": "dc-north",
+        "type": "database",
+        "label": "DC-Bắc ​​(Replica)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 230
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Trung tâm dữ liệu phía Bắc — Database Replica",
+          "logs": [
+            "[15:50:00] INFO: Reznikov record: Status='Cleared'",
+            "[16:20:00] WARN: Replication lag from DC-South: 10 minutes",
+            "[16:30:00] WARN: Still awaiting replication of Reznikov update from DC-South"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN (dữ liệu cũ)",
+            "Replication Mode": "Async từ DC-South",
+            "Replication Lag": "hơn 10 phút",
+            "Reznikov Record Version": "v3 (lỗi thời)",
+            "Consistency Level": "cuối cùng"
+          },
+          "status": "Phục vụ các lần đọc từ dữ liệu cục bộ cũ. Async replication chưa cung cấp bản cập nhật Reznikov mới nhất."
+        }
+      },
+      {
+        "id": "south-precinct",
+        "type": "client",
+        "label": "Phân khu Nam",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 600,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Đồn cảnh sát phía Nam",
+          "logs": [
+            "[16:20:00] INFO: Updated suspect 'Reznikov' status to 'Prime Suspect'",
+            "[16:30:00] INFO: Query suspect 'Reznikov' — reading from DC-South",
+            "[16:30:00] INFO: Result: Status='Prime Suspect', Last Updated='16:20:00'",
+            "[16:30:10] INFO: Preparing arrest warrant for Reznikov"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Data Center": "DC-Nam",
+            "Read Consistency": "Địa phương (cuối cùng)",
+            "Reznikov Status Seen": "Nghi phạm chính - có vũ trang và nguy hiểm"
+          },
+          "status": "Đọc dữ liệu cập nhật từ replica DC-South cục bộ nơi write đã xảy ra."
+        }
+      },
+      {
+        "id": "dc-south",
+        "type": "database",
+        "label": "DC-Nam (Tiểu học)",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 600,
+          "y": 230
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Trung tâm dữ liệu phía Nam — Database chính",
+          "logs": [
+            "[16:20:00] INFO: Write: Reznikov status updated to 'Prime Suspect' (v4)",
+            "[16:20:01] INFO: Queuing async replication to DC-North",
+            "[16:30:00] WARN: Replication to DC-North delayed — network congestion"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Role": "Chính (chấp nhận viết)",
+            "Reznikov Record Version": "v4 (hiện tại)",
+            "Pending Replications": "47 hồ sơ",
+            "Replication Mode": "Không đồng bộ"
+          },
+          "status": "database chính với dữ liệu mới nhất. Async replication tới DC-North bị trì hoãn."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-north-dcn",
+        "source": "north-precinct",
+        "target": "dc-north",
+        "label": "read (cũ)",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-south-dcs",
+        "source": "south-precinct",
+        "target": "dc-south",
+        "label": "read/write",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-dcs-dcn",
+        "source": "dc-south",
+        "target": "dc-north",
+        "label": "async replication (tụt hậu)",
+        "animated": true,
+        "style": "slow"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Tại sao hai khu vực lại nhìn thấy các phiên bản khác nhau của hồ sơ Reznikov?",
+      "options": [
+        {
+          "id": "rc-1",
+          "text": "Một hacker độc hại đã truy cập trái phép thành công và sửa đổi hồ sơ nghi phạm của Reznikov tại DC-South nhưng cố tình không cập nhật database tại DC-North",
+          "correct": false,
+          "feedback": "Nhật ký hiển thị một bản cập nhật hợp pháp tại DC-South nhưng chưa được sao chép sang DC-North. Đây là sự cố consistency, không phải vi phạm bảo mật."
+        },
+        {
+          "id": "rc-2",
+          "text": "Hệ thống sử dụng asynchronous replication với eventual consistency, do đó DC-North cung cấp dữ liệu cũ cho đến khi replication bắt kịp — một sự cân bằng định lý CAP cổ điển",
+          "correct": true,
+          "feedback": "Chính xác! Hệ thống đã chọn dung sai (AP) Availability và Partition thay vì Consistency. Với async replication, cả hai trung tâm dữ liệu đều có sẵn để đọc và ghi nhưng chúng có thể phục vụ các phiên bản khác nhau của cùng một dữ liệu. Đây là định lý CAP đang hoạt động: trong một hệ thống phân tán, bạn không thể có dung sai consistency, availability và partition hoàn hảo cùng một lúc."
+        },
+        {
+          "id": "rc-3",
+          "text": "Hệ thống database của DC-North đã gặp phải lỗi hỏng nội bộ nghiêm trọng, ghi đè không chính xác dữ liệu hợp lệ vào bản ghi nghi ngờ Reznikov trong replication process",
+          "correct": false,
+          "feedback": "Dữ liệu của DC-North không bị hỏng — nó chỉ đơn giản là phiên bản cũ hơn (v3 so với v4). Biên bản đã chính xác khi nó được viết ra; nó chỉ chưa được cập nhật với sự thay đổi mới nhất từ ​​DC-South."
+        },
+        {
+          "id": "rc-4",
+          "text": "Hai khu vực đang truy vấn nhầm các bảng database hoàn toàn riêng biệt và không liên quan, ngẫu nhiên chứa các nghi phạm có cùng tên hoàn toàn là ngẫu nhiên",
+          "correct": false,
+          "feedback": "Cả hai khu vực query đều có cùng một database logic, chỉ là các bản sao vật lý khác nhau. Dữ liệu là cùng một tập dữ liệu - vấn đề là độ trễ replication giữa hai bản sao."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách tiếp cận tốt nhất để ngăn chặn sự mâu thuẫn nguy hiểm đối với dữ liệu nghi ngờ quan trọng là gì?",
+      "options": [
+        {
+          "id": "fix-1",
+          "text": "Chuyển toàn bộ hệ thống sang synchronous replication hoàn toàn cho tất cả các danh mục dữ liệu để đảm bảo cả hai trung tâm dữ liệu luôn duy trì các bản ghi database hoàn toàn giống hệt nhau",
+          "correct": false,
+          "feedback": "Synchronous replication cho tất cả dữ liệu sẽ thêm latency vào mọi write và giảm availability nếu DC chậm hoặc không thể truy cập được. Điều này là quá mức cần thiết - không phải tất cả dữ liệu đều quan trọng như nhau."
+        },
+        {
+          "id": "fix-2",
+          "text": "Sử dụng strong consistency (đọc synchronous replication hoặc quorum) cho các trường quan trọng như trạng thái nghi ngờ, trong khi vẫn giữ eventual consistency cho dữ liệu ít quan trọng hơn",
+          "correct": true,
+          "feedback": "Chính xác! Cách tiếp cận consistency có thể điều chỉnh cho phép bạn yêu cầu strong consistency cho dữ liệu quan trọng về an toàn (trạng thái nghi ngờ, thông tin bảo đảm) trong khi cho phép eventual consistency cho dữ liệu ít quan trọng hơn (ghi chú trường hợp, số liệu thống kê). Điều này giúp cân bằng sự cân bằng CAP một cách thông minh — bạn chỉ thanh toán chi phí latency của consistency khi nó thực sự quan trọng."
+        },
+        {
+          "id": "fix-4",
+          "text": "Triển khai thời gian chờ 15 phút bắt buộc trên toàn hệ thống trước khi bất kỳ sĩ quan cảnh sát nào có thể chủ động hành động dựa trên kết quả query, cho phép replication process có thời gian bắt kịp hoàn toàn",
+          "correct": false,
+          "feedback": "Bắt các sĩ quan phải chờ đợi sẽ làm mất đi mục đích của việc có database. Độ trễ của replication chính là vấn đề — việc thêm độ trễ nhân tạo lên trên không giải quyết được vấn đề mà chỉ làm mọi người chậm lại như nhau."
+        },
+        {
+          "id": "fix-3",
+          "text": "Tắt vĩnh viễn cơ sở DC-North và cấu hình lại network để định tuyến tất cả các truy vấn read và write database thông qua cơ sở DC-South chính",
+          "correct": false,
+          "feedback": "Điều này giúp loại bỏ vấn đề consistency nhưng cũng loại bỏ lợi ích của availability khi có hai trung tâm dữ liệu. Nếu DC-South ngừng hoạt động, mọi người sẽ mất quyền truy cập."
+        }
+      ]
+    }
+  },
+  "conceptId": "cap-theorem",
+  "badge": {
+    "name": "Bộ điều hướng CAP",
+    "icon": "🧭"
+  }
+}

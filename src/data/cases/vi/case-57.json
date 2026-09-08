@@ -1,0 +1,172 @@
+{
+  "id": "case-57",
+  "number": 57,
+  "title": "Thanh toán hai lần",
+  "subtitle": "Mobile retry tạo thêm một payment",
+  "brief": {
+    "narrative": "Client timeout sau khi server đã commit rồi retry POST /payments. Server coi retry là command mới.",
+    "symptoms": [
+      "Metric của Payment API khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Mobile retry tạo thêm một payment"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Mobile retry tạo thêm một payment"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN Payment API xuất hiện anomaly",
+            "[09:00:20] WARN Mobile retry tạo thêm một payment",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Mobile retry tạo thêm một payment",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Payment API",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Payment API",
+          "logs": [
+            "Metric của Payment API khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-wrong-1",
+          "text": "At-least-once delivery replay record có side effect đã commit.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Processing vượt poll interval và kích hoạt consumer-group rebalance liên tục.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Một hot key tập trung traffic vào duy nhất một partition.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Create operation thiếu stable idempotency key nên replay side effect đã commit.",
+          "correct": true,
+          "feedback": "Chính xác. Idempotency cần key scope, retention window, cách xử lý concurrent request và quan hệ atomic với side effect."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-wrong-2",
+          "text": "Giảm/giới hạn processing, tune poll records và interval từ worst case đã đo, dùng cooperative rebalancing và cô lập poison/slow record.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Dùng near-cache/request coalescing, replicate hoặc split hot value khi an toàn, bảo vệ origin bằng limit và đo load theo key/shard.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Yêu cầu idempotency key có scope, atomic lưu request hash cùng result, trả original result khi replay và từ chối tái dùng key với input khác.",
+          "correct": true,
+          "feedback": "Chính xác. Idempotency cần key scope, retention window, cách xử lý concurrent request và quan hệ atomic với side effect."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Dùng idempotency/inbox key trong cùng transaction với side effect rồi commit offset; chỉ chọn Kafka transaction khi transaction boundary phù hợp.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    }
+  },
+  "conceptId": "api-idempotency-key",
+  "badge": {
+    "name": "Thanh toán hai lần",
+    "icon": "🪪"
+  }
+}
