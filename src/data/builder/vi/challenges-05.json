@@ -1,0 +1,73 @@
+{
+  "id": "builder-05",
+  "number": 5,
+  "title": "Cuộc khủng hoảng Cache nóng bỏng",
+  "subtitle": "Các đột biến của Read đang ảnh hưởng đến bộ lưu trữ chính",
+  "objective": "Thiết kế đường dẫn read giúp giảm tải lưu lượng truy cập bùng nổ từ bộ lưu trữ liên tục.",
+  "constraints": [
+    "Ưu tiên read latency",
+    "Ngăn chặn cơn bão read trực tiếp vào kho lưu trữ",
+    "Giữ đường dẫn write rõ ràng"
+  ],
+  "availableComponents": [
+    "client",
+    "cdn",
+    "loadBalancer",
+    "api",
+    "cache",
+    "database",
+    "blobStorage"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Mặt trước Cache",
+      "description": "Phục vụ các lần đọc nóng qua cache giữa API và bộ lưu trữ.",
+      "requiredAll": [
+        "api",
+        "cache"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "cache"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Mục nhập đàn hồi",
+      "description": "Sử dụng load balancer để phân tán các đợt read trên các phiên bản API.",
+      "requiredAll": [
+        "client",
+        "loadBalancer",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        },
+        {
+          "from": "loadBalancer",
+          "to": "api"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Nguồn liên tục",
+      "description": "Đường dẫn Write vẫn phải đạt được mức lưu trữ bền vững.",
+      "requiredAnyOf": [
+        "database",
+        "blobStorage"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "database"
+        }
+      ]
+    }
+  ]
+}

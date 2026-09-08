@@ -1,0 +1,81 @@
+{
+  "id": "builder-02",
+  "number": 2,
+  "title": "Bằng chứng truyền thông Service",
+  "subtitle": "Các tệp lớn và siêu dữ liệu cũ đang phá vỡ khả năng truy xuất bằng chứng",
+  "objective": "Chọn loại lưu trữ phù hợp cho các đối tượng lớn và nối luồng cập nhật siêu dữ liệu một cách chính xác.",
+  "constraints": [
+    "Sử dụng bộ lưu trữ phù hợp với các tệp nhị phân lớn",
+    "Tuyên truyền cập nhật siêu dữ liệu thông qua xử lý async",
+    "Giảm thiểu các đường dẫn read cũ"
+  ],
+  "availableComponents": [
+    "client",
+    "cdn",
+    "loadBalancer",
+    "api",
+    "cache",
+    "database",
+    "blobStorage",
+    "queue",
+    "worker"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Lựa chọn lưu trữ chính xác",
+      "description": "Lưu trữ blob được ưu tiên cho các đối tượng đa phương tiện.",
+      "requiredAll": [
+        "api",
+        "blobStorage"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "blobStorage"
+        }
+      ],
+      "discouragedComponents": [
+        "database"
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Đường ống siêu dữ liệu Async",
+      "description": "Hàng đợi + worker tách các bản cập nhật siêu dữ liệu khỏi đường dẫn request.",
+      "requiredAll": [
+        "queue",
+        "worker"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "queue"
+        },
+        {
+          "from": "queue",
+          "to": "worker"
+        },
+        {
+          "from": "worker",
+          "to": "database"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Delivery nhanh",
+      "description": "CDN hoặc cache sẽ giúp cung cấp bằng chứng được truy cập thường xuyên.",
+      "requiredAnyOf": [
+        "cdn",
+        "cache"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "cdn"
+        }
+      ]
+    }
+  ]
+}

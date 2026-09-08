@@ -1,0 +1,261 @@
+{
+  "id": "case-11",
+  "number": 11,
+  "title": "Partition nóng bỏng",
+  "subtitle": "Một chiếc shard chìm trong khi những chiếc khác đứng im",
+  "brief": {
+    "narrative": "Hệ thống báo cáo tội phạm của Distributia PD sử dụng database sharding để phân phối hồ sơ trên bốn phân đoạn database. Hồ sơ được phân chia theo chữ cái đầu tiên trong họ của nghi phạm: A-F chuyển sang Shard 1, G-L chuyển sang Shard 2, M-R chuyển sang Shard 3 và S-Z chuyển sang Shard 4. Có vẻ như đó là sự phân chia công bằng - cho đến khi mùa làn sóng tội phạm của người nổi tiếng ập đến. Một vụ bê bối liên quan đến gia đình giàu có Sterling, ngôi sao nhạc pop Simone Silva, ông trùm công nghệ Sam Stratton và trang xã hội Sophie St. James đã tạo ra 50.000 báo cáo tội phạm trong một tuần. Mỗi chiếc đều hạ cánh trên Shard 4 (S-Z). shard đó có công suất 100% trong khi ba chiếc còn lại ở mức sử dụng 15%. Thời gian Response cho bất kỳ tra cứu tên S-Z nào hiện là 45 giây. Hệ thống này thực sự bị hỏng trong một phần tư bảng chữ cái.",
+    "symptoms": [
+      "Shard 4 (S-Z) ở mức 100% CPU và bộ lưu trữ, thời gian response 45 giây",
+      "Phân đoạn 1-3 có mức sử dụng 10-15% với thời gian response dưới 50 mili giây",
+      "Tất cả các báo cáo tội phạm của người nổi tiếng đều liên quan đến nghi phạm có họ S",
+      "Cán bộ không thể nộp hoặc tra cứu bất kỳ báo cáo S-Z nào"
+    ],
+    "objective": "Xác định cách chiến lược sharding tạo ra partition hấp dẫn và xác định phương pháp phân phối dữ liệu tốt hơn."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "shard-1",
+        "type": "database",
+        "label": "Shard 1 (A-F)",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 80,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Database Shard 1 (A-F)",
+          "logs": [
+            "[09:00:00] INFO: Normal operations",
+            "[09:15:00] INFO: Query rate: 12/sec, response time: 30ms"
+          ],
+          "data": {
+            "Range": "Họ A-F",
+            "Records": "180.000",
+            "CPU": "12%",
+            "Storage": "15%",
+            "Response Time": "30 mili giây",
+            "Status": "IDLE - được sử dụng đúng mức đáng kể"
+          },
+          "status": "Khỏe mạnh và không được sử dụng đúng mức. Tải tối thiểu từ phạm vi họ A-F."
+        }
+      },
+      {
+        "id": "shard-2",
+        "type": "database",
+        "label": "Shard 2 (G-L)",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 280,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Database Shard 2 (G-L)",
+          "logs": [
+            "[09:00:00] INFO: Normal operations",
+            "[09:15:00] INFO: Query rate: 15/sec, response time: 35ms"
+          ],
+          "data": {
+            "Range": "Họ G-L",
+            "Records": "195.000",
+            "CPU": "14%",
+            "Storage": "16%",
+            "Response Time": "35 mili giây",
+            "Status": "IDLE - được sử dụng đúng mức đáng kể"
+          },
+          "status": "Khỏe mạnh và không được sử dụng đúng mức."
+        }
+      },
+      {
+        "id": "shard-3",
+        "type": "database",
+        "label": "Shard 3 (MR)",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 480,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Database Shard 3 (M-R)",
+          "logs": [
+            "[09:00:00] INFO: Normal operations",
+            "[09:15:00] INFO: Query rate: 18/sec, response time: 40ms"
+          ],
+          "data": {
+            "Range": "Họ M-R",
+            "Records": "210.000",
+            "CPU": "15%",
+            "Storage": "17%",
+            "Response Time": "40 mili giây",
+            "Status": "IDLE - được sử dụng đúng mức đáng kể"
+          },
+          "status": "Khỏe mạnh và không được sử dụng đúng mức."
+        }
+      },
+      {
+        "id": "shard-4",
+        "type": "database",
+        "label": "Shard 4 (S-Z)",
+        "status": "thất bại",
+        "position": {
+          "x": 680,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Database Shard 4 (S-Z) — PARTITION HẤP DẪN",
+          "logs": [
+            "[09:00:00] WARN: Record count growing rapidly — celebrity crime wave",
+            "[09:05:00] WARN: CPU: 78%, climbing fast",
+            "[09:10:00] ERROR: CPU: 95%, response time: 12,000ms",
+            "[09:12:00] ERROR: Storage: 98% — approaching disk full",
+            "[09:14:00] ERROR: CPU: 100%, connection pool exhausted",
+            "[09:15:00] ERROR: Response time: 45,000ms — effectively unresponsive",
+            "[09:15:01] ERROR: 50,000 celebrity crime reports all on this shard"
+          ],
+          "data": {
+            "Range": "Họ S-Z",
+            "Records": "460.000 (2,5 lần các mảnh khác)",
+            "Celebrity Reports (this week)": "50.000",
+            "CPU": "100%",
+            "Storage": "98%",
+            "Response Time": "45.000 mili giây",
+            "Connection Pool": "500/500 (MẠNH MẼ)",
+            "Status": "PARTITION HOT — choáng ngợp"
+          },
+          "status": "partition nóng bỏng. Tất cả các báo cáo tội phạm của người nổi tiếng (họ S) đều tập trung vào shard này."
+        }
+      },
+      {
+        "id": "router",
+        "type": "server",
+        "label": "Bộ định tuyến Shard",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 380,
+          "y": 280
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bộ định tuyến Database Shard",
+          "logs": [
+            "[09:00:00] INFO: Routing by first letter of suspect surname",
+            "[09:10:00] WARN: 89% of traffic routed to Shard 4 (S-Z)",
+            "[09:12:00] WARN: Shards 1-3 receiving 3-5% traffic each",
+            "[09:14:00] ERROR: Shard 4 responses timing out — cannot reroute (fixed partitioning)"
+          ],
+          "data": {
+            "Routing Strategy": "Chữ cái đầu của họ → shard",
+            "Traffic Distribution": "Shard 1: 3%, Shard 2: 4%, Shard 3: 4%, Shard 4: 89%",
+            "Can Rebalance": "KHÔNG - phân vùng phạm vi cố định",
+            "Rerouting Available": "KHÔNG - dữ liệu vật lý trên Shard 4"
+          },
+          "status": "Bộ định tuyến đang hoạt động chính xác theo các quy tắc của nó, nhưng các quy tắc này tạo ra partition nóng. Không thể cân bằng lại."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-router-s1",
+        "source": "router",
+        "target": "shard-1",
+        "label": "3% lưu lượng truy cập",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-router-s2",
+        "source": "router",
+        "target": "shard-2",
+        "label": "4% lưu lượng truy cập",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-router-s3",
+        "source": "router",
+        "target": "shard-3",
+        "label": "4% lưu lượng truy cập",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-router-s4",
+        "source": "router",
+        "target": "shard-4",
+        "label": "89% lưu lượng truy cập",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của tình trạng quá tải của Shard 4 là gì?",
+      "options": [
+        {
+          "id": "rc-1",
+          "text": "Shard 4 có phần cứng máy chủ yếu hơn so với ba phân đoạn còn lại trong cluster",
+          "correct": false,
+          "feedback": "Tất cả các phân đoạn đều có phần cứng giống hệt nhau. Vấn đề là Shard 4 nhận được lưu lượng truy cập không cân xứng do chiến lược phân vùng (chữ cái đầu tiên của họ) không phân phối dữ liệu đồng đều. Khi một sự kiện thịnh hành liên quan đến nghi phạm có tên cluster trong một phạm vi (S-Z), shard đó sẽ trở thành partition hot."
+        },
+        {
+          "id": "rc-3",
+          "text": "Đơn giản là có quá nhiều báo cáo về tội phạm của người nổi tiếng - toàn bộ hệ thống chưa bao giờ được thiết kế để xử lý khối lượng lớn như vậy",
+          "correct": false,
+          "feedback": "Tổng khối lượng (50.000 báo cáo) có thể quản lý được — trải rộng trên cả bốn phân đoạn, mỗi phân đoạn sẽ chỉ xử lý 12.500 bản ghi bổ sung, nằm trong khả năng cho phép. Vấn đề là sự tập trung chứ không phải khối lượng. Tất cả 50.000 báo cáo đều kết thúc trên ONE shard do chiến lược phân vùng."
+        },
+        {
+          "id": "rc-2",
+          "text": "Phân vùng theo phạm vi khóa tạo ra các phân vùng nóng vì các kiểu truy cập dữ liệu không được phân bổ đồng đều",
+          "correct": true,
+          "feedback": "Chính xác! Phân vùng theo phạm vi khóa (A-F, G-L, M-R, S-Z) giả định dữ liệu và các mẫu truy cập được phân bổ đều trên bảng chữ cái. Nhưng dữ liệu trong thế giới thực không đồng nhất — sự phân bố họ khác nhau tùy theo văn hóa và các sự kiện thịnh hành có thể tập trung lưu lượng truy cập vào các phạm vi chính cụ thể. Khi làn sóng tội phạm người nổi tiếng tấn công các họ S, Shard 4 đã trở thành 'partition nóng' nhận được 89% tổng lưu lượng truy cập trong khi những người khác không hoạt động. Đây là rủi ro cơ bản của phân vùng dựa trên phạm vi."
+        },
+        {
+          "id": "rc-4",
+          "text": "Bộ định tuyến shard có lỗi phần mềm gửi không chính xác lượng lưu lượng truy cập không tương xứng tới Shard 4",
+          "correct": false,
+          "feedback": "Bộ định tuyến đang hoạt động chính xác như thiết kế — nó định tuyến chính xác các họ S-Z đến Shard 4. Lỗi nằm ở chính chiến lược phân vùng chứ không phải ở việc triển khai bộ định tuyến. Một chiến lược tồi được thực hiện đúng cách vẫn là một chiến lược tồi."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Chiến lược phân vùng tốt nhất để ngăn chặn phân vùng nóng là gì?",
+      "options": [
+        {
+          "id": "fix-4",
+          "text": "Sử dụng phân phối vòng tròn để gán từng bản ghi mới đến cho shard có sẵn tiếp theo theo trình tự luân phiên",
+          "correct": false,
+          "feedback": "Phân bổ ghi vòng tròn một cách đồng đều nhưng không thể tra cứu nếu không truy vấn tất cả các phân đoạn (bạn không biết shard nào giữ bản ghi nhất định). Phân vùng dựa trên hàm băm phân bổ đồng đều VÀ cho phép tra cứu trực tiếp - tính toán hàm băm để biết chính xác shard nào đến query."
+        },
+        {
+          "id": "fix-1",
+          "text": "Sử dụng phân vùng dựa trên hàm băm - băm khóa bản ghi và phân phối dựa trên giá trị băm, đảm bảo phân phối đồng đều bất kể mẫu dữ liệu",
+          "correct": true,
+          "feedback": "Chính xác! Phân vùng dựa trên hàm băm áp dụng hàm băm (như MD5 hoặc SHA-256) cho khóa partition, sau đó gán các bản ghi cho các phân đoạn dựa trên giá trị băm. Bởi vì các hàm băm phân phối kết quả đầu ra một cách đồng đều, ngay cả khi tất cả nghi phạm đều có họ S, giá trị băm của chúng sẽ được trải đều trên tất cả các phân đoạn. 'Sterling' có thể băm thành Shard 2, 'Silva' thành Shard 1, v.v. trade-off là bạn mất khả năng thực hiện các truy vấn phạm vi hiệu quả (như 'tất cả các họ bắt đầu bằng S'), nhưng bạn có được sự phân bổ đồng đều. Việc băm nhất quán sẽ cải thiện hơn nữa điều này bằng cách giúp dễ dàng thêm/xóa các phân đoạn."
+        },
+        {
+          "id": "fix-2",
+          "text": "Thêm các phân đoạn chuyên dụng bổ sung dành riêng cho phạm vi S-Z để phân chia tải partition nóng tập trung",
+          "correct": false,
+          "feedback": "Việc chia S-Z thành nhiều phạm vi phụ hơn (S-T, U-V, W-Z) giúp ích tạm thời nhưng không giải quyết được vấn đề cơ bản. Làn sóng tội phạm nổi tiếng trong tương lai có thể tập trung vào bất kỳ phạm vi phụ nào. Phân vùng dựa trên hàm băm phân phối dữ liệu đồng đều bất kể giá trị khóa."
+        },
+        {
+          "id": "fix-3",
+          "text": "Cân bằng lại các phạm vi chữ cái theo cách thủ công bằng cách phân phối lại 'S' thành Shard 3 để đạt được số lượng bản ghi đồng đều hơn",
+          "correct": false,
+          "feedback": "Việc tái cân bằng dựa trên dữ liệu hiện tại hiện hữu ích nhưng đòi hỏi phải điều chỉnh thủ công liên tục khi các mẫu dữ liệu thay đổi. Xu hướng topic ngày mai có thể làm quá tải các phạm vi mới được cân bằng lại. Phân vùng dựa trên hàm băm cung cấp khả năng phân phối đồng đều tự động mà không cần can thiệp thủ công."
+        }
+      ]
+    }
+  },
+  "conceptId": "data-partitioning",
+  "badge": {
+    "name": "Bác sĩ phẫu thuật Shard",
+    "icon": "🔪"
+  }
+}

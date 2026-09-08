@@ -1,0 +1,172 @@
+{
+  "id": "case-57",
+  "number": 57,
+  "title": "The Double Charge",
+  "subtitle": "A mobile retry creates a second payment",
+  "brief": {
+    "narrative": "The client times out after the server commits, then retries POST /payments. The server treats the retry as a new command.",
+    "symptoms": [
+      "Payment API metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "A mobile retry creates a second payment"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "A mobile retry creates a second payment"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Payment API shows an anomaly",
+            "[09:00:20] WARN A mobile retry creates a second payment",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "A mobile retry creates a second payment",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Payment API",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Payment API",
+          "logs": [
+            "Payment API metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-1",
+          "text": "At-least-once delivery replayed a record whose side effect was already committed.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Processing exceeded the poll interval and triggered repeated consumer-group rebalances.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "A single hot key concentrated traffic on one partition.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "The create operation lacked a stable idempotency key and replayed a committed side effect.",
+          "correct": true,
+          "feedback": "Correct. Idempotency needs a key scope, retention window, concurrent-request behavior, and an atomic relationship with the side effect."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-2",
+          "text": "Reduce/bound processing, tune poll records and interval from measured worst cases, use cooperative rebalancing, and isolate poison or slow records.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Use near-cache/request coalescing, replicate or split the hot value when safe, protect origin with limits, and track per-key/per-shard load.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Require a scoped idempotency key, atomically store request hash and result, return the original result on replay, and reject key reuse with different input.",
+          "correct": true,
+          "feedback": "Correct. Idempotency needs a key scope, retention window, concurrent-request behavior, and an atomic relationship with the side effect."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Use an idempotency/inbox key in the same transaction as the side effect, then commit offsets; choose Kafka transactions only when their boundary fits.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "api-idempotency-key",
+  "badge": {
+    "name": "The Double Charge",
+    "icon": "🪪"
+  }
+}

@@ -17,7 +17,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate:curriculum": "node scripts/generate-backend-curriculum.mjs && node scripts/generate-case-index.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

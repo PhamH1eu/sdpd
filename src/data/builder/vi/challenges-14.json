@@ -1,0 +1,72 @@
+{
+  "id": "builder-14",
+  "number": 14,
+  "title": "Đường ống dẫn vào Bodycam",
+  "subtitle": "Tải lên bodycam chặn tất cả các chủ đề API",
+  "objective": "Di chuyển việc nhập nhiều phương tiện vào quá trình xử lý async và lưu trữ đối tượng thích hợp.",
+  "constraints": [
+    "Giảm tải việc viết nặng",
+    "Sử dụng bộ nhớ đối tượng cho phương tiện truyền thông",
+    "Giữ siêu dữ liệu có thể truy vấn được"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "queue",
+    "worker",
+    "blobStorage",
+    "database",
+    "cdn"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Giảm tải phương tiện",
+      "description": "Sử dụng bộ lưu trữ blob làm mục tiêu cho các đối tượng bodycam.",
+      "requiredAll": [
+        "blobStorage",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "blobStorage"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Đang xử lý tải lên Async",
+      "description": "Hàng đợi + worker nên nhập process sau yêu cầu.",
+      "requiredAll": [
+        "queue",
+        "worker"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "queue"
+        },
+        {
+          "from": "queue",
+          "to": "worker"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Siêu dữ liệu Database",
+      "description": "Lưu trữ siêu dữ liệu tải lên có thể tìm kiếm trong database.",
+      "requiredAll": [
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "worker",
+          "to": "database"
+        }
+      ]
+    }
+  ]
+}

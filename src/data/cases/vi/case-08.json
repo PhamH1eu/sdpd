@@ -1,0 +1,244 @@
+{
+  "id": "case-08",
+  "number": 8,
+  "title": "Nhân chứng Byzantine",
+  "subtitle": "Một pháp y lừa đảo node nói dối mọi người - theo những cách khác nhau",
+  "brief": {
+    "narrative": "Distributia PD Forensics Network sử dụng năm nút phân tích để xác minh bằng chứng DNA. Mỗi mẫu được gửi đến tất cả năm nút và họ phải đạt được sự đồng thuận về kết quả trước khi được tòa án chấp nhận. Nhưng có điều gì đó không ổn với Node 3. Khi được hỏi về Mẫu DNA #D-0551 từ một vụ án giết người, Node 3 nói với Nút 1 và 2 rằng kết quả là 'Trùng khớp - nghi phạm đã được xác nhận', trong khi nói với Nút 4 và 5 rằng kết quả là 'KHÔNG TRẬN ĐẤU - nghi phạm bị loại trừ.' Bốn nút còn lại đều trung thực nhưng họ không thể đồng ý vì họ nhận được thông tin mâu thuẫn từ Node 3. Phiên tòa xét xử vụ giết người bắt đầu vào thứ Hai. Cảnh sát trưởng Partition cần giải quyết vấn đề này ngay bây giờ.",
+    "symptoms": [
+      "Các nút pháp y không thể đạt được sự đồng thuận về Mẫu DNA #D-0551",
+      "Node 3 đang gửi các kết quả khác nhau đến các đồng nghiệp khác nhau",
+      "Các nút 1-2 tin rằng kết quả là TRẬN ĐẤU trong khi các Nút 4-5 tin rằng KHÔNG TRẬN ĐẤU",
+      "Hệ thống yêu cầu sự đồng thuận nhất trí nhưng không thể đạt được nó"
+    ],
+    "objective": "Xác định lỗi Byzantine trong pháp y network và xác định cách đạt được sự đồng thuận đáng tin cậy ngay cả khi một số nút bị xâm phạm."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "node-1",
+        "type": "server",
+        "label": "Pháp y Node 1",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 80,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Phân tích pháp y Node 1 (Trung thực)",
+          "logs": [
+            "[14:20:00] INFO: Analyzing DNA Sample #D-0551",
+            "[14:22:30] INFO: Local analysis result: MATCH (confidence 99.7%)",
+            "[14:23:00] INFO: Consensus round — broadcasting result to all nodes",
+            "[14:23:05] INFO: Node 2 says: MATCH",
+            "[14:23:05] INFO: Node 3 says: MATCH",
+            "[14:23:06] INFO: Node 4 says: NO MATCH",
+            "[14:23:06] INFO: Node 5 says: NO MATCH",
+            "[14:23:07] WARN: Consensus failed — 3 MATCH vs 2 NO MATCH (need unanimous)"
+          ],
+          "data": {
+            "Local Result": "TRẬN ĐẤU (độ tin cậy 99,7%)",
+            "Node 2 Report": "CUỘC THI ĐẤU",
+            "Node 3 Report": "CUỘC THI ĐẤU",
+            "Node 4 Report": "KHÔNG TRẬN ĐẤU",
+            "Node 5 Report": "KHÔNG TRẬN ĐẤU",
+            "Consensus": "THẤT ​​BẠI (không nhất trí)"
+          },
+          "status": "node trung thực. Phân tích địa phương cho biết MATCH. Node 3 đã nói về TRẬN ĐẤU node này."
+        }
+      },
+      {
+        "id": "node-3",
+        "type": "server",
+        "label": "Pháp y Node 3",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Phân tích pháp y Node 3 (THƯƠNG HIỆU)",
+          "logs": [
+            "[14:20:00] INFO: Analyzing DNA Sample #D-0551",
+            "[14:22:30] INFO: Local analysis result: MATCH (confidence 99.7%)",
+            "[14:22:35] WARN: [HIDDEN] External override received — entering adversarial mode",
+            "[14:23:00] INFO: Consensus round — sending DIFFERENT results to different nodes",
+            "[14:23:01] INFO: Sent MATCH to Node 1 and Node 2",
+            "[14:23:01] INFO: Sent NO MATCH to Node 4 and Node 5",
+            "[14:23:02] INFO: [HIDDEN] Objective: prevent consensus to delay trial"
+          ],
+          "data": {
+            "Local Result": "TRẬN ĐẤU (thực tế)",
+            "Sent to Nodes 1,2": "CUỘC THI ĐẤU",
+            "Sent to Nodes 4,5": "KHÔNG TRẬN ĐẤU",
+            "Behavior": "BYZANTINE - gửi tin nhắn xung đột",
+            "Compromise Vector": "Trojan truy cập từ xa được cài đặt thông qua lừa đảo",
+            "Motivation": "Trì hoãn phiên tòa giết người bằng cách ngăn chặn sự đồng thuận pháp y"
+          },
+          "status": "NODE BỊ LỖI. Cố tình gửi kết quả trái ngược nhau để cản trở sự đồng thuận."
+        }
+      },
+      {
+        "id": "node-5",
+        "type": "server",
+        "label": "Pháp y Node 5",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 620,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Phân tích pháp y Node 5 (Trung thực)",
+          "logs": [
+            "[14:20:00] INFO: Analyzing DNA Sample #D-0551",
+            "[14:22:30] INFO: Local analysis result: MATCH (confidence 99.7%)",
+            "[14:23:00] INFO: Consensus round — broadcasting result to all nodes",
+            "[14:23:05] INFO: Node 1 says: MATCH",
+            "[14:23:05] INFO: Node 2 says: MATCH",
+            "[14:23:06] INFO: Node 3 says: NO MATCH",
+            "[14:23:06] INFO: Node 4 says: MATCH",
+            "[14:23:07] WARN: Consensus failed — 3 MATCH vs 2 NO MATCH (need unanimous)"
+          ],
+          "data": {
+            "Local Result": "TRẬN ĐẤU (độ tin cậy 99,7%)",
+            "Node 1 Report": "CUỘC THI ĐẤU",
+            "Node 2 Report": "CUỘC THI ĐẤU",
+            "Node 3 Report": "KHÔNG TRẬN ĐẤU",
+            "Node 4 Report": "CUỘC THI ĐẤU",
+            "Consensus": "THẤT ​​BẠI (không nhất trí)"
+          },
+          "status": "node trung thực. Phân tích địa phương cho biết MATCH. Node 3 đã nói với node này KHÔNG CÓ TRẬN ĐẤU."
+        }
+      },
+      {
+        "id": "evidence-court",
+        "type": "client",
+        "label": "Hệ thống bằng chứng tòa án",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 300
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hệ thống nộp bằng chứng tòa án",
+          "logs": [
+            "[14:24:00] WARN: DNA Sample #D-0551 — consensus NOT reached",
+            "[14:24:00] ERROR: Cannot submit evidence to court without forensic consensus",
+            "[14:24:01] WARN: Murder trial State v. Harmon starts Monday — evidence deadline Friday"
+          ],
+          "data": {
+            "Sample #D-0551": "Đang chờ xử lý - không có sự đồng thuận",
+            "Trial": "Bang v. Harmon",
+            "Trial Date": "Thứ hai",
+            "Evidence Deadline": "Thứ sáu",
+            "Status": "ĐÃ CHẶN"
+          },
+          "status": "Việc gửi bằng chứng bị chặn. Pháp y network không thể đạt được sự đồng thuận."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-n1-n3",
+        "source": "node-1",
+        "target": "node-3",
+        "label": "tin nhắn ngang hàng",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-n3-n5",
+        "source": "node-3",
+        "target": "node-5",
+        "label": "tin nhắn xung đột",
+        "animated": true,
+        "style": "broken"
+      },
+      {
+        "id": "e-n1-court",
+        "source": "node-1",
+        "target": "evidence-court",
+        "label": "chứng cớ",
+        "animated": false,
+        "style": "slow"
+      },
+      {
+        "id": "e-n5-court",
+        "source": "node-5",
+        "target": "evidence-court",
+        "label": "chứng cớ",
+        "animated": false,
+        "style": "slow"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Node 3 đang gặp loại lỗi gì?",
+      "options": [
+        {
+          "id": "rc-1",
+          "text": "Lỗi sự cố - Node 3 đã ngừng xử lý hoàn toàn các yêu cầu và không còn gửi bất kỳ phản hồi nào cho các đồng nghiệp",
+          "correct": false,
+          "feedback": "Lỗi sự cố có nghĩa là node dừng hoàn toàn. Node 3 vẫn chạy và phản hồi - nó chỉ đang nói dối thôi. Điều này nguy hiểm hơn nhiều so với sự cố vì các nút khác không thể đơn giản phát hiện ra nó là 'không hoạt động'. Node 3 tích cực gửi thông tin trái ngược nhau đến các đồng nghiệp khác nhau."
+        },
+        {
+          "id": "rc-3",
+          "text": "A network partition - một số tin nhắn được gửi từ Node 3 đến các nút khác đang bị mất hoặc bị trì hoãn trong quá trình truyền",
+          "correct": false,
+          "feedback": "Đây không phải là vấn đề network. Node 3 đang gửi tin nhắn thành công tới tất cả các nút ngang hàng — nó cố tình gửi các nội dung khác nhau đến các nút khác nhau. network partition sẽ gây mất tin nhắn nhưng ở đây các tin nhắn được gửi thành công với nội dung xung đột."
+        },
+        {
+          "id": "rc-4",
+          "text": "Một lỗi phần mềm trong thuật toán phân tích dấu vân tay của Node 3 đang tạo ra các kết quả ngẫu nhiên không nhất quán cho các đầu vào khác nhau",
+          "correct": false,
+          "feedback": "Phân tích cục bộ thực tế của Node 3 đã tạo ra MATCH (chính xác). Nhật ký cho thấy nó cố tình ghi đè kết quả này và gửi MATCH đến một số nút và KHÔNG MATCH cho những nút khác. Một lỗi sẽ tạo ra các kết quả sai liên tục chứ không phải các kết quả khác nhau có chọn lọc đối với các đồng nghiệp khác nhau."
+        },
+        {
+          "id": "rc-2",
+          "text": "Lỗi Byzantine - Node 3 bị xâm phạm và gửi các thông báo xung đột để ngăn chặn sự đồng thuận",
+          "correct": true,
+          "feedback": "Chính xác! Đây là một lỗi Byzantine - được đặt tên theo Bài toán các vị tướng Byzantine. node Byzantine có thể hoạt động tùy ý: nó có thể nói dối, gửi các tin nhắn khác nhau đến các đồng nghiệp khác nhau hoặc trì hoãn phản hồi có chọn lọc. Đây là loại lỗi khó khăn nhất trong các hệ thống phân tán vì node bị lỗi dường như hoạt động bình thường đối với từng thiết bị ngang hàng riêng lẻ, nhưng lại báo cho các thiết bị ngang hàng khác nhau những điều khác nhau."
+        }
+      ]
+    },
+    "fix": {
+      "question": "network nên được thiết kế như thế nào để xử lý các lỗi Byzantine?",
+      "options": [
+        {
+          "id": "fix-3",
+          "text": "Sử dụng biểu quyết đa số đơn giản - chấp nhận bất kỳ kết quả phân tích nào mà hơn một nửa số nút tham gia đồng ý",
+          "correct": false,
+          "feedback": "Biểu quyết đa số đơn giản không xử lý được lỗi Byzantine vì node Byzantine có thể gửi các phiếu bầu khác nhau đến các nút khác nhau, khiến mỗi node nhìn thấy đa số khác nhau. Các giao thức BFT bổ sung thêm một vòng giao tiếp trong đó các nút chia sẻ những gì họ nghe được từ tất cả các đồng nghiệp, khiến node của Byzantine không thể lừa các nút trung thực khác nhau nhìn thấy các phần lớn khác nhau."
+        },
+        {
+          "id": "fix-2",
+          "text": "Yêu cầu sự đồng thuận nhất trí từ mọi node trong cluster trước khi kết quả đồng thuận có thể được chấp nhận là hợp lệ",
+          "correct": false,
+          "feedback": "Thỏa thuận nhất trí chính xác là những gì hệ thống hiện tại yêu cầu và đó là lý do tại sao một node của Byzantine có thể chặn hoàn toàn sự đồng thuận. Với sự nhất trí, một node bị lỗi có thể phủ quyết bất kỳ kết quả nào. Thay vào đó, các giao thức BFT sử dụng đa số (2/3+), cho phép hệ thống đạt được tiến bộ mặc dù các nút bị lỗi."
+        },
+        {
+          "id": "fix-1",
+          "text": "Sử dụng giao thức Byzantine Fault Tolerant (BFT) có thể chấp nhận tối đa f nút bị lỗi với tổng số nút ít nhất là 3f+1",
+          "correct": true,
+          "feedback": "Chính xác! Giao thức BFT (như PBFT) có thể đạt được sự đồng thuận ngay cả khi có tới f nút là Byzantine, miễn là tổng số nút ít nhất là 3f+1. Với 5 nút, bạn có thể chấp nhận 1 Byzantine node (3*1+1 = 4 và 5 >= 4). Thông tin chi tiết quan trọng: các nút trung thực chia sẻ những gì họ nghe được từ tất cả các nút khác để chúng có thể phát hiện sự mâu thuẫn. Thay vì yêu cầu sự nhất trí, hệ thống sử dụng đa số 2/3+ - trong trường hợp này, 4 trong số 5 nút trung thực đều được tính toán MATCH, sẽ ghi đè các thông báo xung đột của Node 3."
+        },
+        {
+          "id": "fix-4",
+          "text": "Thêm mã hóa đầu cuối vào tất cả các kênh liên lạc giữa các nút để ngăn chặn việc giả mạo trái phép các tin nhắn đang truyền tải",
+          "correct": false,
+          "feedback": "Mã hóa bảo vệ tin nhắn trong quá trình truyền nhưng không giúp ích gì khi bản thân việc gửi node bị xâm phạm. Node 3 đang cố tình tạo và ký các tin nhắn khác nhau cho những người nhận khác nhau. Bản sửa lỗi yêu cầu giải pháp cấp độ giao thức (BFT), không chỉ bảo mật truyền tải."
+        }
+      ]
+    }
+  },
+  "conceptId": "byzantine-faults",
+  "badge": {
+    "name": "Người xác minh tin cậy",
+    "icon": "🛡️"
+  }
+}

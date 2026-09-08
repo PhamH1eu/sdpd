@@ -1,0 +1,172 @@
+{
+  "id": "case-42",
+  "number": 42,
+  "title": "Deadlock trong một process",
+  "subtitle": "Hai thread chờ mãi trong khi CPU bằng không",
+  "brief": {
+    "narrative": "Thread A lock account 1 rồi chờ account 2. Thread B lock account 2 rồi chờ account 1. Cả hai block vô hạn.",
+    "symptoms": [
+      "Metric của Thread Pool khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Hai thread chờ mãi trong khi CPU bằng không"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Hai thread chờ mãi trong khi CPU bằng không"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN Thread Pool xuất hiện anomaly",
+            "[09:00:20] WARN Hai thread chờ mãi trong khi CPU bằng không",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Hai thread chờ mãi trong khi CPU bằng không",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Thread Pool",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Thread Pool",
+          "logs": [
+            "Metric của Thread Pool khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-wrong-2",
+          "text": "Socket/file-descriptor leak làm cạn per-process limit.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "CPU oversubscription tạo scheduling overhead và phá cache locality.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Thứ tự lấy lock ngược nhau tạo circular wait.",
+          "correct": true,
+          "feedback": "Chính xác. Deadlock cần mutual exclusion, hold-and-wait, no preemption và circular wait. Thiết kế phải phá ít nhất một điều kiện."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Memory pressure gây virtual-memory thrashing.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-wrong-3",
+          "text": "Đặt số CPU-bound worker gần effective CPU quota, batch work và đo run queue, throttling, context switch, throughput.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Định nghĩa global lock order, luôn acquire theo thứ tự đó, thu nhỏ lock scope; timeout chỉ là safety net để recovery.",
+          "correct": true,
+          "feedback": "Chính xác. Deadlock cần mutual exclusion, hold-and-wait, no preemption và circular wait. Thiết kế phải phá ít nhất một điều kiện."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Giảm working set, giới hạn concurrency/cache memory, chỉ thêm RAM sau khi đo và alert theo major fault cùng swap activity.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Đóng resource bằng context manager/finally, tái sử dụng bounded client pool, expose descriptor metric và đặt ulimit có chủ đích.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    }
+  },
+  "conceptId": "thread-deadlock",
+  "badge": {
+    "name": "Deadlock trong một process",
+    "icon": "🔒"
+  }
+}

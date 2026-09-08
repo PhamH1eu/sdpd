@@ -1,0 +1,172 @@
+{
+  "id": "case-47",
+  "number": 47,
+  "title": "The Thrashing Host",
+  "subtitle": "CPU is low while latency explodes and disk stays busy",
+  "brief": {
+    "narrative": "Working sets exceed RAM. Major page faults and swap I/O surge, so processes spend more time moving pages than executing.",
+    "symptoms": [
+      "Linux Host metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "CPU is low while latency explodes and disk stays busy"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "CPU is low while latency explodes and disk stays busy"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Linux Host shows an anomaly",
+            "[09:00:20] WARN CPU is low while latency explodes and disk stays busy",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "CPU is low while latency explodes and disk stays busy",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Linux Host",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Linux Host",
+          "logs": [
+            "Linux Host metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-3",
+          "text": "Task granularity is too small relative to multiprocessing serialization and IPC overhead.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Memory pressure caused virtual-memory thrashing.",
+          "correct": true,
+          "feedback": "Correct. Virtual memory makes address space flexible, but disk is orders of magnitude slower than RAM. More concurrent work can reduce throughput."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Opposite lock ordering created a circular wait.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "CPython’s GIL serializes execution of Python bytecode for CPU-bound threads.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-correct",
+          "text": "Reduce working sets, cap concurrency/cache memory, add RAM only after measurement, and alert on major faults and swap activity.",
+          "correct": true,
+          "feedback": "Correct. Virtual memory makes address space flexible, but disk is orders of magnitude slower than RAM. More concurrent work can reduce throughput."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Define a global lock order, acquire in that order, keep lock scope small, and use timeouts only as a recovery safety net.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Use multiprocessing, a native library that releases the GIL, or a separate compute service; benchmark serialization and memory costs.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Batch work into larger chunks, send compact identifiers, use shared memory only with clear ownership, and benchmark end to end.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "virtual-memory-thrashing",
+  "badge": {
+    "name": "The Thrashing Host",
+    "icon": "💾"
+  }
+}

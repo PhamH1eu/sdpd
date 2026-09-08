@@ -1,0 +1,217 @@
+{
+  "id": "case-16",
+  "number": 16,
+  "title": "đống chó",
+  "subtitle": "Hàng trăm yêu cầu dồn dập xây dựng lại một mục cache",
+  "brief": {
+    "narrative": "Trang được mong muốn nhất của Distributia là trang endpoint phổ biến nhất của bộ - 500 yêu cầu mỗi giây trong giờ cao điểm. Mục nhập cache cho danh sách 10 người bị truy nã gắt gao nhất vừa hết hạn và trong 200 mili giây để xây dựng lại nó từ database, 100 yêu cầu đồng thời đều cho thấy cache bị trượt. Tất cả 100 chiếc đều độc lập tấn công database với cùng một chiếc query đắt tiền. database bị vênh dưới tải trùng lặp, query mất 3 giây thay vì 200 mili giây và trong 3 giây đó, 1.500 yêu cầu khác được gửi đến. Đó là một đống chó, Thám tử và Cảnh sát trưởng Partition muốn biết lý do tại sao một khóa cache bị thiếu đã khiến hệ thống ngừng hoạt động.",
+    "symptoms": [
+      "Hơn 100 truy vấn database giống hệt nhau được thực hiện đồng thời cho cùng một dữ liệu",
+      "Thời gian của trang response được truy cập nhiều nhất tăng vọt từ 50 mili giây lên 12 giây",
+      "Database CPU tăng vọt lên 100% từ các truy vấn xây dựng lại trùng lặp",
+      "Sự cố tự khắc phục sau khi cache được xây dựng lại nhưng gây ra tình trạng xuống cấp trong 15 giây"
+    ],
+    "objective": "Xác định lý do tại sao một lần hết hạn khóa cache lại gây ra một loạt các truy vấn trùng lặp và đề xuất chiến lược khóa để ngăn chặn điều đó."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "cache",
+        "type": "server",
+        "label": "Redis Cache",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Redis Cache",
+          "logs": [
+            "[10:30:00.000] INFO: Key 'most-wanted-top10' expired (TTL reached)",
+            "[10:30:00.001] INFO: Cache MISS for 'most-wanted-top10' (request #1)",
+            "[10:30:00.002] INFO: Cache MISS for 'most-wanted-top10' (request #2)",
+            "[10:30:00.050] INFO: Cache MISS for 'most-wanted-top10' (requests #3-#100)",
+            "[10:30:00.200] INFO: No lock mechanism — all requests fall through to DB"
+          ],
+          "data": {
+            "Key": "top10 được mong muốn nhất",
+            "Status": "HẾT HẠN",
+            "Concurrent Misses": "Hơn 100 trong 200 mili giây",
+            "Lock/Mutex": "Chưa được định cấu hình",
+            "Normal Hit Rate": "99,8%"
+          },
+          "status": "Chìa khóa đã hết hạn. Không có cache lock - tất cả các yêu cầu đồng thời đều bị trượt và tấn công DB một cách độc lập."
+        }
+      },
+      {
+        "id": "api-fleet",
+        "type": "server",
+        "label": "Máy chủ API (x8)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Nhóm máy chủ API",
+          "logs": [
+            "[10:30:00.010] INFO: Cache miss — querying DB for most-wanted-top10",
+            "[10:30:00.011] INFO: Cache miss — querying DB for most-wanted-top10",
+            "[10:30:00.012] INFO: (x100) All servers independently querying DB for same key",
+            "[10:30:03.200] INFO: DB finally responded — writing back to cache"
+          ],
+          "data": {
+            "Concurrent DB Queries": "100+ (tất cả đều giống nhau)",
+            "Avg Response Time": "12 giây (thông thường là 50 mili giây)",
+            "Status": "ĐANG ĐANG ĐÓNG CHÓ"
+          },
+          "status": "Tất cả các phiên bản API đang cố gắng xây dựng lại cùng một mục cache một cách độc lập."
+        }
+      },
+      {
+        "id": "database",
+        "type": "database",
+        "label": "Người bị truy nã DB",
+        "status": "xuống cấp",
+        "position": {
+          "x": 600,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Người bị truy nã Database",
+          "logs": [
+            "[10:30:00.050] WARN: 100 identical queries received for most-wanted aggregation",
+            "[10:30:00.100] WARN: CPU spike to 100% from duplicate work",
+            "[10:30:02.000] WARN: Query time inflated from 200ms to 3000ms due to contention"
+          ],
+          "data": {
+            "Duplicate Queries": "100+ (giống hệt nhau)",
+            "CPU": "100%",
+            "Normal Query Time": "200 mili giây",
+            "Current Query Time": "3000 mili giây",
+            "Status": "QUÁ TẢI BỞI CÁC TRÌNH TỰ"
+          },
+          "status": "Thực hiện đồng thời 100 bản query đắt tiền tương tự."
+        }
+      },
+      {
+        "id": "users",
+        "type": "client",
+        "label": "Cổng thông tin công cộng",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 370
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cổng thông tin công khai được mong muốn nhất",
+          "logs": [
+            "[10:30:01] WARN: Page load time exceeding 10s",
+            "[10:30:05] ERROR: Multiple timeout errors reported"
+          ],
+          "data": {
+            "Active Users": "~2.000",
+            "Requests/sec": "500",
+            "Avg Response": "12 giây (thông thường là 50 mili giây)"
+          },
+          "status": "Người dùng gặp tình trạng chậm nghiêm trọng trong quá trình xây dựng lại cache."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-api-cache",
+        "source": "api-fleet",
+        "target": "cache",
+        "label": "cache bỏ lỡ",
+        "animated": true,
+        "style": "broken"
+      },
+      {
+        "id": "e-api-db",
+        "source": "api-fleet",
+        "target": "database",
+        "label": "100x giống query",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-users-api",
+        "source": "users",
+        "target": "api-fleet",
+        "label": "500 yêu cầu/giây",
+        "animated": true,
+        "style": "slow"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của database bị tràn ngập bởi các truy vấn trùng lặp là gì?",
+      "options": [
+        {
+          "id": "rc-2",
+          "text": "Không có cache lock hoặc cơ chế ghi đơn — khi khóa hết hạn, tất cả các yêu cầu đồng thời sẽ được xây dựng lại một cách độc lập thay vì chỉ một",
+          "correct": true,
+          "feedback": "Chính xác! Đây là vấn đề cache stampede (đống chó). Nếu không có cơ chế khóa, mọi lỗi cache đồng thời sẽ kích hoạt một database query độc lập cho cùng một dữ liệu. cache lock đảm bảo chỉ một request xây dựng lại mục nhập trong khi những request khác chờ kết quả."
+        },
+        {
+          "id": "rc-3",
+          "text": "Tập hợp database cơ bản query quá chậm và cần tối ưu hóa hiệu suất SQL đáng kể",
+          "correct": false,
+          "feedback": "query thường mất 200 mili giây, điều này hợp lý cho việc tổng hợp. Nó chỉ chậm lại còn 3 giây vì có 100 bản sao đang chạy cùng lúc. Một query ở tốc độ 200 mili giây là ổn - vấn đề là 100 bản sao đồng thời."
+        },
+        {
+          "id": "rc-4",
+          "text": "Có quá nhiều phiên bản máy chủ API, dẫn đến có quá nhiều quy trình đồng thời kiểm tra cache cùng một lúc",
+          "correct": false,
+          "feedback": "Ít máy chủ hơn có nghĩa là ít truy vấn trùng lặp hơn, nhưng việc xếp chồng dữ liệu vẫn sẽ xảy ra với cả 2 máy chủ. Bản sửa lỗi không làm giảm số lượng máy chủ — nó đảm bảo chỉ một request xây dựng lại cache trong khi những máy khác chờ đợi."
+        },
+        {
+          "id": "rc-1",
+          "text": "Khóa cache TTL quá ngắn, khiến danh sách mong muốn nhất hết hạn quá thường xuyên và kích hoạt việc xây dựng lại nhiều lần",
+          "correct": false,
+          "feedback": "Độ dài TTL không phải là vấn đề cốt lõi. Ngay cả với TTL dài hơn, tình trạng tương tự vẫn sẽ xảy ra khi nó hết hạn. Vấn đề là điều gì xảy ra tại thời điểm hết hạn - nhiều người gọi độc lập cố gắng xây dựng lại cùng một mục nhập."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để ngăn chặn tình trạng chó cache là gì?",
+      "options": [
+        {
+          "id": "fix-1",
+          "text": "Tăng đáng kể thời lượng TTL cache để khóa danh sách mong muốn nhất hết hạn ít thường xuyên hơn khi tải",
+          "correct": false,
+          "feedback": "TTL dài hơn chỉ làm chậm trễ vấn đề. Cuối cùng, khi chìa khóa hết hạn, tình trạng giẫm đạp tương tự sẽ xảy ra. Bạn cần một cơ chế để xử lý việc hết hạn một cách khéo léo chứ không chỉ trì hoãn nó."
+        },
+        {
+          "id": "fix-2",
+          "text": "Triển khai khóa cache - khi khóa hết hạn, một request sẽ lấy lock để xây dựng lại trong khi những khóa khác chờ hoặc cung cấp dữ liệu cũ",
+          "correct": true,
+          "feedback": "Chính xác! Khóa Cache (còn gọi là mutex/xây dựng lại cache dựa trên khóa) đảm bảo chỉ một process xây dựng lại mục nhập đã hết hạn. Các yêu cầu đồng thời khác hoặc đợi chủ sở hữu lock hoàn tất hoặc phân phát một phiên bản hơi cũ. Điều này loại bỏ hoàn toàn các truy vấn database trùng lặp."
+        },
+        {
+          "id": "fix-4",
+          "text": "Tính toán trước và lưu trữ danh sách mong muốn nhất dưới dạng tệp tĩnh được cập nhật theo lịch thay vì được lưu vào bộ đệm động",
+          "correct": false,
+          "feedback": "Điều này hoạt động với một endpoint cụ thể nhưng không giải quyết được vấn đề chung. Bất kỳ khóa được lưu trong bộ nhớ đệm phổ biến nào cũng có thể gây ra tình trạng xếp chồng khi khóa hết hạn. Cơ chế khóa cache giải quyết vấn đề cho tất cả các phím."
+        },
+        {
+          "id": "fix-3",
+          "text": "Thêm rate limiting trên database connection pool để ngăn quá nhiều truy vấn đồng thời làm nó choáng ngợp",
+          "correct": false,
+          "feedback": "Rate limiting database sẽ ngăn chặn tình trạng quá tải nhưng cũng sẽ từ chối các truy vấn hợp pháp khác nhau trong thời gian tăng đột biến. Vấn đề là các truy vấn trùng lặp cho cùng một khóa — giải pháp nên nhắm mục tiêu vào sự trùng lặp đó chứ không giới hạn tất cả quyền truy cập database."
+        }
+      ]
+    }
+  },
+  "conceptId": "cache-locking",
+  "badge": {
+    "name": "Đóng cọc",
+    "icon": "🔨"
+  }
+}

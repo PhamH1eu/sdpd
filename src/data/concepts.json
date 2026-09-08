@@ -10,10 +10,22 @@
       "Redundancy is the general principle: never depend on just one of anything critical. Apply it to databases, networks, power supplies — any single point of failure."
     ],
     "keyTerms": [
-      { "term": "Single Point of Failure (SPOF)", "definition": "A component that, if it fails, causes the entire system to stop working." },
-      { "term": "Replication", "definition": "Maintaining copies of data on multiple machines for redundancy and availability." },
-      { "term": "Failover", "definition": "The process of automatically switching to a backup system when the primary fails." },
-      { "term": "Replica", "definition": "A server that maintains a copy of data from another server." }
+      {
+        "term": "Single Point of Failure (SPOF)",
+        "definition": "A component that, if it fails, causes the entire system to stop working."
+      },
+      {
+        "term": "Replication",
+        "definition": "Maintaining copies of data on multiple machines for redundancy and availability."
+      },
+      {
+        "term": "Failover",
+        "definition": "The process of automatically switching to a backup system when the primary fails."
+      },
+      {
+        "term": "Replica",
+        "definition": "A server that maintains a copy of data from another server."
+      }
     ]
   },
   {
@@ -27,10 +39,22 @@
       "For critical reads where freshness matters, applications can route those queries directly to the leader. This pattern is called 'read-your-writes' or 'read-from-leader' consistency."
     ],
     "keyTerms": [
-      { "term": "Leader (Primary/Master)", "definition": "The server that accepts write operations and sends changes to followers." },
-      { "term": "Follower (Replica/Slave)", "definition": "A server that receives and applies changes from the leader, serving read queries." },
-      { "term": "Replication Lag", "definition": "The delay between a write on the leader and when it appears on a follower." },
-      { "term": "Stale Read", "definition": "Reading outdated data from a follower that hasn't caught up with the leader." }
+      {
+        "term": "Leader (Primary/Master)",
+        "definition": "The server that accepts write operations and sends changes to followers."
+      },
+      {
+        "term": "Follower (Replica/Slave)",
+        "definition": "A server that receives and applies changes from the leader, serving read queries."
+      },
+      {
+        "term": "Replication Lag",
+        "definition": "The delay between a write on the leader and when it appears on a follower."
+      },
+      {
+        "term": "Stale Read",
+        "definition": "Reading outdated data from a follower that hasn't caught up with the leader."
+      }
     ]
   },
   {
@@ -44,10 +68,22 @@
       "The trade-off is fundamental in distributed systems: durability vs. performance. For critical data (financial transactions, evidence), synchronous replication is worth the latency cost."
     ],
     "keyTerms": [
-      { "term": "Asynchronous Replication", "definition": "Leader acknowledges writes without waiting for follower confirmation. Fast but risks data loss." },
-      { "term": "Synchronous Replication", "definition": "Leader waits for follower confirmation before acknowledging. Slower but guarantees durability." },
-      { "term": "Durability", "definition": "The guarantee that once data is acknowledged, it won't be lost — even if servers crash." },
-      { "term": "Semi-Synchronous", "definition": "Hybrid approach where one follower is synchronous and others are asynchronous." }
+      {
+        "term": "Asynchronous Replication",
+        "definition": "Leader acknowledges writes without waiting for follower confirmation. Fast but risks data loss."
+      },
+      {
+        "term": "Synchronous Replication",
+        "definition": "Leader waits for follower confirmation before acknowledging. Slower but guarantees durability."
+      },
+      {
+        "term": "Durability",
+        "definition": "The guarantee that once data is acknowledged, it won't be lost — even if servers crash."
+      },
+      {
+        "term": "Semi-Synchronous",
+        "definition": "Hybrid approach where one follower is synchronous and others are asynchronous."
+      }
     ]
   },
   {
@@ -61,10 +97,22 @@
       "The CAP theorem tells us that during a network partition, a system must choose between consistency (reject operations) and availability (serve potentially stale data). You can't have both."
     ],
     "keyTerms": [
-      { "term": "Network Partition", "definition": "A failure where some nodes cannot communicate with others, splitting the cluster." },
-      { "term": "Split Brain", "definition": "A dangerous state where both sides of a partition think they are the leader." },
-      { "term": "Quorum", "definition": "The minimum number of nodes that must agree for an operation to proceed (usually majority)." },
-      { "term": "Fencing", "definition": "A mechanism to ensure only one node acts as leader, typically by revoking the old leader's access." }
+      {
+        "term": "Network Partition",
+        "definition": "A failure where some nodes cannot communicate with others, splitting the cluster."
+      },
+      {
+        "term": "Split Brain",
+        "definition": "A dangerous state where both sides of a partition think they are the leader."
+      },
+      {
+        "term": "Quorum",
+        "definition": "The minimum number of nodes that must agree for an operation to proceed (usually majority)."
+      },
+      {
+        "term": "Fencing",
+        "definition": "A mechanism to ensure only one node acts as leader, typically by revoking the old leader's access."
+      }
     ]
   },
   {
@@ -78,10 +126,22 @@
       "Key requirements: exactly one leader at a time, fast detection of leader failure, and graceful handover. Consensus protocols make this reliable even with failures."
     ],
     "keyTerms": [
-      { "term": "Leader Election", "definition": "The process by which nodes choose a single leader from among themselves." },
-      { "term": "Consensus", "definition": "Agreement among distributed nodes on a single value or decision." },
-      { "term": "Term/Epoch", "definition": "A logical clock that increments with each new leader, preventing stale leaders from acting." },
-      { "term": "Heartbeat", "definition": "Periodic messages sent by the leader to prove it's still alive." }
+      {
+        "term": "Leader Election",
+        "definition": "The process by which nodes choose a single leader from among themselves."
+      },
+      {
+        "term": "Consensus",
+        "definition": "Agreement among distributed nodes on a single value or decision."
+      },
+      {
+        "term": "Term/Epoch",
+        "definition": "A logical clock that increments with each new leader, preventing stale leaders from acting."
+      },
+      {
+        "term": "Heartbeat",
+        "definition": "Periodic messages sent by the leader to prove it's still alive."
+      }
     ]
   },
   {
@@ -95,10 +155,22 @@
       "Multi-leader is common in multi-datacenter setups and collaborative editing (like Google Docs). Use it when availability and latency matter more than strict consistency."
     ],
     "keyTerms": [
-      { "term": "Write Conflict", "definition": "Two leaders independently modify the same data, creating incompatible versions." },
-      { "term": "Last Writer Wins (LWW)", "definition": "Conflict resolution where the most recent write (by timestamp) is kept." },
-      { "term": "Conflict Resolution", "definition": "The strategy for deciding which version of conflicting data to keep." },
-      { "term": "CRDTs", "definition": "Conflict-free Replicated Data Types — data structures that can be merged automatically." }
+      {
+        "term": "Write Conflict",
+        "definition": "Two leaders independently modify the same data, creating incompatible versions."
+      },
+      {
+        "term": "Last Writer Wins (LWW)",
+        "definition": "Conflict resolution where the most recent write (by timestamp) is kept."
+      },
+      {
+        "term": "Conflict Resolution",
+        "definition": "The strategy for deciding which version of conflicting data to keep."
+      },
+      {
+        "term": "CRDTs",
+        "definition": "Conflict-free Replicated Data Types — data structures that can be merged automatically."
+      }
     ]
   },
   {
@@ -112,10 +184,22 @@
       "For distributed systems, prefer logical ordering over physical timestamps. If you must use physical time, use synchronized clocks with bounded error (like Google's TrueTime)."
     ],
     "keyTerms": [
-      { "term": "Clock Skew", "definition": "The difference in time readings between two clocks at the same moment." },
-      { "term": "NTP", "definition": "Network Time Protocol — synchronizes clocks over a network, but with limited precision." },
-      { "term": "Lamport Clock", "definition": "A logical clock that provides a total order of events based on causality." },
-      { "term": "Happens-Before", "definition": "A partial ordering where event A happens-before B if A could have influenced B." }
+      {
+        "term": "Clock Skew",
+        "definition": "The difference in time readings between two clocks at the same moment."
+      },
+      {
+        "term": "NTP",
+        "definition": "Network Time Protocol — synchronizes clocks over a network, but with limited precision."
+      },
+      {
+        "term": "Lamport Clock",
+        "definition": "A logical clock that provides a total order of events based on causality."
+      },
+      {
+        "term": "Happens-Before",
+        "definition": "A partial ordering where event A happens-before B if A could have influenced B."
+      }
     ]
   },
   {
@@ -129,10 +213,22 @@
       "BFT is crucial in adversarial environments (blockchain, financial systems) but expensive in normal distributed systems. Most internal systems only handle crash faults."
     ],
     "keyTerms": [
-      { "term": "Byzantine Fault", "definition": "A failure where a node sends different, potentially contradictory data to different peers." },
-      { "term": "Crash Fault", "definition": "A simpler failure model where nodes either work correctly or completely stop." },
-      { "term": "3f+1 Rule", "definition": "The minimum number of nodes needed to tolerate f Byzantine failures." },
-      { "term": "Digital Signatures", "definition": "Cryptographic proof that a message came from a specific node and wasn't tampered with." }
+      {
+        "term": "Byzantine Fault",
+        "definition": "A failure where a node sends different, potentially contradictory data to different peers."
+      },
+      {
+        "term": "Crash Fault",
+        "definition": "A simpler failure model where nodes either work correctly or completely stop."
+      },
+      {
+        "term": "3f+1 Rule",
+        "definition": "The minimum number of nodes needed to tolerate f Byzantine failures."
+      },
+      {
+        "term": "Digital Signatures",
+        "definition": "Cryptographic proof that a message came from a specific node and wasn't tampered with."
+      }
     ]
   },
   {
@@ -146,10 +242,22 @@
       "Layer 4 (TCP) load balancers route based on connection info; Layer 7 (HTTP) balancers can make smarter decisions based on request content, headers, or URLs."
     ],
     "keyTerms": [
-      { "term": "Load Balancer", "definition": "A component that distributes traffic across multiple backend servers." },
-      { "term": "Health Check", "definition": "Periodic probes to verify backend servers are healthy and can handle requests." },
-      { "term": "Round Robin", "definition": "A simple algorithm that cycles through servers in order." },
-      { "term": "Least Connections", "definition": "Routes new requests to the server with the fewest active connections." }
+      {
+        "term": "Load Balancer",
+        "definition": "A component that distributes traffic across multiple backend servers."
+      },
+      {
+        "term": "Health Check",
+        "definition": "Periodic probes to verify backend servers are healthy and can handle requests."
+      },
+      {
+        "term": "Round Robin",
+        "definition": "A simple algorithm that cycles through servers in order."
+      },
+      {
+        "term": "Least Connections",
+        "definition": "Routes new requests to the server with the fewest active connections."
+      }
     ]
   },
   {
@@ -163,10 +271,22 @@
       "Prevention is better than cure: stagger expiration times with random jitter, use background refresh for hot keys, and implement request coalescing."
     ],
     "keyTerms": [
-      { "term": "Cache Stampede", "definition": "Many requests simultaneously overwhelming the database when a popular cache entry expires." },
-      { "term": "Request Coalescing", "definition": "Combining duplicate concurrent requests into a single database query." },
-      { "term": "Cache Lock", "definition": "A lock ensuring only one request rebuilds a cache entry while others wait." },
-      { "term": "Jitter", "definition": "Adding random variation to expiration times to prevent simultaneous expirations." }
+      {
+        "term": "Cache Stampede",
+        "definition": "Many requests simultaneously overwhelming the database when a popular cache entry expires."
+      },
+      {
+        "term": "Request Coalescing",
+        "definition": "Combining duplicate concurrent requests into a single database query."
+      },
+      {
+        "term": "Cache Lock",
+        "definition": "A lock ensuring only one request rebuilds a cache entry while others wait."
+      },
+      {
+        "term": "Jitter",
+        "definition": "Adding random variation to expiration times to prevent simultaneous expirations."
+      }
     ]
   },
   {
@@ -180,10 +300,22 @@
       "Resharding (changing the number of shards) is painful. Consistent hashing minimizes data movement when adding/removing shards."
     ],
     "keyTerms": [
-      { "term": "Shard", "definition": "A partition of data stored on a separate machine in a distributed database." },
-      { "term": "Partition Key", "definition": "The field used to determine which shard stores a particular piece of data." },
-      { "term": "Hot Spot", "definition": "A shard that receives disproportionately more traffic than others." },
-      { "term": "Consistent Hashing", "definition": "A technique that minimizes data redistribution when shards are added or removed." }
+      {
+        "term": "Shard",
+        "definition": "A partition of data stored on a separate machine in a distributed database."
+      },
+      {
+        "term": "Partition Key",
+        "definition": "The field used to determine which shard stores a particular piece of data."
+      },
+      {
+        "term": "Hot Spot",
+        "definition": "A shard that receives disproportionately more traffic than others."
+      },
+      {
+        "term": "Consistent Hashing",
+        "definition": "A technique that minimizes data redistribution when shards are added or removed."
+      }
     ]
   },
   {
@@ -197,10 +329,22 @@
       "The modern approach: design for horizontal scaling from the start. Stateless services, external data stores, and containerization make it practical."
     ],
     "keyTerms": [
-      { "term": "Vertical Scaling", "definition": "Adding more resources (CPU, RAM) to a single machine. Limited by hardware maximums." },
-      { "term": "Horizontal Scaling", "definition": "Adding more machines to distribute the workload. Theoretically unlimited." },
-      { "term": "Stateless Service", "definition": "A service that stores no session data locally, making any instance interchangeable." },
-      { "term": "Elasticity", "definition": "The ability to automatically scale resources up or down based on demand." }
+      {
+        "term": "Vertical Scaling",
+        "definition": "Adding more resources (CPU, RAM) to a single machine. Limited by hardware maximums."
+      },
+      {
+        "term": "Horizontal Scaling",
+        "definition": "Adding more machines to distribute the workload. Theoretically unlimited."
+      },
+      {
+        "term": "Stateless Service",
+        "definition": "A service that stores no session data locally, making any instance interchangeable."
+      },
+      {
+        "term": "Elasticity",
+        "definition": "The ability to automatically scale resources up or down based on demand."
+      }
     ]
   },
   {
@@ -214,10 +358,22 @@
       "Store state externally: in a database, Redis, or a session store. The service instances become interchangeable workers."
     ],
     "keyTerms": [
-      { "term": "Stateless", "definition": "A service that stores no user or session data locally between requests." },
-      { "term": "Sticky Sessions", "definition": "Routing a user always to the same server, creating a dependency on that server." },
-      { "term": "Session Store", "definition": "An external service (like Redis) that stores session data accessible by any instance." },
-      { "term": "Shared Nothing", "definition": "An architecture where each node is independent and shares no state with others." }
+      {
+        "term": "Stateless",
+        "definition": "A service that stores no user or session data locally between requests."
+      },
+      {
+        "term": "Sticky Sessions",
+        "definition": "Routing a user always to the same server, creating a dependency on that server."
+      },
+      {
+        "term": "Session Store",
+        "definition": "An external service (like Redis) that stores session data accessible by any instance."
+      },
+      {
+        "term": "Shared Nothing",
+        "definition": "An architecture where each node is independent and shares no state with others."
+      }
     ]
   },
   {
@@ -231,10 +387,22 @@
       "As Phil Karlton said: 'There are only two hard things in Computer Science: cache invalidation and naming things.'"
     ],
     "keyTerms": [
-      { "term": "Cache Invalidation", "definition": "The process of removing or updating stale entries in a cache." },
-      { "term": "Write-Through", "definition": "Writing to both the cache and database simultaneously on every update." },
-      { "term": "TTL (Time To Live)", "definition": "The duration a cache entry is considered valid before it expires." },
-      { "term": "Cache-Aside", "definition": "Application checks cache first; on miss, reads from DB and populates cache." }
+      {
+        "term": "Cache Invalidation",
+        "definition": "The process of removing or updating stale entries in a cache."
+      },
+      {
+        "term": "Write-Through",
+        "definition": "Writing to both the cache and database simultaneously on every update."
+      },
+      {
+        "term": "TTL (Time To Live)",
+        "definition": "The duration a cache entry is considered valid before it expires."
+      },
+      {
+        "term": "Cache-Aside",
+        "definition": "Application checks cache first; on miss, reads from DB and populates cache."
+      }
     ]
   },
   {
@@ -248,10 +416,22 @@
       "Background refresh proactively updates entries before they expire, ensuring the cache always has fresh data and clients never see a cache miss."
     ],
     "keyTerms": [
-      { "term": "Fixed TTL", "definition": "A set expiration time for all cache entries, simple but prone to stampedes." },
-      { "term": "Jittered TTL", "definition": "Adding random time to TTL values to prevent synchronized expiration." },
-      { "term": "Sliding Window", "definition": "TTL resets on each access, keeping frequently used entries cached longer." },
-      { "term": "Background Refresh", "definition": "Proactively refreshing cache entries before they expire." }
+      {
+        "term": "Fixed TTL",
+        "definition": "A set expiration time for all cache entries, simple but prone to stampedes."
+      },
+      {
+        "term": "Jittered TTL",
+        "definition": "Adding random time to TTL values to prevent synchronized expiration."
+      },
+      {
+        "term": "Sliding Window",
+        "definition": "TTL resets on each access, keeping frequently used entries cached longer."
+      },
+      {
+        "term": "Background Refresh",
+        "definition": "Proactively refreshing cache entries before they expire."
+      }
     ]
   },
   {
@@ -265,10 +445,22 @@
       "Probabilistic early expiration refreshes entries before they actually expire, based on a probability that increases as expiry approaches."
     ],
     "keyTerms": [
-      { "term": "Cache Lock", "definition": "A mutex ensuring only one process rebuilds an expired cache entry at a time." },
-      { "term": "Request Coalescing", "definition": "Merging identical concurrent requests into a single execution." },
-      { "term": "Probabilistic Early Expiration", "definition": "Randomly refreshing entries before TTL, with increasing probability near expiry." },
-      { "term": "Singleflight", "definition": "A pattern where duplicate function calls are suppressed, sharing one result." }
+      {
+        "term": "Cache Lock",
+        "definition": "A mutex ensuring only one process rebuilds an expired cache entry at a time."
+      },
+      {
+        "term": "Request Coalescing",
+        "definition": "Merging identical concurrent requests into a single execution."
+      },
+      {
+        "term": "Probabilistic Early Expiration",
+        "definition": "Randomly refreshing entries before TTL, with increasing probability near expiry."
+      },
+      {
+        "term": "Singleflight",
+        "definition": "A pattern where duplicate function calls are suppressed, sharing one result."
+      }
     ]
   },
   {
@@ -282,10 +474,22 @@
       "Strategies: use versioned URLs (file-v2.js) for instant updates, set short TTLs for dynamic content, and use cache tags for targeted purging."
     ],
     "keyTerms": [
-      { "term": "CDN", "definition": "A network of edge servers that cache and serve content close to users." },
-      { "term": "Cache-Control", "definition": "HTTP header that specifies caching behavior (max-age, no-cache, etc.)." },
-      { "term": "Cache Purge", "definition": "Explicitly removing content from CDN caches before TTL expiry." },
-      { "term": "Edge Location", "definition": "A CDN server geographically close to end users." }
+      {
+        "term": "CDN",
+        "definition": "A network of edge servers that cache and serve content close to users."
+      },
+      {
+        "term": "Cache-Control",
+        "definition": "HTTP header that specifies caching behavior (max-age, no-cache, etc.)."
+      },
+      {
+        "term": "Cache Purge",
+        "definition": "Explicitly removing content from CDN caches before TTL expiry."
+      },
+      {
+        "term": "Edge Location",
+        "definition": "A CDN server geographically close to end users."
+      }
     ]
   },
   {
@@ -299,10 +503,22 @@
       "The choice depends on your tolerance for data loss. Transient notifications can use in-memory queues; financial transactions need durable storage."
     ],
     "keyTerms": [
-      { "term": "Durable Queue", "definition": "A message queue that persists messages to disk, surviving broker crashes." },
-      { "term": "Write-Ahead Log", "definition": "A sequential, append-only log written to disk before processing." },
-      { "term": "At-Least-Once Delivery", "definition": "Guarantee that a message is delivered at least once (may be duplicated)." },
-      { "term": "Acknowledgment", "definition": "Confirmation from the consumer that a message has been processed." }
+      {
+        "term": "Durable Queue",
+        "definition": "A message queue that persists messages to disk, surviving broker crashes."
+      },
+      {
+        "term": "Write-Ahead Log",
+        "definition": "A sequential, append-only log written to disk before processing."
+      },
+      {
+        "term": "At-Least-Once Delivery",
+        "definition": "Guarantee that a message is delivered at least once (may be duplicated)."
+      },
+      {
+        "term": "Acknowledgment",
+        "definition": "Confirmation from the consumer that a message has been processed."
+      }
     ]
   },
   {
@@ -316,10 +532,22 @@
       "Most message queues provide at-least-once delivery (not exactly-once). Idempotent consumers make at-least-once effectively equivalent to exactly-once."
     ],
     "keyTerms": [
-      { "term": "Idempotency", "definition": "The property where executing an operation multiple times has the same effect as once." },
-      { "term": "Idempotency Key", "definition": "A unique identifier for each request, used to detect and skip duplicates." },
-      { "term": "Exactly-Once Semantics", "definition": "The guarantee that a message is processed exactly once — very hard to achieve." },
-      { "term": "Deduplication", "definition": "The process of identifying and removing duplicate messages or requests." }
+      {
+        "term": "Idempotency",
+        "definition": "The property where executing an operation multiple times has the same effect as once."
+      },
+      {
+        "term": "Idempotency Key",
+        "definition": "A unique identifier for each request, used to detect and skip duplicates."
+      },
+      {
+        "term": "Exactly-Once Semantics",
+        "definition": "The guarantee that a message is processed exactly once — very hard to achieve."
+      },
+      {
+        "term": "Deduplication",
+        "definition": "The process of identifying and removing duplicate messages or requests."
+      }
     ]
   },
   {
@@ -333,10 +561,22 @@
       "Unbounded queues are dangerous — they mask problems by absorbing all incoming data until the system crashes from memory exhaustion."
     ],
     "keyTerms": [
-      { "term": "Backpressure", "definition": "A mechanism for overwhelmed systems to signal upstream to slow down." },
-      { "term": "Bounded Queue", "definition": "A queue with a maximum size that rejects or blocks when full." },
-      { "term": "Flow Control", "definition": "Regulating the rate of data transmission between components." },
-      { "term": "Dead Letter Queue", "definition": "A queue for messages that couldn't be processed after multiple attempts." }
+      {
+        "term": "Backpressure",
+        "definition": "A mechanism for overwhelmed systems to signal upstream to slow down."
+      },
+      {
+        "term": "Bounded Queue",
+        "definition": "A queue with a maximum size that rejects or blocks when full."
+      },
+      {
+        "term": "Flow Control",
+        "definition": "Regulating the rate of data transmission between components."
+      },
+      {
+        "term": "Dead Letter Queue",
+        "definition": "A queue for messages that couldn't be processed after multiple attempts."
+      }
     ]
   },
   {
@@ -350,10 +590,22 @@
       "Kafka solves this with partitions: messages within a partition are ordered, and each partition has one consumer. You get parallelism across partitions while maintaining order within them."
     ],
     "keyTerms": [
-      { "term": "FIFO", "definition": "First In, First Out — messages are processed in the order they arrive." },
-      { "term": "Partition", "definition": "A subset of a message stream, maintaining order within itself." },
-      { "term": "Sequence Number", "definition": "A monotonically increasing number assigned to each message for ordering." },
-      { "term": "Causal Ordering", "definition": "Ensuring causally related messages are processed in the correct order." }
+      {
+        "term": "FIFO",
+        "definition": "First In, First Out — messages are processed in the order they arrive."
+      },
+      {
+        "term": "Partition",
+        "definition": "A subset of a message stream, maintaining order within itself."
+      },
+      {
+        "term": "Sequence Number",
+        "definition": "A monotonically increasing number assigned to each message for ordering."
+      },
+      {
+        "term": "Causal Ordering",
+        "definition": "Ensuring causally related messages are processed in the correct order."
+      }
     ]
   },
   {
@@ -367,10 +619,22 @@
       "Cross-shard queries (joins across shards) are expensive and complex. Design your shard key to minimize cross-shard operations."
     ],
     "keyTerms": [
-      { "term": "Shard", "definition": "An independent database partition holding a subset of total data." },
-      { "term": "Shard Key", "definition": "The field determining which shard stores each record." },
-      { "term": "Cross-Shard Query", "definition": "A query that needs data from multiple shards, requiring coordination." },
-      { "term": "Resharding", "definition": "The process of splitting or merging shards, usually disruptive." }
+      {
+        "term": "Shard",
+        "definition": "An independent database partition holding a subset of total data."
+      },
+      {
+        "term": "Shard Key",
+        "definition": "The field determining which shard stores each record."
+      },
+      {
+        "term": "Cross-Shard Query",
+        "definition": "A query that needs data from multiple shards, requiring coordination."
+      },
+      {
+        "term": "Resharding",
+        "definition": "The process of splitting or merging shards, usually disruptive."
+      }
     ]
   },
   {
@@ -384,10 +648,22 @@
       "In practice, most systems are tunable: you can choose consistency for some operations and availability for others. It's not all-or-nothing."
     ],
     "keyTerms": [
-      { "term": "Consistency", "definition": "All nodes see the same data at the same time." },
-      { "term": "Availability", "definition": "Every request receives a response (success or failure)." },
-      { "term": "Partition Tolerance", "definition": "The system continues operating despite network communication failures." },
-      { "term": "Eventual Consistency", "definition": "All replicas will converge to the same state, given enough time without updates." }
+      {
+        "term": "Consistency",
+        "definition": "All nodes see the same data at the same time."
+      },
+      {
+        "term": "Availability",
+        "definition": "Every request receives a response (success or failure)."
+      },
+      {
+        "term": "Partition Tolerance",
+        "definition": "The system continues operating despite network communication failures."
+      },
+      {
+        "term": "Eventual Consistency",
+        "definition": "All replicas will converge to the same state, given enough time without updates."
+      }
     ]
   },
   {
@@ -401,10 +677,22 @@
       "Immutable data stores and append-only logs make corruption easier to detect and recover from, since original data is never overwritten."
     ],
     "keyTerms": [
-      { "term": "Checksum", "definition": "A fixed-size value computed from data, used to detect corruption or tampering." },
-      { "term": "End-to-End Integrity", "definition": "Verifying data integrity at each step from producer to consumer." },
-      { "term": "Hash Function", "definition": "A function that maps data to a fixed-size fingerprint." },
-      { "term": "Bit Rot", "definition": "Gradual data corruption on storage media over time." }
+      {
+        "term": "Checksum",
+        "definition": "A fixed-size value computed from data, used to detect corruption or tampering."
+      },
+      {
+        "term": "End-to-End Integrity",
+        "definition": "Verifying data integrity at each step from producer to consumer."
+      },
+      {
+        "term": "Hash Function",
+        "definition": "A function that maps data to a fixed-size fingerprint."
+      },
+      {
+        "term": "Bit Rot",
+        "definition": "Gradual data corruption on storage media over time."
+      }
     ]
   },
   {
@@ -418,10 +706,22 @@
       "Reducing write amplification: tune compaction strategies, use appropriate page sizes, batch writes, and choose the right storage engine for your workload."
     ],
     "keyTerms": [
-      { "term": "Write Amplification", "definition": "The ratio of physical writes to logical writes in a storage engine." },
-      { "term": "LSM-Tree", "definition": "Log-Structured Merge-tree — optimized for writes, uses compaction." },
-      { "term": "Compaction", "definition": "The process of merging and rewriting storage files to reclaim space and improve reads." },
-      { "term": "Write-Ahead Log (WAL)", "definition": "A sequential log written before modifying the actual data structure." }
+      {
+        "term": "Write Amplification",
+        "definition": "The ratio of physical writes to logical writes in a storage engine."
+      },
+      {
+        "term": "LSM-Tree",
+        "definition": "Log-Structured Merge-tree — optimized for writes, uses compaction."
+      },
+      {
+        "term": "Compaction",
+        "definition": "The process of merging and rewriting storage files to reclaim space and improve reads."
+      },
+      {
+        "term": "Write-Ahead Log (WAL)",
+        "definition": "A sequential log written before modifying the actual data structure."
+      }
     ]
   },
   {
@@ -435,10 +735,22 @@
       "Circuit breakers, bulkheads, and async communication patterns prevent one slow service from bringing down the entire system."
     ],
     "keyTerms": [
-      { "term": "Cascading Failure", "definition": "A failure in one component triggering failures in dependent components." },
-      { "term": "Timeout Budget", "definition": "Allocating decreasing timeouts through the call chain." },
-      { "term": "Bulkhead", "definition": "Isolating components so a failure in one doesn't affect others." },
-      { "term": "Fail Fast", "definition": "Returning an error immediately rather than waiting for a slow dependency." }
+      {
+        "term": "Cascading Failure",
+        "definition": "A failure in one component triggering failures in dependent components."
+      },
+      {
+        "term": "Timeout Budget",
+        "definition": "Allocating decreasing timeouts through the call chain."
+      },
+      {
+        "term": "Bulkhead",
+        "definition": "Isolating components so a failure in one doesn't affect others."
+      },
+      {
+        "term": "Fail Fast",
+        "definition": "Returning an error immediately rather than waiting for a slow dependency."
+      }
     ]
   },
   {
@@ -452,10 +764,22 @@
       "Set a maximum retry count and implement circuit breakers to stop retrying entirely when a service is clearly down."
     ],
     "keyTerms": [
-      { "term": "Exponential Backoff", "definition": "Doubling the wait time between each retry attempt." },
-      { "term": "Retry Storm", "definition": "Many clients retrying simultaneously, overwhelming the recovering service." },
-      { "term": "Jitter", "definition": "Random variation added to retry timing to desynchronize clients." },
-      { "term": "Max Retries", "definition": "A limit on retry attempts to prevent infinite loops." }
+      {
+        "term": "Exponential Backoff",
+        "definition": "Doubling the wait time between each retry attempt."
+      },
+      {
+        "term": "Retry Storm",
+        "definition": "Many clients retrying simultaneously, overwhelming the recovering service."
+      },
+      {
+        "term": "Jitter",
+        "definition": "Random variation added to retry timing to desynchronize clients."
+      },
+      {
+        "term": "Max Retries",
+        "definition": "A limit on retry attempts to prevent infinite loops."
+      }
     ]
   },
   {
@@ -469,10 +793,22 @@
       "Combine with fallbacks: when the circuit is open, return cached data, a default response, or a degraded experience instead of an error."
     ],
     "keyTerms": [
-      { "term": "Circuit Breaker", "definition": "A pattern that stops calling a failing service after a threshold of failures." },
-      { "term": "Closed State", "definition": "Normal operation — requests pass through to the service." },
-      { "term": "Open State", "definition": "Tripped — requests fail immediately without calling the service." },
-      { "term": "Half-Open State", "definition": "Testing — a limited number of requests are sent to check if the service recovered." }
+      {
+        "term": "Circuit Breaker",
+        "definition": "A pattern that stops calling a failing service after a threshold of failures."
+      },
+      {
+        "term": "Closed State",
+        "definition": "Normal operation — requests pass through to the service."
+      },
+      {
+        "term": "Open State",
+        "definition": "Tripped — requests fail immediately without calling the service."
+      },
+      {
+        "term": "Half-Open State",
+        "definition": "Testing — a limited number of requests are sent to check if the service recovered."
+      }
     ]
   },
   {
@@ -486,10 +822,22 @@
       "Health checks ensure the registry only contains healthy instances. Stale entries (pointing to dead instances) cause failures."
     ],
     "keyTerms": [
-      { "term": "Service Registry", "definition": "A database of available service instances and their network locations." },
-      { "term": "Service Discovery", "definition": "The mechanism by which services find and communicate with each other." },
-      { "term": "DNS-Based Discovery", "definition": "Using DNS records to resolve service names to IP addresses." },
-      { "term": "Sidecar Proxy", "definition": "A proxy running alongside each service that handles discovery and routing." }
+      {
+        "term": "Service Registry",
+        "definition": "A database of available service instances and their network locations."
+      },
+      {
+        "term": "Service Discovery",
+        "definition": "The mechanism by which services find and communicate with each other."
+      },
+      {
+        "term": "DNS-Based Discovery",
+        "definition": "Using DNS records to resolve service names to IP addresses."
+      },
+      {
+        "term": "Sidecar Proxy",
+        "definition": "A proxy running alongside each service that handles discovery and routing."
+      }
     ]
   },
   {
@@ -503,10 +851,22 @@
       "Lock timeouts are the simplest solution: if you can't acquire a lock within N seconds, release your locks and retry. This breaks the deadlock at the cost of some wasted work."
     ],
     "keyTerms": [
-      { "term": "Deadlock", "definition": "A state where two or more processes are blocked forever, each waiting for the other." },
-      { "term": "Wait-For Graph", "definition": "A directed graph of which process is waiting for which, used to detect cycles (deadlocks)." },
-      { "term": "Lock Ordering", "definition": "Always acquiring locks in a predefined global order to prevent circular waits." },
-      { "term": "Lock Timeout", "definition": "Releasing locks and retrying if acquisition takes too long." }
+      {
+        "term": "Deadlock",
+        "definition": "A state where two or more processes are blocked forever, each waiting for the other."
+      },
+      {
+        "term": "Wait-For Graph",
+        "definition": "A directed graph of which process is waiting for which, used to detect cycles (deadlocks)."
+      },
+      {
+        "term": "Lock Ordering",
+        "definition": "Always acquiring locks in a predefined global order to prevent circular waits."
+      },
+      {
+        "term": "Lock Timeout",
+        "definition": "Releasing locks and retrying if acquisition takes too long."
+      }
     ]
   },
   {
@@ -520,10 +880,22 @@
       "Most databases default to Read Committed. Use higher levels only when needed, as they reduce throughput through more aggressive locking."
     ],
     "keyTerms": [
-      { "term": "Dirty Read", "definition": "Reading data that has been modified by another transaction but not yet committed." },
-      { "term": "Phantom Read", "definition": "A query returns different rows because another transaction inserted or deleted rows." },
-      { "term": "Serializable", "definition": "The highest isolation level — transactions behave as if executed one at a time." },
-      { "term": "Snapshot Isolation", "definition": "Each transaction sees a consistent snapshot of the database at its start time." }
+      {
+        "term": "Dirty Read",
+        "definition": "Reading data that has been modified by another transaction but not yet committed."
+      },
+      {
+        "term": "Phantom Read",
+        "definition": "A query returns different rows because another transaction inserted or deleted rows."
+      },
+      {
+        "term": "Serializable",
+        "definition": "The highest isolation level — transactions behave as if executed one at a time."
+      },
+      {
+        "term": "Snapshot Isolation",
+        "definition": "Each transaction sees a consistent snapshot of the database at its start time."
+      }
     ]
   },
   {
@@ -537,10 +909,22 @@
       "Sagas provide eventual consistency, not immediate consistency. The system may be in an intermediate state between steps, which your application must handle."
     ],
     "keyTerms": [
-      { "term": "Saga", "definition": "A sequence of local transactions with compensating actions for failure handling." },
-      { "term": "Compensating Action", "definition": "An operation that undoes the effect of a previous step in the saga." },
-      { "term": "Choreography", "definition": "Each service in the saga triggers the next step via events." },
-      { "term": "Orchestrator", "definition": "A central coordinator that manages the saga's step sequence." }
+      {
+        "term": "Saga",
+        "definition": "A sequence of local transactions with compensating actions for failure handling."
+      },
+      {
+        "term": "Compensating Action",
+        "definition": "An operation that undoes the effect of a previous step in the saga."
+      },
+      {
+        "term": "Choreography",
+        "definition": "Each service in the saga triggers the next step via events."
+      },
+      {
+        "term": "Orchestrator",
+        "definition": "A central coordinator that manages the saga's step sequence."
+      }
     ]
   },
   {
@@ -554,10 +938,722 @@
       "Different limits for different clients: authenticated users get higher limits, free tier gets lower limits, and internal services may have separate limits entirely."
     ],
     "keyTerms": [
-      { "term": "Rate Limit", "definition": "A maximum number of requests allowed within a time period." },
-      { "term": "Token Bucket", "definition": "An algorithm where tokens accumulate over time and each request consumes one." },
-      { "term": "HTTP 429", "definition": "The 'Too Many Requests' status code indicating rate limiting." },
-      { "term": "Throttling", "definition": "Slowing down or rejecting requests that exceed the allowed rate." }
+      {
+        "term": "Rate Limit",
+        "definition": "A maximum number of requests allowed within a time period."
+      },
+      {
+        "term": "Token Bucket",
+        "definition": "An algorithm where tokens accumulate over time and each request consumes one."
+      },
+      {
+        "term": "HTTP 429",
+        "definition": "The 'Too Many Requests' status code indicating rate limiting."
+      },
+      {
+        "term": "Throttling",
+        "definition": "Slowing down or rejecting requests that exceed the allowed rate."
+      }
+    ]
+  },
+  {
+    "id": "database-normalization",
+    "title": "Database Normalization",
+    "summary": "Normalization removes redundant facts and prevents insert, update, and delete anomalies. Denormalize only for a measured read path and define synchronization ownership.",
+    "explanation": [
+      "Duplicate customer attributes created an update anomaly in a denormalized transactional table.",
+      "Separate Customer and Order entities, reference customer_id, and use an explicit immutable shipping snapshot only where history requires it.",
+      "Normalization removes redundant facts and prevents insert, update, and delete anomalies. Denormalize only for a measured read path and define synchronization ownership."
+    ],
+    "keyTerms": [
+      {
+        "term": "Normalization",
+        "definition": "Organize facts so each fact has one authoritative place."
+      },
+      {
+        "term": "Functional dependency",
+        "definition": "A relationship where one attribute determines another."
+      },
+      {
+        "term": "Update anomaly",
+        "definition": "Conflicting copies created when a repeated fact is only partly updated."
+      },
+      {
+        "term": "Denormalization",
+        "definition": "Intentional duplication for a measured read benefit."
+      }
+    ]
+  },
+  {
+    "id": "composite-index-design",
+    "title": "Composite Index Design",
+    "summary": "Composite index order follows access patterns. Indexes cost memory and write I/O, so validate selectivity and remove redundant indexes.",
+    "explanation": [
+      "The query does not use the leftmost prefix of the composite B-tree index.",
+      "Design an index whose leading columns match equality predicates, then range/order predicates; verify with EXPLAIN ANALYZE instead of guessing.",
+      "Composite index order follows access patterns. Indexes cost memory and write I/O, so validate selectivity and remove redundant indexes."
+    ],
+    "keyTerms": [
+      {
+        "term": "Composite index",
+        "definition": "An index over multiple ordered columns."
+      },
+      {
+        "term": "Leftmost prefix",
+        "definition": "The leading column sequence a B-tree can efficiently search."
+      },
+      {
+        "term": "Selectivity",
+        "definition": "How strongly a predicate narrows the result set."
+      },
+      {
+        "term": "EXPLAIN ANALYZE",
+        "definition": "The actual execution plan and runtime measurements."
+      }
+    ]
+  },
+  {
+    "id": "sargable-queries",
+    "title": "Sargable Queries",
+    "summary": "Sargable predicates let the planner navigate an index. Compare plans and preserve timezone semantics when rewriting date ranges.",
+    "explanation": [
+      "Applying a function to the indexed column made the predicate non-sargable.",
+      "Rewrite as created_at >= start AND created_at < next_day, or add a justified expression index.",
+      "Sargable predicates let the planner navigate an index. Compare plans and preserve timezone semantics when rewriting date ranges."
+    ],
+    "keyTerms": [
+      {
+        "term": "Sargable",
+        "definition": "A predicate an index can search directly."
+      },
+      {
+        "term": "Sequential scan",
+        "definition": "Reading most or all table pages."
+      },
+      {
+        "term": "Expression index",
+        "definition": "An index on a computed expression."
+      },
+      {
+        "term": "Half-open range",
+        "definition": "A range including its start and excluding its end."
+      }
+    ]
+  },
+  {
+    "id": "n-plus-one-queries",
+    "title": "N+1 Queries",
+    "summary": "N+1 is a latency and connection-pool problem. Eager loading is not universally correct; bound result size and avoid cartesian explosions.",
+    "explanation": [
+      "ORM lazy loading produced an N+1 query pattern.",
+      "Fetch related rows in a bounded join/batch, select only required fields, and verify query count in tests or tracing.",
+      "N+1 is a latency and connection-pool problem. Eager loading is not universally correct; bound result size and avoid cartesian explosions."
+    ],
+    "keyTerms": [
+      {
+        "term": "N+1 query",
+        "definition": "One parent query followed by one child query per row."
+      },
+      {
+        "term": "Lazy loading",
+        "definition": "Loading related data only when accessed."
+      },
+      {
+        "term": "Eager loading",
+        "definition": "Fetching known related data in advance."
+      },
+      {
+        "term": "Batch loading",
+        "definition": "Fetching many related records in one bounded query."
+      }
+    ]
+  },
+  {
+    "id": "connection-pool-exhaustion",
+    "title": "Connection Pool Exhaustion",
+    "summary": "A larger pool can overload the database. Measure checkout time, transaction age, active/idle connections, and slow statements.",
+    "explanation": [
+      "Transactions hold pooled connections across unrelated network I/O.",
+      "Keep transactions short, release connections before external calls, set pool/statement timeouts, and size the pool against database capacity.",
+      "A larger pool can overload the database. Measure checkout time, transaction age, active/idle connections, and slow statements."
+    ],
+    "keyTerms": [
+      {
+        "term": "Connection pool",
+        "definition": "A bounded set of reusable database connections."
+      },
+      {
+        "term": "Checkout time",
+        "definition": "Time spent waiting to borrow a connection."
+      },
+      {
+        "term": "Transaction scope",
+        "definition": "The exact work protected by a transaction."
+      },
+      {
+        "term": "Pool saturation",
+        "definition": "All connections are busy or leaked."
+      }
+    ]
+  },
+  {
+    "id": "lost-update",
+    "title": "Lost Update",
+    "summary": "Transactions alone do not prevent lost updates at every isolation level. Express invariants atomically and make retries safe.",
+    "explanation": [
+      "A read-modify-write race caused a lost update.",
+      "Use an atomic conditional UPDATE or optimistic version check; retry conflicts and enforce the invariant in the database.",
+      "Transactions alone do not prevent lost updates at every isolation level. Express invariants atomically and make retries safe."
+    ],
+    "keyTerms": [
+      {
+        "term": "Lost update",
+        "definition": "One concurrent write silently overwrites another."
+      },
+      {
+        "term": "Optimistic concurrency",
+        "definition": "Detect conflicts with a version and retry."
+      },
+      {
+        "term": "Atomic update",
+        "definition": "A read and write performed as one indivisible database operation."
+      },
+      {
+        "term": "Invariant",
+        "definition": "A condition that must remain true for valid data."
+      }
+    ]
+  },
+  {
+    "id": "process-isolation",
+    "title": "Process vs Thread",
+    "summary": "Processes provide isolation at higher memory and communication cost. Threads share memory and fail together inside one process.",
+    "explanation": [
+      "The failure boundary is a process, not a thread; memory is isolated between processes.",
+      "Run unsafe or CPU-heavy work in supervised worker processes and define IPC, restart, timeout, and idempotency behavior.",
+      "Processes provide isolation at higher memory and communication cost. Threads share memory and fail together inside one process."
+    ],
+    "keyTerms": [
+      {
+        "term": "Process",
+        "definition": "An OS isolation unit with its own virtual address space."
+      },
+      {
+        "term": "Thread",
+        "definition": "An execution unit sharing its process memory."
+      },
+      {
+        "term": "IPC",
+        "definition": "Inter-process communication."
+      },
+      {
+        "term": "Supervisor",
+        "definition": "A parent that monitors and restarts workers."
+      }
+    ]
+  },
+  {
+    "id": "thread-race-condition",
+    "title": "Thread Race Conditions",
+    "summary": "Correctness depends on all possible interleavings, not the one seen in a local test. Locks add contention and require disciplined scope.",
+    "explanation": [
+      "A data race on a non-atomic shared counter caused lost increments.",
+      "Use an atomic primitive or lock around the minimal critical section, or remove shared mutable state through partitioning/message passing.",
+      "Correctness depends on all possible interleavings, not the one seen in a local test. Locks add contention and require disciplined scope."
+    ],
+    "keyTerms": [
+      {
+        "term": "Race condition",
+        "definition": "Correctness depends on nondeterministic execution order."
+      },
+      {
+        "term": "Atomicity",
+        "definition": "An operation appears indivisible to other threads."
+      },
+      {
+        "term": "Critical section",
+        "definition": "Code that accesses shared mutable state."
+      },
+      {
+        "term": "Memory visibility",
+        "definition": "Whether one thread sees another thread’s writes."
+      }
+    ]
+  },
+  {
+    "id": "thread-deadlock",
+    "title": "Thread Deadlocks",
+    "summary": "Deadlock requires mutual exclusion, hold-and-wait, no preemption, and circular wait. Break at least one condition by design.",
+    "explanation": [
+      "Opposite lock ordering created a circular wait.",
+      "Define a global lock order, acquire in that order, keep lock scope small, and use timeouts only as a recovery safety net.",
+      "Deadlock requires mutual exclusion, hold-and-wait, no preemption, and circular wait. Break at least one condition by design."
+    ],
+    "keyTerms": [
+      {
+        "term": "Deadlock",
+        "definition": "Participants wait forever in a dependency cycle."
+      },
+      {
+        "term": "Lock ordering",
+        "definition": "A global order for acquiring multiple locks."
+      },
+      {
+        "term": "Liveness",
+        "definition": "The system continues making progress."
+      },
+      {
+        "term": "Thread dump",
+        "definition": "A snapshot of thread states and lock waits."
+      }
+    ]
+  },
+  {
+    "id": "python-gil-cpu-bound",
+    "title": "Python GIL & CPU-bound Work",
+    "summary": "Threads are effective for blocking I/O. For CPU-bound Python code, measure whether the workload releases the GIL before choosing concurrency.",
+    "explanation": [
+      "CPython’s GIL serializes execution of Python bytecode for CPU-bound threads.",
+      "Use multiprocessing, a native library that releases the GIL, or a separate compute service; benchmark serialization and memory costs.",
+      "Threads are effective for blocking I/O. For CPU-bound Python code, measure whether the workload releases the GIL before choosing concurrency."
+    ],
+    "keyTerms": [
+      {
+        "term": "GIL",
+        "definition": "The CPython lock allowing one thread to execute Python bytecode at a time."
+      },
+      {
+        "term": "CPU-bound",
+        "definition": "Limited mainly by computation."
+      },
+      {
+        "term": "I/O-bound",
+        "definition": "Limited mainly by waiting for external I/O."
+      },
+      {
+        "term": "Native extension",
+        "definition": "Compiled code that may release the GIL."
+      }
+    ]
+  },
+  {
+    "id": "multiprocessing-overhead",
+    "title": "Multiprocessing Overhead",
+    "summary": "Multiprocessing bypasses the GIL but does not make communication free. Minimize data movement and bound worker count.",
+    "explanation": [
+      "Task granularity is too small relative to multiprocessing serialization and IPC overhead.",
+      "Batch work into larger chunks, send compact identifiers, use shared memory only with clear ownership, and benchmark end to end.",
+      "Multiprocessing bypasses the GIL but does not make communication free. Minimize data movement and bound worker count."
+    ],
+    "keyTerms": [
+      {
+        "term": "Serialization",
+        "definition": "Encoding data for transfer across a boundary."
+      },
+      {
+        "term": "Pickle",
+        "definition": "Python object serialization format."
+      },
+      {
+        "term": "Task granularity",
+        "definition": "Amount of useful work per scheduled task."
+      },
+      {
+        "term": "Shared memory",
+        "definition": "Memory explicitly accessible by multiple processes."
+      }
+    ]
+  },
+  {
+    "id": "blocking-event-loop",
+    "title": "Async Event Loop",
+    "summary": "async improves concurrency only when tasks yield. Unbounded offloading can merely move saturation to a thread pool.",
+    "explanation": [
+      "Blocking I/O ran directly on the event-loop thread.",
+      "Use an async client, move blocking calls to a bounded thread pool, set timeouts, and monitor event-loop lag.",
+      "async improves concurrency only when tasks yield. Unbounded offloading can merely move saturation to a thread pool."
+    ],
+    "keyTerms": [
+      {
+        "term": "Event loop",
+        "definition": "A scheduler that advances non-blocking tasks cooperatively."
+      },
+      {
+        "term": "Cooperative scheduling",
+        "definition": "Tasks must yield so others can run."
+      },
+      {
+        "term": "Event-loop lag",
+        "definition": "Delay between scheduled and actual loop execution."
+      },
+      {
+        "term": "Offloading",
+        "definition": "Moving blocking work to another executor."
+      }
+    ]
+  },
+  {
+    "id": "memory-leak",
+    "title": "Memory Leaks",
+    "summary": "A leak is about unintended reachability, not merely high allocation. RSS may also stay high because allocators retain arenas.",
+    "explanation": [
+      "An unbounded retained-reference cache caused a memory leak.",
+      "Bound the cache with size/TTL, remove entries at lifecycle completion, and compare heap profiles by retained path.",
+      "A leak is about unintended reachability, not merely high allocation. RSS may also stay high because allocators retain arenas."
+    ],
+    "keyTerms": [
+      {
+        "term": "Reachability",
+        "definition": "Whether a live reference path still points to an object."
+      },
+      {
+        "term": "Heap profile",
+        "definition": "A view of allocations and retained objects."
+      },
+      {
+        "term": "RSS",
+        "definition": "Resident memory pages currently held by a process."
+      },
+      {
+        "term": "Eviction",
+        "definition": "Removing entries under a bounded policy."
+      }
+    ]
+  },
+  {
+    "id": "virtual-memory-thrashing",
+    "title": "Virtual Memory & Thrashing",
+    "summary": "Virtual memory makes address space flexible, but disk is orders of magnitude slower than RAM. More concurrent work can reduce throughput.",
+    "explanation": [
+      "Memory pressure caused virtual-memory thrashing.",
+      "Reduce working sets, cap concurrency/cache memory, add RAM only after measurement, and alert on major faults and swap activity.",
+      "Virtual memory makes address space flexible, but disk is orders of magnitude slower than RAM. More concurrent work can reduce throughput."
+    ],
+    "keyTerms": [
+      {
+        "term": "Virtual memory",
+        "definition": "Per-process address spaces mapped to physical memory or storage."
+      },
+      {
+        "term": "Page fault",
+        "definition": "Access requiring the OS to map or load a page."
+      },
+      {
+        "term": "Working set",
+        "definition": "Pages actively needed by a workload."
+      },
+      {
+        "term": "Thrashing",
+        "definition": "Excessive paging that prevents useful progress."
+      }
+    ]
+  },
+  {
+    "id": "file-descriptor-exhaustion",
+    "title": "File Descriptor Exhaustion",
+    "summary": "Files, sockets, pipes, and epoll handles consume descriptors. Raising the limit hides a leak and delays failure.",
+    "explanation": [
+      "A socket/file-descriptor leak exhausted the per-process limit.",
+      "Close resources with context managers/finally, reuse bounded client pools, expose descriptor metrics, and keep a deliberate ulimit.",
+      "Files, sockets, pipes, and epoll handles consume descriptors. Raising the limit hides a leak and delays failure."
+    ],
+    "keyTerms": [
+      {
+        "term": "File descriptor",
+        "definition": "A process handle for a file, socket, pipe, or kernel object."
+      },
+      {
+        "term": "EMFILE",
+        "definition": "The process has reached its open-file limit."
+      },
+      {
+        "term": "Resource lifecycle",
+        "definition": "Acquire, use, and reliably release a resource."
+      },
+      {
+        "term": "ulimit",
+        "definition": "A shell view/control of process resource limits."
+      }
+    ]
+  },
+  {
+    "id": "scheduler-oversubscription",
+    "title": "CPU Scheduling & Oversubscription",
+    "summary": "Concurrency is not parallelism. Worker count should follow workload type, CPU quota, blocking ratio, and memory constraints.",
+    "explanation": [
+      "CPU oversubscription created scheduling and cache-locality overhead.",
+      "Size CPU-bound workers near the effective CPU quota, batch work, and measure run queue, throttling, switches, and throughput.",
+      "Concurrency is not parallelism. Worker count should follow workload type, CPU quota, blocking ratio, and memory constraints."
+    ],
+    "keyTerms": [
+      {
+        "term": "Context switch",
+        "definition": "Saving one execution context and restoring another."
+      },
+      {
+        "term": "Oversubscription",
+        "definition": "More runnable work than available execution capacity."
+      },
+      {
+        "term": "CPU quota",
+        "definition": "The CPU time a container may consume."
+      },
+      {
+        "term": "Cache locality",
+        "definition": "Reusing data already close to a CPU core."
+      }
+    ]
+  },
+  {
+    "id": "transactional-outbox",
+    "title": "Transactional Outbox",
+    "summary": "The outbox closes the atomicity gap but adds relay lag, cleanup, ordering decisions, and duplicate delivery.",
+    "explanation": [
+      "A dual write to the database and broker was not atomic.",
+      "Write the business row and outbox row in one database transaction, relay with retries, and make consumers idempotent.",
+      "The outbox closes the atomicity gap but adds relay lag, cleanup, ordering decisions, and duplicate delivery."
+    ],
+    "keyTerms": [
+      {
+        "term": "Dual write",
+        "definition": "One logical action written to two independent systems."
+      },
+      {
+        "term": "Transactional outbox",
+        "definition": "Events stored atomically beside business data."
+      },
+      {
+        "term": "Relay",
+        "definition": "A process that publishes pending outbox rows."
+      },
+      {
+        "term": "Idempotent consumer",
+        "definition": "A consumer safe under duplicate delivery."
+      }
+    ]
+  },
+  {
+    "id": "kafka-offset-commit",
+    "title": "Kafka Offsets & Delivery Semantics",
+    "summary": "Offset commit records progress, not business completion. Exactly-once claims are bounded by the systems participating in the transaction.",
+    "explanation": [
+      "At-least-once delivery replayed a record whose side effect was already committed.",
+      "Use an idempotency/inbox key in the same transaction as the side effect, then commit offsets; choose Kafka transactions only when their boundary fits.",
+      "Offset commit records progress, not business completion. Exactly-once claims are bounded by the systems participating in the transaction."
+    ],
+    "keyTerms": [
+      {
+        "term": "Offset",
+        "definition": "A record position within a Kafka partition."
+      },
+      {
+        "term": "At-least-once",
+        "definition": "Records may be delivered more than once but should not be lost."
+      },
+      {
+        "term": "Inbox pattern",
+        "definition": "Persist processed event IDs with the side effect."
+      },
+      {
+        "term": "Exactly-once boundary",
+        "definition": "The precise resources covered by an atomic guarantee."
+      }
+    ]
+  },
+  {
+    "id": "kafka-consumer-rebalance",
+    "title": "Kafka Consumer Rebalancing",
+    "summary": "Rebalance safety requires pausing intake, finishing or cancelling work, and committing only completed offsets. Tuning one timeout cannot fix unbounded work.",
+    "explanation": [
+      "Processing exceeded the poll interval and triggered repeated consumer-group rebalances.",
+      "Reduce/bound processing, tune poll records and interval from measured worst cases, use cooperative rebalancing, and isolate poison or slow records.",
+      "Rebalance safety requires pausing intake, finishing or cancelling work, and committing only completed offsets. Tuning one timeout cannot fix unbounded work."
+    ],
+    "keyTerms": [
+      {
+        "term": "Consumer group",
+        "definition": "Consumers sharing partitions of a topic."
+      },
+      {
+        "term": "Rebalance",
+        "definition": "Partition ownership redistribution."
+      },
+      {
+        "term": "max.poll.interval.ms",
+        "definition": "Maximum allowed time between poll calls."
+      },
+      {
+        "term": "Cooperative rebalancing",
+        "definition": "Incremental partition movement that reduces stop-the-world churn."
+      }
+    ]
+  },
+  {
+    "id": "cache-hot-key",
+    "title": "Cache Hot Keys",
+    "summary": "Adding shards does not split one key. Mitigation depends on staleness tolerance, write rate, value size, and invalidation cost.",
+    "explanation": [
+      "A single hot key concentrated traffic on one partition.",
+      "Use near-cache/request coalescing, replicate or split the hot value when safe, protect origin with limits, and track per-key/per-shard load.",
+      "Adding shards does not split one key. Mitigation depends on staleness tolerance, write rate, value size, and invalidation cost."
+    ],
+    "keyTerms": [
+      {
+        "term": "Hot key",
+        "definition": "A key receiving disproportionate traffic."
+      },
+      {
+        "term": "Request coalescing",
+        "definition": "One origin fetch shared by concurrent misses."
+      },
+      {
+        "term": "Near cache",
+        "definition": "A small cache close to each application instance."
+      },
+      {
+        "term": "Shard skew",
+        "definition": "Uneven load across partitions."
+      }
+    ]
+  },
+  {
+    "id": "sql-injection",
+    "title": "SQL Injection Defense",
+    "summary": "Escaping by hand is brittle. Parameterization separates code from data, but it does not replace tenant authorization.",
+    "explanation": [
+      "Untrusted input was interpreted as SQL code.",
+      "Use parameterized queries for values, allowlist dynamic identifiers/operators, minimize DB privileges, and test authorization independently.",
+      "Escaping by hand is brittle. Parameterization separates code from data, but it does not replace tenant authorization."
+    ],
+    "keyTerms": [
+      {
+        "term": "SQL injection",
+        "definition": "Input changes the structure of a SQL statement."
+      },
+      {
+        "term": "Parameterized query",
+        "definition": "SQL structure is fixed while values are bound separately."
+      },
+      {
+        "term": "Allowlist",
+        "definition": "Only explicitly permitted choices are accepted."
+      },
+      {
+        "term": "Least privilege",
+        "definition": "Grant only permissions required for a task."
+      }
+    ]
+  },
+  {
+    "id": "ssrf-defense",
+    "title": "SSRF Defense",
+    "summary": "String-prefix checks are bypassable through DNS, redirects, IPv6, and encoding. Defense needs application validation plus network controls.",
+    "explanation": [
+      "Server-Side Request Forgery let an attacker choose a privileged network destination.",
+      "Allowlist schemes/destinations, resolve and validate every hop, block private/link-local ranges at egress, limit redirects, and isolate the fetcher.",
+      "String-prefix checks are bypassable through DNS, redirects, IPv6, and encoding. Defense needs application validation plus network controls."
+    ],
+    "keyTerms": [
+      {
+        "term": "SSRF",
+        "definition": "An attacker makes a server send requests to unintended destinations."
+      },
+      {
+        "term": "Link-local",
+        "definition": "Addresses valid only on the local network segment."
+      },
+      {
+        "term": "Egress control",
+        "definition": "Policy limiting outbound network access."
+      },
+      {
+        "term": "DNS rebinding",
+        "definition": "A hostname changes resolution to bypass validation."
+      }
+    ]
+  },
+  {
+    "id": "authentication-authorization",
+    "title": "Authentication & Authorization",
+    "summary": "A valid token proves identity and selected claims. Every protected action still needs policy evaluation for the target resource.",
+    "explanation": [
+      "Authentication was present, but object-level authorization was missing.",
+      "Enforce authorization in the data access boundary with tenant/user scope, deny by default, and test cross-tenant IDs.",
+      "A valid token proves identity and selected claims. Every protected action still needs policy evaluation for the target resource."
+    ],
+    "keyTerms": [
+      {
+        "term": "Authentication",
+        "definition": "Establishing who a caller is."
+      },
+      {
+        "term": "Authorization",
+        "definition": "Deciding what that caller may do to a resource."
+      },
+      {
+        "term": "BOLA/IDOR",
+        "definition": "Accessing an object without object-level authorization."
+      },
+      {
+        "term": "Deny by default",
+        "definition": "Access is rejected unless an explicit policy allows it."
+      }
+    ]
+  },
+  {
+    "id": "api-idempotency-key",
+    "title": "API Idempotency",
+    "summary": "Idempotency needs a key scope, retention window, concurrent-request behavior, and an atomic relationship with the side effect.",
+    "explanation": [
+      "The create operation lacked a stable idempotency key and replayed a committed side effect.",
+      "Require a scoped idempotency key, atomically store request hash and result, return the original result on replay, and reject key reuse with different input.",
+      "Idempotency needs a key scope, retention window, concurrent-request behavior, and an atomic relationship with the side effect."
+    ],
+    "keyTerms": [
+      {
+        "term": "Idempotency key",
+        "definition": "A client-supplied identity for one logical command."
+      },
+      {
+        "term": "Request fingerprint",
+        "definition": "A hash used to detect conflicting key reuse."
+      },
+      {
+        "term": "Replay",
+        "definition": "Repeating a previously attempted command."
+      },
+      {
+        "term": "Atomic persistence",
+        "definition": "Saving deduplication state and outcome without a partial gap."
+      }
+    ]
+  },
+  {
+    "id": "overload-load-shedding",
+    "title": "Overload & Load Shedding",
+    "summary": "Availability is the fraction of useful responses within a deadline. Rejecting excess work early can preserve more successful work overall.",
+    "explanation": [
+      "Unbounded queueing and retries turned overload into congestion collapse.",
+      "Set admission limits, bounded queues and deadlines; shed low-priority work, apply retry budgets/backoff, degrade gracefully, and scale from saturation signals.",
+      "Availability is the fraction of useful responses within a deadline. Rejecting excess work early can preserve more successful work overall."
+    ],
+    "keyTerms": [
+      {
+        "term": "Load shedding",
+        "definition": "Rejecting excess work to protect useful throughput."
+      },
+      {
+        "term": "Admission control",
+        "definition": "Deciding whether new work may enter."
+      },
+      {
+        "term": "Retry budget",
+        "definition": "A cap on extra load generated by retries."
+      },
+      {
+        "term": "Saturation",
+        "definition": "A constrained resource operating near its limit."
+      }
     ]
   }
 ]

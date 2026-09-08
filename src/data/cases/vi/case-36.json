@@ -1,0 +1,172 @@
+{
+  "id": "case-36",
+  "number": 36,
+  "title": "Cột bị bọc bởi function",
+  "subtitle": "Một phép đổi ngày vô hiệu hóa index",
+  "brief": {
+    "narrative": "Report dùng DATE(created_at) = :day trên bảng 90 triệu dòng. Function chạy cho từng dòng và index created_at thông thường không thể seek theo range.",
+    "symptoms": [
+      "Metric của Query Planner khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Một phép đổi ngày vô hiệu hóa index"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Một phép đổi ngày vô hiệu hóa index"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN Query Planner xuất hiện anomaly",
+            "[09:00:20] WARN Một phép đổi ngày vô hiệu hóa index",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Một phép đổi ngày vô hiệu hóa index",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Query Planner",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Query Planner",
+          "logs": [
+            "Metric của Query Planner khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-correct",
+          "text": "Bọc indexed column trong function khiến predicate trở thành non-sargable.",
+          "correct": true,
+          "feedback": "Chính xác. Sargable predicate cho phép planner đi thẳng vào index. Khi đổi sang date range phải so sánh execution plan và giữ đúng timezone semantics."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Query không sử dụng leftmost prefix của composite B-tree index.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "ORM lazy loading tạo ra N+1 query pattern.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Transaction giữ connection trong pool qua một đoạn network I/O không liên quan.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-wrong-1",
+          "text": "Thiết kế index với các cột equality ở đầu, sau đó là range/order; kiểm chứng bằng EXPLAIN ANALYZE thay vì đoán.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Lấy relation bằng join/batch có giới hạn, chỉ select field cần thiết và kiểm tra query count bằng test hoặc tracing.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Giữ transaction ngắn, trả connection trước external call, đặt pool/statement timeout và tính pool size theo capacity của database.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Viết lại thành created_at >= start AND created_at < next_day, hoặc tạo expression index khi có lý do rõ ràng.",
+          "correct": true,
+          "feedback": "Chính xác. Sargable predicate cho phép planner đi thẳng vào index. Khi đổi sang date range phải so sánh execution plan và giữ đúng timezone semantics."
+        }
+      ]
+    }
+  },
+  "conceptId": "sargable-queries",
+  "badge": {
+    "name": "Cột bị bọc bởi function",
+    "icon": "🔎"
+  }
+}

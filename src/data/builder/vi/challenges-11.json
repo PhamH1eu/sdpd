@@ -1,0 +1,70 @@
+{
+  "id": "builder-11",
+  "number": 11,
+  "title": "Cổng thông tin công dân tăng vọt",
+  "subtitle": "Lưu lượng truy cập cổng thông tin công cộng tăng đột biến trong các sự cố trên toàn thành phố",
+  "objective": "Lắp ráp đường dẫn delivery giao diện người dùng thông lượng cao với khả năng kiểm soát áp suất phụ trợ an toàn.",
+  "constraints": [
+    "Tối ưu hóa cạnh delivery",
+    "Bảo vệ API phụ trợ",
+    "Cache đọc lặp đi lặp lại"
+  ],
+  "availableComponents": [
+    "client",
+    "cdn",
+    "loadBalancer",
+    "api",
+    "cache",
+    "database"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Giảm tải cạnh",
+      "description": "Sử dụng CDN để hấp thụ các đột biến nội dung công khai.",
+      "requiredAll": [
+        "client",
+        "cdn"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "cdn"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Bảo vệ phụ trợ",
+      "description": "Định tuyến các cuộc gọi gốc thông qua load balancer và API.",
+      "requiredAll": [
+        "loadBalancer",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "cdn",
+          "to": "loadBalancer"
+        },
+        {
+          "from": "loadBalancer",
+          "to": "api"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Lặp lại cứu trợ Query",
+      "description": "Sử dụng cache trên các điểm cuối API có cường độ đọc cao.",
+      "requiredAll": [
+        "cache"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "cache"
+        }
+      ]
+    }
+  ]
+}

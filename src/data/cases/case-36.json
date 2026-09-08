@@ -1,0 +1,172 @@
+{
+  "id": "case-36",
+  "number": 36,
+  "title": "The Function Wrapped Column",
+  "subtitle": "A harmless date conversion defeats the index",
+  "brief": {
+    "narrative": "A report uses DATE(created_at) = :day on a 90-million-row table. The function is evaluated for every row and the normal created_at index cannot seek the range.",
+    "symptoms": [
+      "Query Planner metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "A harmless date conversion defeats the index"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "A harmless date conversion defeats the index"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Query Planner shows an anomaly",
+            "[09:00:20] WARN A harmless date conversion defeats the index",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "A harmless date conversion defeats the index",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Query Planner",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Query Planner",
+          "logs": [
+            "Query Planner metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-correct",
+          "text": "Applying a function to the indexed column made the predicate non-sargable.",
+          "correct": true,
+          "feedback": "Correct. Sargable predicates let the planner navigate an index. Compare plans and preserve timezone semantics when rewriting date ranges."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "The query does not use the leftmost prefix of the composite B-tree index.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "ORM lazy loading produced an N+1 query pattern.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Transactions hold pooled connections across unrelated network I/O.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-1",
+          "text": "Design an index whose leading columns match equality predicates, then range/order predicates; verify with EXPLAIN ANALYZE instead of guessing.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Fetch related rows in a bounded join/batch, select only required fields, and verify query count in tests or tracing.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Keep transactions short, release connections before external calls, set pool/statement timeouts, and size the pool against database capacity.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Rewrite as created_at >= start AND created_at < next_day, or add a justified expression index.",
+          "correct": true,
+          "feedback": "Correct. Sargable predicates let the planner navigate an index. Compare plans and preserve timezone semantics when rewriting date ranges."
+        }
+      ]
+    }
+  },
+  "conceptId": "sargable-queries",
+  "badge": {
+    "name": "The Function Wrapped Column",
+    "icon": "🔎"
+  }
+}

@@ -10,6 +10,7 @@ import { useTranslation } from '../../i18n';
 import { CaseList } from './CaseList';
 import { ResetProgressButton } from './ResetProgressButton';
 import { AccountSection } from '../account/AccountSection';
+import { LocaleSelector } from './LocaleSelector';
 
 interface MobileMenuProps {
   open: boolean;
@@ -17,7 +18,7 @@ interface MobileMenuProps {
 }
 
 export function MobileMenu({ open, onClose }: MobileMenuProps) {
-  const { locale, setLocale, toggleGuide, guideOpen } = useGameState();
+  const { toggleGuide, guideOpen } = useGameState();
   const { t } = useTranslation();
   const notebookCards = useNotebook((s) => s.cards);
   const dueCount = notebookCards.filter((c) => !c.retired && isDue(c.dueDate, getUtcDateString())).length;
@@ -65,12 +66,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
             <CaseList onNavigate={onClose} />
 
             <div className="p-3 border-t border-noir-600/50 flex flex-col gap-2">
-              <button
-                onClick={() => setLocale(locale === 'en' ? 'pt-BR' : 'en')}
-                className="text-xs font-mono text-noir-300 hover:text-amber-400 transition-colors px-3 min-h-11 rounded border border-noir-600/40 hover:border-amber-500/30 text-left flex items-center"
-              >
-                {locale === 'en' ? 'PT-BR' : 'EN'}
-              </button>
+              <LocaleSelector />
               <Link
                 to="/daily"
                 onClick={onClose}
@@ -96,6 +92,20 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
                     {dueCount}
                   </span>
                 )}
+              </Link>
+              <Link
+                to="/builder"
+                onClick={onClose}
+                className="text-xs font-mono text-noir-300 hover:text-amber-400 transition-colors px-3 min-h-11 rounded border border-noir-600/40 hover:border-amber-500/30 flex items-center"
+              >
+                {t('header.builder')}
+              </Link>
+              <Link
+                to="/interview"
+                onClick={onClose}
+                className="text-xs font-mono text-noir-300 hover:text-amber-400 transition-colors px-3 min-h-11 rounded border border-noir-600/40 hover:border-amber-500/30 flex items-center"
+              >
+                {t('header.interview')}
               </Link>
               <Link
                 to="/cheatsheet"

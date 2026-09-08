@@ -1,0 +1,231 @@
+{
+  "id": "case-10",
+  "number": 10,
+  "title": "Đàn sấm sét",
+  "subtitle": "Mọi khu vực đều dập database cùng một lúc",
+  "brief": {
+    "narrative": "Vào lúc 06:00 sáng hàng ngày, danh sách 'Được truy nã gắt gao nhất' của Distributia PD sẽ được làm mới. Danh sách này được lưu trữ trong 24 giờ nên các sĩ quan có thể tra cứu nhanh chóng suốt cả ngày. Nhưng đúng 06:00:00, cache sẽ hết hạn. Đồng thời, các sĩ quan tuần tra trên tất cả các khu vực bắt đầu ca làm việc của họ và đưa ra danh sách Truy nã gắt gao nhất. Sáng nay, 2.400 sĩ quan đều tấn công hệ thống trong cùng một giây. Khi cache trống, mọi request sẽ chuyển thẳng đến database. database bị khóa khi chịu tải, thời gian của response tăng vọt lên 30 giây và cache không thể xây dựng lại vì database phản hồi quá chậm. Trong 8 phút đau đớn, không một sĩ quan nào trong thành phố có thể tra cứu danh sách Truy nã gắt gao nhất.",
+    "symptoms": [
+      "Danh sách Truy nã gắt gao nhất cache đã hết hạn vào đúng 06:00:00 cho tất cả các khu vực bầu cử cùng một lúc",
+      "2.400 truy vấn database đồng thời trong giây đầu tiên (bình thường: 1-2 truy vấn)",
+      "Thời gian Database response tăng vọt từ 50 mili giây lên 30 giây",
+      "Cache không thể xây dựng lại vì phản hồi database đã hết thời gian chờ"
+    ],
+    "objective": "Xác định mức độ hết hạn đồng thời của cache đã gây ra vụ giẫm đạp database và xác định chiến lược caching tốt nhất để ngăn chặn điều đó."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "cache-server",
+        "type": "server",
+        "label": "Máy chủ Cache (Redis)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Máy chủ Cache (Redis)",
+          "logs": [
+            "[06:00:00] INFO: Cache key 'most_wanted_list' EXPIRED (TTL: 24h)",
+            "[06:00:00] INFO: CACHE MISS — most_wanted_list",
+            "[06:00:00] INFO: CACHE MISS x 2,400 in 1 second",
+            "[06:00:01] WARN: All 2,400 requests forwarded to database",
+            "[06:00:05] WARN: Waiting for database response to rebuild cache",
+            "[06:00:35] ERROR: Database response timeout — cache not rebuilt",
+            "[06:00:36] INFO: Next wave of requests — still no cache — forwarding to database again"
+          ],
+          "data": {
+            "Cache Key": "danh sách mong muốn nhất",
+            "Status": "EMPTY (hết hạn lúc 06:00:00)",
+            "Cache Hit Rate (last 5 min)": "0%",
+            "Requests Forwarded to DB": "2.400/giây",
+            "Normal Forwarded Rate": "1 cứ sau 24 giờ",
+            "Cache Rebuild Status": "ĐANG CHỜ (DB quá chậm để phản hồi)"
+          },
+          "status": "Cache trống. Mọi request đều bị thiếu, tất cả đều được chuyển tiếp tới database. Không thể xây dựng lại cho đến khi DB phản hồi."
+        }
+      },
+      {
+        "id": "database",
+        "type": "database",
+        "label": "Bản ghi Database",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hồ sơ trung tâm Database",
+          "logs": [
+            "[05:59:59] INFO: Normal operations — 50 queries/sec, 50ms avg response",
+            "[06:00:01] WARN: Query rate spike: 2,400 queries/sec",
+            "[06:00:02] ERROR: Connection pool exhausted (max: 200)",
+            "[06:00:03] ERROR: Active queries: 200, queued: 2,200",
+            "[06:00:10] ERROR: Response time: 15,000ms",
+            "[06:00:30] ERROR: Response time: 30,000ms — queries timing out",
+            "[06:00:35] WARN: Queries from cache rebuild also timing out"
+          ],
+          "data": {
+            "Normal Query Rate": "50/giây",
+            "Current Query Rate": "2.400/giây (48x bình thường)",
+            "Connection Pool": "200/200 (MẠNH MẼ)",
+            "Query Queue": "2.200 đang chờ",
+            "Response Time": "30.000ms (bình thường: 50ms)",
+            "CPU": "100%",
+            "Status": "choáng ngợp"
+          },
+          "status": "Database bị choáng ngợp bởi 2.400 truy vấn đồng thời. Connection pool đã cạn kiệt, hết thời gian truy vấn."
+        }
+      },
+      {
+        "id": "precinct-officers",
+        "type": "client",
+        "label": "Sĩ quan tuần tra (2.400)",
+        "status": "thất bại",
+        "position": {
+          "x": 100,
+          "y": 150
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Thiết bị đầu cuối di động của sĩ quan tuần tra",
+          "logs": [
+            "[06:00:00] INFO: Shift start — requesting Most Wanted list",
+            "[06:00:00] INFO: 2,400 officers requesting simultaneously",
+            "[06:00:05] WARN: Loading... (no response yet)",
+            "[06:00:30] ERROR: Request timeout — Most Wanted list unavailable",
+            "[06:00:31] INFO: Retrying request...",
+            "[06:00:31] WARN: Retry adds more load to already overwhelmed system"
+          ],
+          "data": {
+            "Officers on Shift": "2.400",
+            "Request Time": "06:00:00 (bắt đầu ca)",
+            "Status": "TIMEOUT - không thể tải danh sách Truy nã gắt gao nhất",
+            "Retry Behavior": "retry tự động cứ sau 30 giây",
+            "Impact": "Cảnh sát tuần tra mà không có thông tin mong muốn nhất"
+          },
+          "status": "Tất cả các sĩ quan tuần tra không thể truy cập danh sách Truy nã gắt gao nhất khi bắt đầu ca."
+        }
+      },
+      {
+        "id": "admin-terminal",
+        "type": "client",
+        "label": "Thiết bị đầu cuối quản trị",
+        "status": "xuống cấp",
+        "position": {
+          "x": 600,
+          "y": 150
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hệ thống hành chính",
+          "logs": [
+            "[06:00:05] WARN: Database response times affecting all queries",
+            "[06:00:10] ERROR: Routine admin queries timing out due to DB overload",
+            "[06:00:15] WARN: Database stampede from cache miss affecting entire system"
+          ],
+          "data": {
+            "Normal Response Time": "100 mili giây",
+            "Current Response Time": "TIMEOUT",
+            "Impact": "Tất cả các hệ thống phụ thuộc vào cơ sở dữ liệu đều bị ảnh hưởng, không chỉ Most Wanted"
+          },
+          "status": "Thiệt hại phụ - Quá tải database từ cache stampede ảnh hưởng đến tất cả các hệ thống."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-officers-cache",
+        "source": "precinct-officers",
+        "target": "cache-server",
+        "label": "2.400 yêu cầu",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-cache-db",
+        "source": "cache-server",
+        "target": "database",
+        "label": "cache bỏ lỡ → DB",
+        "animated": true,
+        "style": "broken"
+      },
+      {
+        "id": "e-admin-db",
+        "source": "admin-terminal",
+        "target": "database",
+        "label": "truy vấn",
+        "animated": true,
+        "style": "slow"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Điều gì đã khiến database bị choáng ngợp vào đúng 06:00?",
+      "options": [
+        {
+          "id": "rc-3",
+          "text": "Máy chủ cache đã đưa ra một ngoại lệ chưa được xử lý, bị lỗi và mất tất cả dữ liệu được lưu trong bộ nhớ đệm được lưu trữ trong memory",
+          "correct": false,
+          "feedback": "Máy chủ cache đang hoạt động bình thường — nó không gặp sự cố. Mục cache đã hết hạn hợp pháp sau TTL 24 giờ. cache đang hoạt động như đã định cấu hình; vấn đề là mẫu hết hạn TTL gây ra một đàn sấm sét."
+        },
+        {
+          "id": "rc-1",
+          "text": "Phần cứng máy chủ database quá chậm và không đủ mạnh để xử lý khối lượng truy vấn bắt đầu ca lúc 06:00",
+          "correct": false,
+          "feedback": "database xử lý 50 truy vấn/giây với thời gian response 50 mili giây trong điều kiện bình thường — nó hoàn toàn có khả năng. Vấn đề là 2.400 truy vấn đến trong 1 giây (gấp 48 lần tốc độ bình thường) vì cache đã hết hạn cho tất cả mọi người cùng một lúc. Trong caching bình thường, database chỉ nhận được 1 query cứ sau 24 giờ cho dữ liệu này."
+        },
+        {
+          "id": "rc-2",
+          "text": "cache stampede - cache hết hạn đồng thời cho tất cả người dùng, khiến hàng nghìn yêu cầu đồng thời gửi đến database cùng một lúc",
+          "correct": true,
+          "feedback": "Chính xác! Đây là một con cache stampede (còn gọi là đàn sấm sét). Khi một mục nhập cache phổ biến hết hạn, mọi request đồng thời sẽ tìm thấy cache trống và đồng thời chuyển sang database. database được thiết kế để xử lý 50 truy vấn/giây nhưng nhận được 2.400 truy vấn trong một giây. Nó trở nên quá tải đến mức thậm chí không thể đáp ứng với query duy nhất cần thiết để xây dựng lại cache, tạo ra một vòng luẩn quẩn."
+        },
+        {
+          "id": "rc-4",
+          "text": "Quá nhiều sĩ quan bắt đầu ca làm việc vào đúng 06:00 là sự gia tăng bất thường khiến hệ thống bị quá tải",
+          "correct": false,
+          "feedback": "Cán bộ bắt đầu ca làm việc lúc 06:00 là điều bình thường và được mong đợi. Theo caching thích hợp, request đầu tiên sẽ xây dựng lại cache và 2.399 yêu cầu khác được cung cấp từ cache trong vài giây. Vấn đề là cache hết hạn ngay khi nhu cầu cao nhất, khiến tất cả các yêu cầu đều bỏ qua cache."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Chiến lược tốt nhất để ngăn chặn cache stampede là gì?",
+      "options": [
+        {
+          "id": "fix-1",
+          "text": "Tăng quy mô kích thước database connection pool đủ lớn để xử lý tất cả 2.400 truy vấn đồng thời trong thời gian cao điểm",
+          "correct": false,
+          "feedback": "Nhiều kết nối hơn sẽ không giúp ích gì nếu database CPU không thể xử lý tải. Và bạn đang tối ưu hóa một trường hợp bệnh lý không bao giờ xảy ra với caching thích hợp. Mục tiêu là ngăn chặn vụ giẫm đạp chứ không phải để sống sót."
+        },
+        {
+          "id": "fix-3",
+          "text": "Đặt cache TTL thành vô hạn để danh sách Truy nã gắt gao được lưu vào bộ nhớ đệm vĩnh viễn và không bao giờ hết hạn, ngay cả khi nghi phạm thay đổi",
+          "correct": false,
+          "feedback": "Danh sách được lưu trong bộ nhớ đệm vô hạn sẽ trở nên cũ kỹ — nghi phạm mới sẽ không bao giờ xuất hiện và nghi phạm đã được xóa sẽ vẫn được liệt kê. Bạn cần hết hạn cache để đảm bảo độ mới của dữ liệu. Giải pháp là quản lý CÁCH làm mới cache chứ không phải tránh làm mới hoàn toàn."
+        },
+        {
+          "id": "fix-2",
+          "text": "Sử dụng cache lock (mutex) để chỉ một request xây dựng lại cache trong khi những cache khác chờ đợi, kết hợp với các TTL so le (jitter) để tránh hết hạn đồng thời",
+          "correct": true,
+          "feedback": "Chính xác! Hai kỹ thuật bổ sung giải quyết vấn đề này: (1) Cache lock / request coalescing: Khi cache trống, chỉ MỘT request được phép thông qua database để xây dựng lại cache. Tất cả các yêu cầu khác đều đợi quá trình xây dựng lại đơn lẻ đó hoàn tất, sau đó được phân phát từ cache mới. Điều này biến 2.400 truy vấn DB thành 1. (2) TTL jitter: Thêm biến thể ngẫu nhiên vào thời gian hết hạn của cache để tất cả các mục nhập không hết hạn cùng một lúc. Cùng với nhau, những điều này loại bỏ hoàn toàn mô hình giẫm đạp."
+        },
+        {
+          "id": "fix-4",
+          "text": "Lên lịch công việc khởi động cache diễn ra lúc 05:59 hàng ngày để xây dựng lại danh sách Truy nã gắt gao trước khi hết hạn 06:00 cache",
+          "correct": false,
+          "feedback": "Việc làm ấm trước giúp ích cho trường hợp sử dụng cụ thể này nhưng không giải quyết được vấn đề chung. Còn những dữ liệu được lưu trong bộ nhớ đệm khác có kiểu truy cập không thể đoán trước thì sao? Cache lock và TTL jitter là các giải pháp đa năng hoạt động với mọi dữ liệu được lưu vào bộ nhớ đệm chứ không chỉ làm mới theo lịch trình."
+        }
+      ]
+    }
+  },
+  "conceptId": "cache-stampede",
+  "badge": {
+    "name": "Nút chặn giẫm đạp",
+    "icon": "🐂"
+  }
+}

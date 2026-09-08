@@ -12,7 +12,7 @@ This file is written for AI coding agents. It assumes no prior knowledge of the 
 
 The app is a single-page React application that runs almost entirely in the browser:
 
-- **Detective Campaign** — 33 sequential failure cases. Inspect diagrams, diagnose root cause, prescribe a fix.
+- **Detective Campaign** — 58 failure cases across distributed systems, databases, OS/concurrency, backend reliability, and security. Inspect diagrams, diagnose root cause, prescribe a fix.
 - **System Builder** — 23 drag-and-drop architecture-design challenges graded against concept rules.
 - **Chaos Simulator** — 3 presets where players inject faults and apply fixes while watching metrics/logs.
 - **Daily Drill** — One timed case per UTC day, same for everyone worldwide, with stars + streaks.
@@ -73,15 +73,17 @@ sdpd/
 │   │   └── CloudAccountContext.tsx
 │   ├── data/
 │   │   ├── builder/           # 23 EN + 23 pt-BR challenge JSONs
-│   │   ├── cases/             # 33 EN case JSONs
-│   │   │   └── pt-BR/         # 33 pt-BR case translations
+│   │   ├── cases/             # 58 EN case JSONs
+│   │   │   ├── pt-BR/         # 33 pt-BR case translations; EN fallback after case 33
+│   │   │   └── vi/            # Vietnamese expansion cases 34–58
 │   │   ├── case-index.json    # Generated lightweight case list (EN)
 │   │   ├── case-index.pt-BR.json
 │   │   ├── categories.ts      # Case category ranges
 │   │   ├── chaos/presets.ts   # 3 chaos simulator presets
 │   │   ├── cheatsheet/        # en.json + pt-BR.json + parity test
 │   │   ├── concepts.json      # Educational concept material (EN)
-│   │   └── concepts-pt-BR.json
+│   │   ├── concepts-pt-BR.json
+│   │   └── concepts-vi.json
 │   ├── engine/
 │   │   ├── validator.ts       # Multiple-choice answer validation
 │   │   └── builderGrader.ts   # Pure grading engine for builder designs
@@ -246,8 +248,9 @@ When adding new logic that can be unit-tested, add a co-located `*.test.ts` file
 
 ### 7.1 Cases
 
-- Files: `src/data/cases/case-NN.json` and `src/data/cases/pt-BR/case-NN.json`.
-- IDs: `case-01` through `case-33`.
+- Files: `src/data/cases/case-NN.json`, translated files under `cases/pt-BR/` and `cases/vi/`.
+- IDs: `case-01` through `case-58`.
+- Cases 34–58 and their concept guides are generated from `scripts/generate-backend-curriculum.mjs`; run `npm run generate:curriculum` after editing the source specs.
 - Categories and ranges are defined in `src/data/categories.ts`.
 - Case indexes are generated; run `node scripts/generate-case-index.mjs` after adding or editing cases.
 
@@ -261,14 +264,14 @@ When adding new logic that can be unit-tested, add a co-located `*.test.ts` file
 
 ### 7.3 Concepts and Cheatsheet
 
-- `src/data/concepts.json` / `concepts-pt-BR.json` contain educational material keyed by `conceptId`.
+- `src/data/concepts.json`, `concepts-pt-BR.json`, and `concepts-vi.json` contain educational material keyed by `conceptId`; missing localized concepts fall back to English.
 - `src/data/cheatsheet/en.json` / `pt-BR.json` contain 45 decision cards. IDs, categories, `relatedCaseIds`, `conceptId`, and option counts must match across locales (enforced by `parity.test.ts`).
 
 ### 7.4 Internationalization
 
-- Supported locales: `en`, `pt-BR`.
+- Supported locales: `en`, `pt-BR`, `vi`. Vietnamese covers the core campaign UI and has complete localized content for cases 34–58; earlier cases and untranslated modules fall back to English when a Vietnamese resource is absent.
 - Default locale: `en`.
-- All new UI strings require entries in both `src/i18n/locales/en.json` and `pt-BR.json`.
+- All new UI strings require an English entry. Add Portuguese and Vietnamese entries for the surfaces available in those locales; the translation hook falls back to English.
 - Use `useTranslation()` hook; it falls back from current locale to `en` to the raw key.
 
 ---

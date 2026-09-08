@@ -1,0 +1,250 @@
+{
+  "id": "case-22",
+  "number": 22,
+  "title": "Shard bị thiếu",
+  "subtitle": "Toàn bộ phạm vi chữ cái của tội phạm biến mất khỏi database",
+  "brief": {
+    "narrative": "Các thám tử ở Distributia đang tìm kiếm nghi phạm tên là Marcus Torres, nhưng hệ thống trả về 'Không tìm thấy hồ sơ'. Điều đó là không thể - Torres có một bản rap dài cả dặm. Các tìm kiếm khác cũng không thành công: bất kỳ ai có họ bắt đầu từ M đến R đều không thể nhìn thấy được. Hồ sơ tội phạm database được phân chia theo thứ tự bảng chữ cái trên bốn máy chủ database để xử lý khối lượng dữ liệu ngày càng tăng. Nhưng một trong những mảnh vỡ đó đã tối đi và cùng với nó là mọi kỷ lục trong phạm vi của nó. Cảnh sát trưởng Partition yêu cầu được biết tại sao mất một shard đồng nghĩa với việc mất đi 1/4 số tội phạm.",
+    "symptoms": [
+      "Tìm kiếm họ từ M đến R không trả về kết quả nào",
+      "Tìm kiếm tên A-L và S-Z hoạt động hoàn toàn tốt",
+      "Một trong bốn phân đoạn database không thể truy cập được",
+      "Không có failover hoặc replica nào đang phục vụ phạm vi bị thiếu"
+    ],
+    "objective": "Hiểu lý do tại sao một lỗi shard khiến toàn bộ phạm vi dữ liệu không thể truy cập được và đề xuất chiến lược sharding linh hoạt."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "query-router",
+        "type": "server",
+        "label": "Bộ định tuyến Query",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 30
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bộ định tuyến Query",
+          "logs": [
+            "[14:20:01] INFO: Query 'Torres' → routed to Shard-MR",
+            "[14:20:01] ERROR: Shard-MR connection refused",
+            "[14:20:02] ERROR: No replica available for range M-R",
+            "[14:20:02] WARN: Returning empty result set for 'Torres'",
+            "[14:20:15] INFO: Query 'Adams' → routed to Shard-AF (success)",
+            "[14:20:16] INFO: Query 'Williams' → routed to Shard-SZ (success)"
+          ],
+          "data": {
+            "Status": "HOẠT ĐỘNG MỘT PHẦN",
+            "Shards Online": "3 trên 4",
+            "Failed Shard": "Shard-MR (phạm vi MR)",
+            "Shard Replicas": "Không có cấu hình nào",
+            "Failed Queries (last hour)": "2,847"
+          },
+          "status": "Bộ định tuyến xác định chính xác shard cho từng query nhưng Shard-MR không hoạt động và không có failover."
+        }
+      },
+      {
+        "id": "shard-af",
+        "type": "database",
+        "label": "Shard A-F",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Shard A-F",
+          "logs": [
+            "[14:20:15] INFO: Query 'Adams' — 1 result returned",
+            "[14:20:20] INFO: Query 'Clark' — 3 results returned"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Records": "580.000",
+            "Range": "A-F",
+            "Replicas": "0"
+          },
+          "status": "Hoạt động bình thường. Phục vụ tất cả các truy vấn A-F."
+        }
+      },
+      {
+        "id": "shard-gl",
+        "type": "database",
+        "label": "Shard G-L",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 280,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Shard G-L",
+          "logs": [
+            "[14:20:18] INFO: Query 'Johnson' — 5 results returned"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Records": "610.000",
+            "Range": "G-L",
+            "Replicas": "0"
+          },
+          "status": "Hoạt động bình thường. Phục vụ tất cả các truy vấn G-L."
+        }
+      },
+      {
+        "id": "shard-mr",
+        "type": "database",
+        "label": "Shard MR",
+        "status": "thất bại",
+        "position": {
+          "x": 480,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Shard MR",
+          "logs": [
+            "[13:45:00] WARN: Disk latency spike detected",
+            "[13:45:30] ERROR: Storage controller failure",
+            "[13:45:31] FATAL: Database shutting down — data files inaccessible",
+            "[13:45:31] INFO: No replica configured for failover"
+          ],
+          "data": {
+            "Status": "NGOẠI TUYẾN",
+            "Records": "640.000 (không thể tiếp cận)",
+            "Range": "ÔNG",
+            "Replicas": "0",
+            "Downtime": "35 phút"
+          },
+          "status": "Lỗi phần cứng. Toàn bộ phạm vi M-R không thể truy cập được. Không có replica nào tồn tại."
+        }
+      },
+      {
+        "id": "shard-sz",
+        "type": "database",
+        "label": "Shard S-Z",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 680,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Shard S-Z",
+          "logs": [
+            "[14:20:16] INFO: Query 'Williams' — 2 results returned"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Records": "570.000",
+            "Range": "S-Z",
+            "Replicas": "0"
+          },
+          "status": "Hoạt động bình thường. Phục vụ tất cả các truy vấn S-Z."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-router-af",
+        "source": "query-router",
+        "target": "shard-af",
+        "label": "Truy vấn A-F",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-router-gl",
+        "source": "query-router",
+        "target": "shard-gl",
+        "label": "Truy vấn G-L",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-router-mr",
+        "source": "query-router",
+        "target": "shard-mr",
+        "label": "truy vấn M-R",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-router-sz",
+        "source": "query-router",
+        "target": "shard-sz",
+        "label": "Truy vấn S-Z",
+        "animated": true,
+        "style": "normal"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Tại sao việc mất một database shard lại khiến toàn bộ tội phạm không thể tiếp cận được?",
+      "options": [
+        {
+          "id": "rc-2",
+          "text": "Mỗi shard chứa một phạm vi dữ liệu độc quyền không có replication, vì vậy khi Shard M-R bị lỗi, toàn bộ phạm vi dữ liệu đó không có bản sao nào",
+          "correct": true,
+          "feedback": "Chính xác! Sharding chia dữ liệu thành các phạm vi độc quyền trên các máy chủ. Shard M-R là máy chủ duy nhất lưu giữ các bản ghi từ họ M đến R. Không có bản sao nào được định cấu hình, việc mất shard đơn lẻ đó đồng nghĩa với việc mất quyền truy cập vào 640.000 bản ghi. Sharding cải thiện khả năng mở rộng nhưng yêu cầu replication trên mỗi phân đoạn để có khả năng chịu lỗi."
+        },
+        {
+          "id": "rc-3",
+          "text": "Khóa sharding theo thứ tự bảng chữ cái là một lựa chọn kém và đã tạo ra sự phân phối dữ liệu không đồng đều trên các phân đoạn",
+          "correct": false,
+          "feedback": "Mặc dù kích thước shard thay đổi đôi chút (570K-640K), nhưng sự phân bổ khá đồng đều. Vấn đề không phải là khóa shard - mà là thiếu replication cho mỗi shard."
+        },
+        {
+          "id": "rc-1",
+          "text": "Bộ định tuyến query có lỗi gửi nhầm tất cả các truy vấn đến shard bị lỗi thay vì các truy vấn chính xác",
+          "correct": false,
+          "feedback": "Bộ định tuyến đang hoạt động chính xác — nó định tuyến thành công các truy vấn A-F, G-L và S-Z tới các phân đoạn tương ứng của chúng. Chỉ các truy vấn M-R không thành công vì shard cụ thể đó không hoạt động."
+        },
+        {
+          "id": "rc-4",
+          "text": "Các phân đoạn khác sẽ quay trở lại và phân phát các truy vấn M-R bằng cách quét dữ liệu của chính chúng khi M-R shard không khả dụng",
+          "correct": false,
+          "feedback": "Các phân đoạn khác không có dữ liệu M-R - đó là toàn bộ mục đích của sharding. Mỗi shard có một phạm vi độc quyền. Họ không thể trả lời các truy vấn về dữ liệu mà họ không có."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để ngăn chặn một lỗi shard gây mất dữ liệu là gì?",
+      "options": [
+        {
+          "id": "fix-4",
+          "text": "Chuyển khóa shard từ bảng chữ cái sang dựa trên hàm băm để mỗi lỗi shard sẽ tác động đến các bản ghi ngẫu nhiên thay vì toàn bộ phạm vi",
+          "correct": false,
+          "feedback": "sharding dựa trên hàm băm sẽ lan truyền tác động nhưng không giải quyết được — bạn vẫn sẽ mất bất kỳ bản ghi nào được băm vào shard không thành công. Bản sửa lỗi là replication trên mỗi shard, bất kể chiến lược chính shard."
+        },
+        {
+          "id": "fix-1",
+          "text": "Ngừng sử dụng hoàn toàn sharding và hợp nhất tất cả hồ sơ tội phạm vào một máy chủ database lớn duy nhất",
+          "correct": false,
+          "feedback": "Điều này giúp loại bỏ chế độ lỗi sharding nhưng đưa lại điểm lỗi duy nhất từ ​​Trường hợp 1 và loại bỏ các lợi ích về khả năng mở rộng của sharding."
+        },
+        {
+          "id": "fix-2",
+          "text": "Thêm ít nhất một replica cho mỗi shard để bộ định tuyến có thể failover khi shard chính bị hỏng",
+          "correct": true,
+          "feedback": "Chính xác! Mỗi shard phải có ít nhất một replica. Khi lỗi chính của Shard M-R, bộ định tuyến có thể chuyển hướng các truy vấn đến replica của nó. Điều này kết hợp khả năng mở rộng của sharding với khả năng chịu lỗi của replication — mẫu sản xuất tiêu chuẩn."
+        },
+        {
+          "id": "fix-3",
+          "text": "Lưu trữ một bản sao hoàn chỉnh của tất cả dữ liệu tội phạm trên mọi shard để mọi shard có thể trả lời bất kỳ query nào nếu một shard khác bị lỗi",
+          "correct": false,
+          "feedback": "Nếu mọi shard đều có tất cả dữ liệu thì bạn đã loại bỏ lợi ích của sharding (phân phối dữ liệu theo tỷ lệ). Về cơ bản bạn có replication chứ không phải sharding. Cách tiếp cận đúng là shard cho quy mô cộng với việc sao chép từng shard để có khả năng phục hồi."
+        }
+      ]
+    }
+  },
+  "conceptId": "sharding",
+  "badge": {
+    "name": "Bậc thầy Shard",
+    "icon": "💎"
+  }
+}

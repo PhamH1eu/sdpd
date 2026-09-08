@@ -1,0 +1,172 @@
+{
+  "id": "case-37",
+  "number": 37,
+  "title": "Một nghìn query nhỏ",
+  "subtitle": "Endpoint chạy nhanh ở local nhưng sụp ở production",
+  "brief": {
+    "narrative": "Danh sách 500 order chạy một query lấy order rồi lazy-load thêm một query customer cho từng order. CPU database chưa cao nhưng network round trip chiếm gần hết latency.",
+    "symptoms": [
+      "Metric của FastAPI Service khác với service-level symptom",
+      "Vấn đề chỉ tái hiện dưới triggering workload",
+      "Log có đủ bằng chứng để phân biệt cause với consequence"
+    ],
+    "objective": "Xác định root cause, chọn cách sửa an toàn cho production và giải thích trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Endpoint chạy nhanh ở local nhưng sụp ở production"
+          ],
+          "data": {
+            "impact": "Request lỗi hoặc chậm"
+          },
+          "status": "Endpoint chạy nhanh ở local nhưng sụp ở production"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bằng chứng từ application",
+          "logs": [
+            "[09:00:00] INFO workload bắt đầu",
+            "[09:00:10] WARN FastAPI Service xuất hiện anomaly",
+            "[09:00:20] WARN Endpoint chạy nhanh ở local nhưng sụp ở production",
+            "[09:00:30] INFO đã chụp trace, metric và resource state trong cùng evidence window"
+          ],
+          "data": {
+            "observed_impact": "Endpoint chạy nhanh ở local nhưng sụp ở production",
+            "evidence_window": "30s"
+          },
+          "status": "Cần đối chiếu log với resource state để tìm root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "FastAPI Service",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "FastAPI Service",
+          "logs": [
+            "Metric của FastAPI Service khác với service-level symptom",
+            "Vấn đề chỉ tái hiện dưới triggering workload",
+            "Log có đủ bằng chứng để phân biệt cause với consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "Resource bị degraded trong đúng evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "request chậm/lỗi",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Root cause nào giải thích đầy đủ các bằng chứng?",
+      "options": [
+        {
+          "id": "rc-wrong-1",
+          "text": "Bọc indexed column trong function khiến predicate trở thành non-sargable.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Transaction giữ connection trong pool qua một đoạn network I/O không liên quan.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Race trong chuỗi read-modify-write gây lost update.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "rc-correct",
+          "text": "ORM lazy loading tạo ra N+1 query pattern.",
+          "correct": true,
+          "feedback": "Chính xác. N+1 gây vấn đề latency và connection pool. Eager loading không phải lúc nào cũng đúng; phải giới hạn result và tránh cartesian explosion."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách sửa nào an toàn nhất cho production?",
+      "options": [
+        {
+          "id": "fix-wrong-2",
+          "text": "Giữ transaction ngắn, trả connection trước external call, đặt pool/statement timeout và tính pool size theo capacity của database.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Dùng atomic conditional UPDATE hoặc optimistic version check; retry conflict và enforce invariant tại database.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Lấy relation bằng join/batch có giới hạn, chỉ select field cần thiết và kiểm tra query count bằng test hoặc tracing.",
+          "correct": true,
+          "feedback": "Chính xác. N+1 gây vấn đề latency và connection pool. Eager loading không phải lúc nào cũng đúng; phải giới hạn result và tránh cartesian explosion."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Viết lại thành created_at >= start AND created_at < next_day, hoặc tạo expression index khi có lý do rõ ràng.",
+          "correct": false,
+          "feedback": "Lựa chọn này không giải thích toàn bộ bằng chứng hoặc vẫn để nguyên vấn đề correctness/reliability bên dưới."
+        }
+      ]
+    }
+  },
+  "conceptId": "n-plus-one-queries",
+  "badge": {
+    "name": "Một nghìn query nhỏ",
+    "icon": "📡"
+  }
+}

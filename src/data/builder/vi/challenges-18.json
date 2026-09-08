@@ -1,0 +1,72 @@
+{
+  "id": "builder-18",
+  "number": 18,
+  "title": "Tăng đột biến tải lên nhân chứng",
+  "subtitle": "Các video nhân chứng có nguồn lực từ cộng đồng đã bão hòa nền tảng",
+  "objective": "Xây dựng kiến ​​trúc truyền tải nhiều phương tiện có khả năng mở rộng quy mô theo lượt tải lên liên tục.",
+  "constraints": [
+    "Sử dụng bộ nhớ đối tượng",
+    "Hàng đợi xử lý đắt tiền",
+    "Giữ siêu dữ liệu có thể tìm kiếm được"
+  ],
+  "availableComponents": [
+    "client",
+    "cdn",
+    "loadBalancer",
+    "api",
+    "queue",
+    "worker",
+    "blobStorage",
+    "database"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Mục tiêu tải lên Blob",
+      "description": "API nên dùng các đối tượng truyền thông write để lưu trữ blob.",
+      "requiredAll": [
+        "api",
+        "blobStorage"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "blobStorage"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Xử lý tách rời",
+      "description": "Xử lý tải lên tách rời hàng đợi và worker.",
+      "requiredAll": [
+        "queue",
+        "worker"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "queue"
+        },
+        {
+          "from": "queue",
+          "to": "worker"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Sự kiên trì của siêu dữ liệu",
+      "description": "Lưu trữ siêu dữ liệu nhân chứng trong database.",
+      "requiredAll": [
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "worker",
+          "to": "database"
+        }
+      ]
+    }
+  ]
+}

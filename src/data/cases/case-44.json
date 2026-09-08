@@ -1,0 +1,172 @@
+{
+  "id": "case-44",
+  "number": 44,
+  "title": "The Slower Process Pool",
+  "subtitle": "Parallel work is slower than one process",
+  "brief": {
+    "narrative": "Tiny tasks send 20 MB Python objects to worker processes. Pickling, copying, and IPC cost more than the computation itself.",
+    "symptoms": [
+      "Process Pool metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Parallel work is slower than one process"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "Parallel work is slower than one process"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Process Pool shows an anomaly",
+            "[09:00:20] WARN Parallel work is slower than one process",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "Parallel work is slower than one process",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Process Pool",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Process Pool",
+          "logs": [
+            "Process Pool metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-correct",
+          "text": "Task granularity is too small relative to multiprocessing serialization and IPC overhead.",
+          "correct": true,
+          "feedback": "Correct. Multiprocessing bypasses the GIL but does not make communication free. Minimize data movement and bound worker count."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "CPU oversubscription created scheduling and cache-locality overhead.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "The failure boundary is a process, not a thread; memory is isolated between processes.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "A data race on a non-atomic shared counter caused lost increments.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-1",
+          "text": "Size CPU-bound workers near the effective CPU quota, batch work, and measure run queue, throttling, switches, and throughput.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Run unsafe or CPU-heavy work in supervised worker processes and define IPC, restart, timeout, and idempotency behavior.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Use an atomic primitive or lock around the minimal critical section, or remove shared mutable state through partitioning/message passing.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Batch work into larger chunks, send compact identifiers, use shared memory only with clear ownership, and benchmark end to end.",
+          "correct": true,
+          "feedback": "Correct. Multiprocessing bypasses the GIL but does not make communication free. Minimize data movement and bound worker count."
+        }
+      ]
+    }
+  },
+  "conceptId": "multiprocessing-overhead",
+  "badge": {
+    "name": "The Slower Process Pool",
+    "icon": "📦"
+  }
+}

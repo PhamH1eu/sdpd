@@ -1,0 +1,217 @@
+{
+  "id": "case-18",
+  "number": 18,
+  "title": "Điều phối thất lạc",
+  "subtitle": "Sự cố máy chủ sẽ mất tất cả các cuộc gọi điều phối đang chờ xử lý từ hàng đợi",
+  "brief": {
+    "narrative": "Hệ thống điều phối của Distributia PD sử dụng hàng đợi tin nhắn để quản lý nhiệm vụ tuần tra. Khi có cuộc gọi 911 đến, nó sẽ được xếp vào hàng đợi và các đơn vị tuần tra sẵn sàng nhận nhiệm vụ từ đầu bên kia. Nó hoạt động rất tốt — cho đến khi máy chủ xếp hàng gặp sự cố vào lúc 3 giờ sáng trong một đêm thứ Sáu bận rộn. Khi nó trực tuyến trở lại 4 phút sau, hàng đợi trống rỗng. 23 cuộc gọi điều phối đang chờ trong hàng đợi - bao gồm cả hai báo cáo về vụ cướp có vũ trang có mức độ ưu tiên cao - đã biến mất. Hàng đợi đã chạy hoàn toàn trong memory mà không cần duy trì lâu dài. Những cuộc gọi đó không bao giờ được gửi đi. Cảnh sát trưởng Partition cần biết tại sao các thông báo quan trọng lại có thể biến mất, thám tử.",
+    "symptoms": [
+      "23 tin nhắn đang chờ gửi bị mất trong sự cố máy chủ kéo dài 4 phút",
+      "Máy chủ hàng đợi được khởi động lại với hàng đợi trống - không khôi phục được các tin nhắn đang chờ xử lý",
+      "Hai cuộc gọi cướp có vũ trang có mức độ ưu tiên cao nằm trong số các điều phối bị thất lạc",
+      "Hàng đợi được định cấu hình chỉ với bộ nhớ trong bộ nhớ - không tồn tại disk"
+    ],
+    "objective": "Xác định lý do tại sao hàng đợi tin nhắn bị mất tất cả các tin nhắn đang chờ xử lý khi xảy ra sự cố và đề xuất chiến lược durability."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "dispatch-intake",
+        "type": "server",
+        "label": "911 Điều phối tiếp nhận",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 100,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hệ thống tiếp nhận điều phối 911",
+          "logs": [
+            "[03:00:01] INFO: Dispatch call #D-4471 queued (armed robbery)",
+            "[03:00:15] INFO: Dispatch call #D-4472 queued (armed robbery)",
+            "[03:01:00] INFO: 21 additional calls queued between 03:00-03:04",
+            "[03:04:10] WARN: Queue server connection lost — calls buffering locally"
+          ],
+          "data": {
+            "Calls Sent to Queue": "23 (từ 03:00-03:04)",
+            "Acknowledgments Received": "23 (hàng đợi chấp nhận chúng)",
+            "Status": "KHỎE MẠNH"
+          },
+          "status": "Hệ thống nạp hoạt động. Tất cả 23 cuộc gọi đã được hàng đợi chấp nhận."
+        }
+      },
+      {
+        "id": "message-queue",
+        "type": "server",
+        "label": "Hàng đợi tin nhắn",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hàng đợi tin nhắn gửi đi",
+          "logs": [
+            "[03:00:00] INFO: 23 messages in queue (in-memory)",
+            "[03:04:05] FATAL: Process crashed — out of memory",
+            "[03:04:06] INFO: All in-memory data lost",
+            "[03:08:10] INFO: Server restarted — queue is EMPTY",
+            "[03:08:11] WARN: No persistence layer — cannot recover messages"
+          ],
+          "data": {
+            "Storage": "CHỈ trong bộ nhớ",
+            "Persistence": "TÀN TẬT",
+            "Messages Before Crash": "23",
+            "Messages After Restart": "0",
+            "Write-Ahead Log": "Chưa được định cấu hình",
+            "Disk Backup": "Không có"
+          },
+          "status": "Bị hỏng. Tất cả 23 tin nhắn trong hàng đợi đều bị mất vĩnh viễn — không được định cấu hình liên tục."
+        }
+      },
+      {
+        "id": "patrol-units",
+        "type": "client",
+        "label": "Đơn vị tuần tra",
+        "status": "xuống cấp",
+        "position": {
+          "x": 600,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hạm đội tuần tra",
+          "logs": [
+            "[03:04:10] WARN: No new dispatches received",
+            "[03:08:15] INFO: Queue reconnected — but no pending assignments",
+            "[03:08:20] WARN: 23 calls never dispatched to any unit"
+          ],
+          "data": {
+            "Available Units": "12",
+            "Dispatches Received (03:00-03:08)": "0",
+            "Expected Dispatches": "23",
+            "Status": "IDLE (đang chờ bài tập bị mất)"
+          },
+          "status": "Các đơn vị tuần tra chưa bao giờ nhận được 23 cuộc gọi điều động thất lạc."
+        }
+      },
+      {
+        "id": "callers",
+        "type": "client",
+        "label": "Người gọi 911",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Người gọi 911",
+          "logs": [
+            "[03:15:00] WARN: Caller #D-4471 called back — no officers arrived",
+            "[03:18:00] WARN: Caller #D-4472 called back — armed robbery still in progress"
+          ],
+          "data": {
+            "Affected Callers": "23",
+            "High Priority Lost": "2 (cướp có vũ trang)",
+            "Avg Wait Before Callback": "15 phút"
+          },
+          "status": "Người gọi đang chờ response gửi đi nhưng chưa bao giờ được gửi."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-intake-queue",
+        "source": "dispatch-intake",
+        "target": "message-queue",
+        "label": "xếp hàng cuộc gọi",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-queue-patrol",
+        "source": "message-queue",
+        "target": "patrol-units",
+        "label": "điều phối (bị mất)",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-callers-intake",
+        "source": "callers",
+        "target": "dispatch-intake",
+        "label": "cuộc gọi 911",
+        "animated": true,
+        "style": "normal"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause trong số 23 tin nhắn điều phối bị mất là gì?",
+      "options": [
+        {
+          "id": "rc-2",
+          "text": "Hàng đợi tin nhắn chỉ lưu trữ các tin nhắn trong memory mà không tồn tại lâu dài - khi nó gặp sự cố, tất cả các tin nhắn đang chờ xử lý sẽ bị mất vĩnh viễn",
+          "correct": true,
+          "feedback": "Chính xác! Hàng đợi không có cơ chế durability - không có log viết trước, không có disk, không có replication. Hàng đợi chỉ trong bộ nhớ rất nhanh nhưng không ổn định. Khi process gặp sự cố, RAM bị xóa và tất cả 23 tin nhắn đều biến mất. Tin nhắn durability yêu cầu gửi tin nhắn liên tục tới disk trước khi xác nhận chúng."
+        },
+        {
+          "id": "rc-3",
+          "text": "Các đơn vị tuần tra nhận được tin nhắn từ hàng đợi nhưng gặp lỗi trong quá trình xử lý và không gửi đi được",
+          "correct": false,
+          "feedback": "Các đơn vị tuần tra chưa bao giờ nhận được tin nhắn nào cả. Các tin nhắn đang nằm trong hàng đợi chờ được sử dụng khi máy chủ gặp sự cố. Tin nhắn bị mất trước delivery chứ không phải sau đó."
+        },
+        {
+          "id": "rc-1",
+          "text": "Hệ thống tiếp nhận 911 gặp lỗi kết nối và không gửi đúng thông báo điều động đến hàng đợi",
+          "correct": false,
+          "feedback": "Hệ thống tiếp nhận đã gửi thành công tất cả 23 tin nhắn và nhận được xác nhận từ hàng đợi. Các tin nhắn đã được chấp nhận và lưu trữ - chúng chỉ được lưu trữ trong memory dễ bay hơi."
+        },
+        {
+          "id": "rc-4",
+          "text": "Logic khôi phục sự cố của máy chủ hàng đợi có lỗi xóa nhầm tất cả các thư đang chờ xử lý bất cứ khi nào nó khởi động lại",
+          "correct": false,
+          "feedback": "Không có lỗi - hàng đợi thực sự không có gì để khôi phục. Với bộ lưu trữ chỉ trong bộ nhớ, không có dữ liệu nào trên disk để khôi phục. Hàng đợi trống sau khi khởi động lại là hành vi được mong đợi (nếu không may)."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để tránh mất tin nhắn khi máy chủ xếp hàng gặp sự cố là gì?",
+      "options": [
+        {
+          "id": "fix-3",
+          "text": "Đặt hệ thống tiếp nhận 911 tự động retry không gửi tin nhắn gửi đi nếu hàng đợi không phản hồi trong vòng 5 giây",
+          "correct": false,
+          "feedback": "Thử lại trợ giúp khi hàng đợi tạm thời không khả dụng nhưng hàng đợi đã xác nhận tất cả 23 thư trước khi bị lỗi. Hệ thống nạp không có lý do gì để retry - nó cho rằng delivery đã thành công. Các tin nhắn cần phải bền trong hàng đợi."
+        },
+        {
+          "id": "fix-1",
+          "text": "Cho phép lưu giữ tin nhắn - Tin nhắn write tới disk (log viết trước) trước khi xác nhận chúng để chúng tồn tại sau sự cố máy chủ",
+          "correct": true,
+          "feedback": "Chính xác! Hàng đợi tin nhắn bền vững sẽ lưu giữ các tin nhắn tới disk trước khi xác nhận đã nhận. log (WAL) ghi trước đảm bảo rằng ngay cả khi máy chủ gặp sự cố, tin nhắn vẫn có thể được khôi phục từ disk khi khởi động lại. Điều này trao đổi một số write latency để lấy delivery được đảm bảo - một yêu cầu quan trọng đối với các hệ thống như điều phối khẩn cấp."
+        },
+        {
+          "id": "fix-2",
+          "text": "Thêm máy chủ xếp hàng trong bộ nhớ thứ hai làm bản sao lưu đang hoạt động với tính năng phản chiếu tin nhắn theo thời gian thực",
+          "correct": false,
+          "feedback": "Máy chủ trong bộ nhớ thứ hai hỗ trợ availability nhưng cả hai máy chủ vẫn mất dữ liệu khi gặp sự cố. Nếu bản chính gặp sự cố trước khi sao chép vào bản sao lưu, tin nhắn vẫn bị mất. durability đích thực đòi hỏi sự kiên trì của disk chứ không chỉ nhiều memory hơn."
+        },
+        {
+          "id": "fix-4",
+          "text": "Tăng tổng phân bổ memory của máy chủ hàng đợi để ngăn nó đạt đến giới hạn OOM và gặp sự cố bất ngờ",
+          "correct": false,
+          "feedback": "Nhiều memory hơn làm giảm khả năng gặp sự cố OOM nhưng không loại bỏ được. Bất kỳ sự cố nào - OOM, lỗi phần cứng, mất điện - vẫn sẽ hủy tất cả tin nhắn trong bộ nhớ. Việc khắc phục phải đảm bảo thư vẫn tồn tại trong mọi loại sự cố."
+        }
+      ]
+    }
+  },
+  "conceptId": "message-durability",
+  "badge": {
+    "name": "Trình tiết kiệm điều phối",
+    "icon": "📨"
+  }
+}

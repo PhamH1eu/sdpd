@@ -1,0 +1,172 @@
+{
+  "id": "case-40",
+  "number": 40,
+  "title": "The Crash That Stayed Contained",
+  "subtitle": "One worker dies while its siblings keep serving",
+  "brief": {
+    "narrative": "A native library segfault kills one worker process. Other workers continue because each process has its own virtual address space and OS-managed resources.",
+    "symptoms": [
+      "Worker Process metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "One worker dies while its siblings keep serving"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "One worker dies while its siblings keep serving"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Worker Process shows an anomaly",
+            "[09:00:20] WARN One worker dies while its siblings keep serving",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "One worker dies while its siblings keep serving",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Worker Process",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Worker Process",
+          "logs": [
+            "Worker Process metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-correct",
+          "text": "The failure boundary is a process, not a thread; memory is isolated between processes.",
+          "correct": true,
+          "feedback": "Correct. Processes provide isolation at higher memory and communication cost. Threads share memory and fail together inside one process."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "Blocking I/O ran directly on the event-loop thread.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "An unbounded retained-reference cache caused a memory leak.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Memory pressure caused virtual-memory thrashing.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-1",
+          "text": "Use an async client, move blocking calls to a bounded thread pool, set timeouts, and monitor event-loop lag.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Bound the cache with size/TTL, remove entries at lifecycle completion, and compare heap profiles by retained path.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Reduce working sets, cap concurrency/cache memory, add RAM only after measurement, and alert on major faults and swap activity.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Run unsafe or CPU-heavy work in supervised worker processes and define IPC, restart, timeout, and idempotency behavior.",
+          "correct": true,
+          "feedback": "Correct. Processes provide isolation at higher memory and communication cost. Threads share memory and fail together inside one process."
+        }
+      ]
+    }
+  },
+  "conceptId": "process-isolation",
+  "badge": {
+    "name": "The Crash That Stayed Contained",
+    "icon": "🧱"
+  }
+}

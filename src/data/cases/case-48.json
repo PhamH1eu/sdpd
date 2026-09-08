@@ -1,0 +1,172 @@
+{
+  "id": "case-48",
+  "number": 48,
+  "title": "Too Many Open Files",
+  "subtitle": "Healthy dependencies become unreachable after hours",
+  "brief": {
+    "narrative": "HTTP responses are not closed on an error path. Open socket descriptors climb until accept/connect fail with EMFILE.",
+    "symptoms": [
+      "Linux File Table metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "Healthy dependencies become unreachable after hours"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "Healthy dependencies become unreachable after hours"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Linux File Table shows an anomaly",
+            "[09:00:20] WARN Healthy dependencies become unreachable after hours",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "Healthy dependencies become unreachable after hours",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Linux File Table",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Linux File Table",
+          "logs": [
+            "Linux File Table metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-correct",
+          "text": "A socket/file-descriptor leak exhausted the per-process limit.",
+          "correct": true,
+          "feedback": "Correct. Files, sockets, pipes, and epoll handles consume descriptors. Raising the limit hides a leak and delays failure."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "CPython’s GIL serializes execution of Python bytecode for CPU-bound threads.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Task granularity is too small relative to multiprocessing serialization and IPC overhead.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Blocking I/O ran directly on the event-loop thread.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-1",
+          "text": "Use multiprocessing, a native library that releases the GIL, or a separate compute service; benchmark serialization and memory costs.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Batch work into larger chunks, send compact identifiers, use shared memory only with clear ownership, and benchmark end to end.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Use an async client, move blocking calls to a bounded thread pool, set timeouts, and monitor event-loop lag.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Close resources with context managers/finally, reuse bounded client pools, expose descriptor metrics, and keep a deliberate ulimit.",
+          "correct": true,
+          "feedback": "Correct. Files, sockets, pipes, and epoll handles consume descriptors. Raising the limit hides a leak and delays failure."
+        }
+      ]
+    }
+  },
+  "conceptId": "file-descriptor-exhaustion",
+  "badge": {
+    "name": "Too Many Open Files",
+    "icon": "📂"
+  }
+}

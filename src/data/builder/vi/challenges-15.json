@@ -1,0 +1,76 @@
+{
+  "id": "builder-15",
+  "number": 15,
+  "title": "Phát sóng cảnh báo hoảng loạn",
+  "subtitle": "Cảnh báo hoảng loạn trên toàn thành phố phải đến được các kênh trong vài giây",
+  "objective": "Xây dựng kiến ​​trúc cảnh báo có độ trễ thấp với các đảm bảo delivery được đệm.",
+  "constraints": [
+    "Vào nhanh",
+    "Phân xuất theo hàng đợi",
+    "Theo dõi trạng thái bền vững"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "queue",
+    "worker",
+    "database",
+    "cache"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Nạp nhanh",
+      "description": "Việc xâm nhập phải bao gồm ứng dụng khách -> load balancer -> API.",
+      "requiredAll": [
+        "client",
+        "loadBalancer",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        },
+        {
+          "from": "loadBalancer",
+          "to": "api"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Bộ đệm Delivery",
+      "description": "Cảnh báo phân xuất hàng đợi và worker không đồng bộ.",
+      "requiredAll": [
+        "queue",
+        "worker"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "queue"
+        },
+        {
+          "from": "queue",
+          "to": "worker"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Trạng thái cảnh báo kiên trì",
+      "description": "Theo dõi trạng thái điều phối cuối cùng trong database.",
+      "requiredAll": [
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "worker",
+          "to": "database"
+        }
+      ]
+    }
+  ]
+}

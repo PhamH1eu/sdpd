@@ -1,0 +1,172 @@
+{
+  "id": "case-54",
+  "number": 54,
+  "title": "The Search Box Breach",
+  "subtitle": "A filter returns every tenant’s records",
+  "brief": {
+    "narrative": "The API concatenates a user filter into SQL. An attacker changes the query structure with quotes and boolean syntax.",
+    "symptoms": [
+      "Search API metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "A filter returns every tenant’s records"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "A filter returns every tenant’s records"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Search API shows an anomaly",
+            "[09:00:20] WARN A filter returns every tenant’s records",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "A filter returns every tenant’s records",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Search API",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Search API",
+          "logs": [
+            "Search API metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-2",
+          "text": "Unbounded queueing and retries turned overload into congestion collapse.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "A dual write to the database and broker was not atomic.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "Untrusted input was interpreted as SQL code.",
+          "correct": true,
+          "feedback": "Correct. Escaping by hand is brittle. Parameterization separates code from data, but it does not replace tenant authorization."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "The create operation lacked a stable idempotency key and replayed a committed side effect.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-3",
+          "text": "Write the business row and outbox row in one database transaction, relay with retries, and make consumers idempotent.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Use parameterized queries for values, allowlist dynamic identifiers/operators, minimize DB privileges, and test authorization independently.",
+          "correct": true,
+          "feedback": "Correct. Escaping by hand is brittle. Parameterization separates code from data, but it does not replace tenant authorization."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Require a scoped idempotency key, atomically store request hash and result, return the original result on replay, and reject key reuse with different input.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Set admission limits, bounded queues and deadlines; shed low-priority work, apply retry budgets/backoff, degrade gracefully, and scale from saturation signals.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "sql-injection",
+  "badge": {
+    "name": "The Search Box Breach",
+    "icon": "🛡️"
+  }
+}

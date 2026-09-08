@@ -1,0 +1,259 @@
+{
+  "id": "case-04",
+  "number": 4,
+  "title": "Split Brain",
+  "subtitle": "Hai khu vực, hai sự thật, một network",
+  "brief": {
+    "narrative": "Hỗn loạn bùng phát tại trụ sở Distributia PD. Việc cắt cáp giữa các trung tâm dữ liệu Đông và Tây đã cắt đứt liên kết network giữa hai bản sao database. Cả hai bản sao đều tự động thăng cấp lên leader và hiện tại Phân khu Đông và Phân khu Tây đang ghi các bản ghi xung đột vào cơ sở dữ liệu tương ứng của chúng. Sĩ quan Martinez vừa thả một nghi phạm mà West Precinct đã gắn cờ để bắt giữ - bởi vì database của East cho thấy nghi phạm đã được xác nhận. Cảnh sát trưởng Partition đang rất tức giận. Hai cơ sở dữ liệu, hai phiên bản của sự thật và không ai biết cái nào đúng.",
+    "symptoms": [
+      "Các bản sao database Đông và Tây đều tự báo cáo là leader chính",
+      "Xung đột hồ sơ tội phạm giữa hai khu vực",
+      "Một nghi phạm bị gắn cờ bắt giữ ở phía Tây được đánh dấu là đã được giải tỏa ở phía Đông",
+      "Liên kết Network giữa hai trung tâm dữ liệu không hoạt động"
+    ],
+    "objective": "Xác định cách network partition gây ra tình huống phân chia não và xác định chiến lược chính xác để giải quyết và ngăn chặn xung đột khi ghi."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "db-east",
+        "type": "database",
+        "label": "ĐB Đông (Leader)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Đông Database Replica",
+          "logs": [
+            "[03:14:01] WARN: Lost heartbeat from West DB replica",
+            "[03:14:04] WARN: No response after 3 retries",
+            "[03:14:05] INFO: Failover timeout reached — promoting self to leader",
+            "[03:14:05] INFO: Now accepting writes as PRIMARY",
+            "[03:14:22] INFO: WRITE — Suspect #4412 status changed to CLEARED",
+            "[03:15:01] WARN: Still no contact with West DB"
+          ],
+          "data": {
+            "Role": "CHÍNH (tự thăng tiến)",
+            "Replication Link": "ĐÃ NGẮT KẾT NỐI",
+            "Writes Since Partition": "34",
+            "Last Sync With West": "03:13:58",
+            "Suspect #4412 Status": "ĐÃ XÓA"
+          },
+          "status": "Tự thăng cấp lên leader sau khi mất liên lạc với West DB. Chấp nhận viết độc lập."
+        }
+      },
+      {
+        "id": "db-west",
+        "type": "database",
+        "label": "Tây DB (Leader)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 550,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Tây Database Replica",
+          "logs": [
+            "[03:14:02] WARN: Lost heartbeat from East DB replica",
+            "[03:14:05] WARN: No response after 3 retries",
+            "[03:14:06] INFO: Failover timeout reached — promoting self to leader",
+            "[03:14:06] INFO: Now accepting writes as PRIMARY",
+            "[03:14:18] INFO: WRITE — Suspect #4412 status changed to ARREST WARRANT ACTIVE",
+            "[03:15:02] WARN: Still no contact with East DB"
+          ],
+          "data": {
+            "Role": "CHÍNH (tự thăng tiến)",
+            "Replication Link": "ĐÃ NGẮT KẾT NỐI",
+            "Writes Since Partition": "28",
+            "Last Sync With East": "03:13:58",
+            "Suspect #4412 Status": "LỆNH BẮT GIỮ CÓ HIỆU LỰC"
+          },
+          "status": "Tự thăng cấp lên leader sau khi mất liên lạc với East DB. Chấp nhận viết độc lập."
+        }
+      },
+      {
+        "id": "precinct-east",
+        "type": "client",
+        "label": "Phường Đông",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 280
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Đồn cảnh sát phía Đông",
+          "logs": [
+            "[03:14:10] INFO: Connected to East DB (primary)",
+            "[03:14:22] INFO: Updated suspect #4412 — marked CLEARED per DA office",
+            "[03:15:30] WARN: Officer Martinez released suspect #4412 based on CLEARED status"
+          ],
+          "data": {
+            "Connected To": "ĐB Đông",
+            "DB Role Reported": "SƠ ĐẲNG",
+            "Active Officers": "14",
+            "Suspect #4412": "ĐÃ XÓA"
+          },
+          "status": "Hoạt động bình thường đối với Đông DB, không biết dữ liệu xung đột ở phía Tây."
+        }
+      },
+      {
+        "id": "precinct-west",
+        "type": "client",
+        "label": "Phường Tây",
+        "status": "xuống cấp",
+        "position": {
+          "x": 550,
+          "y": 280
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Đồn cảnh sát phía Tây",
+          "logs": [
+            "[03:14:10] INFO: Connected to West DB (primary)",
+            "[03:14:18] INFO: Filed arrest warrant for suspect #4412 — new evidence from forensics",
+            "[03:16:00] ERROR: Suspect #4412 was released by East Precinct — CONFLICTING STATUS"
+          ],
+          "data": {
+            "Connected To": "Tây ĐB",
+            "DB Role Reported": "SƠ ĐẲNG",
+            "Active Officers": "11",
+            "Suspect #4412": "LỆNH BẮT GIỮ CÓ HIỆU LỰC"
+          },
+          "status": "Hoạt động bình thường chống lại West DB, nghi phạm không hề hay biết đã được East thả."
+        }
+      },
+      {
+        "id": "network-link",
+        "type": "server",
+        "label": "Liên DC Network",
+        "status": "thất bại",
+        "position": {
+          "x": 325,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Liên kết giữa các trung tâm dữ liệu Network",
+          "logs": [
+            "[03:13:59] INFO: Fiber optic link healthy — 1ms latency",
+            "[03:14:00] ERROR: Physical link failure detected on fiber segment DC-E-7",
+            "[03:14:00] ERROR: All packets dropped between East DC and West DC",
+            "[03:14:01] WARN: No redundant path available"
+          ],
+          "data": {
+            "Link Status": "XUỐNG",
+            "Cause": "Cắt sợi - đội thi công trên Đại lộ số 5",
+            "Packets Dropped": "100%",
+            "Redundant Path": "Không có cấu hình nào",
+            "Estimated Repair": "4-6 giờ"
+          },
+          "status": "Cắt sợi vật lý. Không có đường dẫn network dự phòng giữa các trung tâm dữ liệu."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-east-db-link",
+        "source": "db-east",
+        "target": "network-link",
+        "label": "replication",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-link-west-db",
+        "source": "network-link",
+        "target": "db-west",
+        "label": "replication",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-east-precinct",
+        "source": "db-east",
+        "target": "precinct-east",
+        "label": "truy vấn/ghi",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-west-precinct",
+        "source": "db-west",
+        "target": "precinct-west",
+        "label": "truy vấn/ghi",
+        "animated": true,
+        "style": "normal"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của các bản ghi nghi phạm xung đột là gì?",
+      "options": [
+        {
+          "id": "rc-4",
+          "text": "failover timeout tự động được cấu hình quá thấp, gây ra việc quảng cáo leader sớm trước khi xác nhận leader ban đầu không thành công",
+          "correct": false,
+          "feedback": "Mặc dù timeout dài hơn có thể trì hoãn quá trình phân chia não nhưng điều đó sẽ không ngăn cản được điều đó. Vấn đề cốt lõi là thiếu cơ chế đồng thuận thích hợp hoặc yêu cầu quorum. Nếu không có những giá trị này, bất kỳ giá trị timeout nào cuối cùng cũng dẫn đến vấn đề tương tự trong quá trình duy trì partition."
+        },
+        {
+          "id": "rc-3",
+          "text": "Một sĩ quan của Khu vực phía Đông đã cập nhật trái phép tình trạng của nghi phạm mà không tuân theo các quy trình quản lý vụ án thích hợp",
+          "correct": false,
+          "feedback": "Viên chức East Precinct đã làm theo đúng thủ tục - văn phòng DA đã xóa bỏ nghi phạm. Vấn đề là West Precinct đã đồng thời gửi lệnh bắt giữ và hai cơ sở dữ liệu không liên lạc được do network partition. Cả hai bài viết đều hợp pháp nhưng mâu thuẫn."
+        },
+        {
+          "id": "rc-1",
+          "text": "Một lỗi phần mềm bên trong một trong các nút database đã làm hỏng bản ghi của nghi phạm số 4412 sau khi nhận được một phần gói replication",
+          "correct": false,
+          "feedback": "Các cơ sở dữ liệu đang hoạt động chính xác riêng lẻ. Vấn đề là network partition đã khiến cả hai bản sao tự quảng bá độc lập thành leader, tạo ra một kịch bản phân chia não trong đó mỗi bản sao chấp nhận các thao tác ghi xung đột."
+        },
+        {
+          "id": "rc-2",
+          "text": "network partition đã gây ra sự phân chia bộ não - cả hai cơ sở dữ liệu đều tự quảng bá lên leader và chấp nhận các thao tác ghi xung đột một cách độc lập",
+          "correct": true,
+          "feedback": "Chính xác! Khi liên kết network giữa hai trung tâm dữ liệu không thành công, mỗi replica đều mất liên lạc với nhau. Nếu không có quorum hoặc cơ chế đấu kiếm thích hợp, cả hai đều tự thăng hạng lên leader. Đây là vấn đề 'phân chia não' kinh điển trong các hệ thống phân tán - network partition dẫn đến hai nhà lãnh đạo độc lập chấp nhận các bài viết xung đột."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách tiếp cận tốt nhất để ngăn ngừa tình huống não phân chia là gì?",
+      "options": [
+        {
+          "id": "fix-1",
+          "text": "Triển khai giao thức đồng thuận dựa trên số đại biểu - yêu cầu phần lớn các nút phải đồng ý trước khi chọn leader",
+          "correct": true,
+          "feedback": "Chính xác! Với quorum (ví dụ: 3 nút trong đó 2 nút phải đồng ý), một partition không thể tạo ra hai nút dẫn đầu. Bên chiếm đa số tiếp tục phục vụ, còn bên thiểu số từ chối viết. Đây là nền tảng của các giao thức đồng thuận như Raft và Paxos và đó là lý do tại sao các cụm sản xuất sử dụng số lượng nút lẻ."
+        },
+        {
+          "id": "fix-2",
+          "text": "Thêm liên kết network dự phòng giữa cả hai trung tâm dữ liệu để một lỗi cáp không thể gây ra partition",
+          "correct": false,
+          "feedback": "Liên kết network dự phòng làm giảm khả năng xảy ra partition nhưng không loại bỏ nó. Cả hai liên kết đều có thể bị lỗi (cùng rãnh cáp, cùng ISP). Bạn vẫn cần một cơ chế đồng thuận thích hợp khi xảy ra phân vùng - dự phòng network là sự bổ sung chứ không phải sự thay thế."
+        },
+        {
+          "id": "fix-3",
+          "text": "Chỉ định vĩnh viễn một database làm leader chính và vô hiệu hóa tất cả failover tự động để tránh thăng chức cho nhiều nhà lãnh đạo",
+          "correct": false,
+          "feedback": "Điều này ngăn chặn sự phân chia não nhưng hy sinh hoàn toàn availability - nếu lỗi chính vĩnh viễn bị lỗi, toàn bộ hệ thống sẽ ngừng hoạt động (trở lại điểm lỗi duy nhất). Cách tiếp cận dựa trên số đại biểu mang lại cho bạn cả sự an toàn và availability."
+        },
+        {
+          "id": "fix-4",
+          "text": "Sử dụng dấu thời gian trên đồng hồ treo tường để tự động giải quyết xung đột write bằng cách luôn lưu giữ bản ghi có dấu thời gian gần đây nhất",
+          "correct": false,
+          "feedback": "Last-write-wins (LWW) là một chiến lược giải quyết xung đột, nhưng nó không ngăn cản được tình trạng chia não. Nó âm thầm loại bỏ một write, điều này có thể có nghĩa là âm thầm hủy bỏ lệnh bắt giữ. Đối với dữ liệu quan trọng như hồ sơ tội phạm, bạn muốn ngăn chặn việc viết xung đột ngay từ đầu chứ không phải giải quyết chúng sau khi thực tế xảy ra."
+        }
+      ]
+    }
+  },
+  "conceptId": "network-partitions",
+  "badge": {
+    "name": "Partition tuần tra",
+    "icon": "🧩"
+  }
+}

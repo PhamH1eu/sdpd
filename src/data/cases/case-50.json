@@ -1,0 +1,172 @@
+{
+  "id": "case-50",
+  "number": 50,
+  "title": "The Missing Order Event",
+  "subtitle": "The database commits but Kafka never hears about it",
+  "brief": {
+    "narrative": "The service commits an order, then crashes before publishing OrderCreated. Retrying cannot infer whether publication happened.",
+    "symptoms": [
+      "Order Service metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "The database commits but Kafka never hears about it"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "The database commits but Kafka never hears about it"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Order Service shows an anomaly",
+            "[09:00:20] WARN The database commits but Kafka never hears about it",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "The database commits but Kafka never hears about it",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Order Service",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Order Service",
+          "logs": [
+            "Order Service metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-2",
+          "text": "Untrusted input was interpreted as SQL code.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "Server-Side Request Forgery let an attacker choose a privileged network destination.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "A dual write to the database and broker was not atomic.",
+          "correct": true,
+          "feedback": "Correct. The outbox closes the atomicity gap but adds relay lag, cleanup, ordering decisions, and duplicate delivery."
+        },
+        {
+          "id": "rc-wrong-1",
+          "text": "A single hot key concentrated traffic on one partition.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-3",
+          "text": "Allowlist schemes/destinations, resolve and validate every hop, block private/link-local ranges at egress, limit redirects, and isolate the fetcher.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Write the business row and outbox row in one database transaction, relay with retries, and make consumers idempotent.",
+          "correct": true,
+          "feedback": "Correct. The outbox closes the atomicity gap but adds relay lag, cleanup, ordering decisions, and duplicate delivery."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Use near-cache/request coalescing, replicate or split the hot value when safe, protect origin with limits, and track per-key/per-shard load.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-2",
+          "text": "Use parameterized queries for values, allowlist dynamic identifiers/operators, minimize DB privileges, and test authorization independently.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "transactional-outbox",
+  "badge": {
+    "name": "The Missing Order Event",
+    "icon": "📬"
+  }
+}

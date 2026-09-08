@@ -1,0 +1,226 @@
+{
+  "id": "case-27",
+  "number": 27,
+  "title": "Cơn bão Retry",
+  "subtitle": "Một request thất bại trở thành triệu người gõ cửa",
+  "brief": {
+    "narrative": "Nó bắt đầu với một chiếc timeout duy nhất. Bản ghi Distributia PD Service bị chậm lại trong thời gian bảo trì database định kỳ, khiến một số yêu cầu từ Ứng dụng tuần tra không thành công. Nhưng thay vì lùi lại, thiết bị đầu cuối di động của mọi xe tuần tra bắt đầu thử lại ngay lập tức — và sau đó thử lại lần nữa. Trong vài giây, Bản ghi Service đã bị chôn vùi dưới một loạt các yêu cầu trùng lặp, mỗi timeout lại tạo ra thêm ba lần thử nữa. Trung sĩ Backoff kinh hãi nhìn bảng điều khiển cho thấy khối lượng request tăng theo cấp số nhân. Bản ghi Service, vốn chỉ hoạt động chậm, giờ đây hoàn toàn không phản hồi. Các quan chức tại hiện trường không thể lấy hồ sơ nghi phạm, chạy bảng hoặc lập báo cáo. Hệ thống vốn đang khập khiễng giờ đây đã bị san bằng - bị tiêu diệt không phải do vấn đề ban đầu mà do cách chữa trị.",
+    "symptoms": [
+      "Ghi lại số lần Service response tăng vọt từ 200 mili giây lên hơn 30 giây trước khi hoàn toàn không phản hồi",
+      "Thiết bị đầu cuối ứng dụng tuần tra hiển thị 'Request không thành công - Đang thử lại...' trong một vòng lặp vô tận",
+      "Âm lượng Request để ghi Service tăng 50 lần trong vòng 60 giây",
+      "Database CPU ở mức 45% trước cơn bão nhưng đã tăng lên 100% khi tải retry"
+    ],
+    "objective": "Xác định mức độ hoạt động mạnh mẽ của retry đã khuếch đại sự chậm lại nhỏ thành sự cố ngừng hoạt động hoàn toàn của service và xác định chiến lược retry chính xác để ngăn chặn các cơn bão retry."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "patrol-app",
+        "type": "client",
+        "label": "Ứng dụng tuần tra (x200)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Thiết bị đầu cuối di động xe tuần tra",
+          "logs": [
+            "[14:30:01] INFO: Request to Records Service — plate lookup #A7X-219",
+            "[14:30:04] WARN: Request timed out after 3s — retrying immediately (attempt 2/5)",
+            "[14:30:04] WARN: Request timed out after 3s — retrying immediately (attempt 3/5)",
+            "[14:30:04] WARN: Request timed out after 3s — retrying immediately (attempt 4/5)",
+            "[14:30:05] ERROR: All 5 retries exhausted — auto-restarting request cycle",
+            "[14:30:05] INFO: New request to Records Service — plate lookup #A7X-219 (cycle 2)"
+          ],
+          "data": {
+            "Active Terminals": "200",
+            "Retry Policy": "retry ngay lập tức, tối đa 5 lần thử, sau đó khởi động lại",
+            "Retry Delay": "0ms (không có backoff)",
+            "Avg Requests/Terminal": "~15/phút (thông thường là 3/phút)",
+            "Total Request Rate": "~3000/phút (thông thường là 600/phút)"
+          },
+          "status": "Tất cả các thiết bị đầu cuối bị kẹt trong vòng lặp retry. Mỗi request không thành công sẽ kích hoạt 5 lần thử lại ngay lập tức mà không bị chậm trễ."
+        }
+      },
+      {
+        "id": "api-gateway",
+        "type": "server",
+        "label": "Cổng API",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cổng API",
+          "logs": [
+            "[14:30:01] INFO: Forwarding requests to Records Service — queue depth normal",
+            "[14:30:03] WARN: Request queue depth increasing — 150 pending",
+            "[14:30:05] WARN: Request queue depth critical — 2,400 pending",
+            "[14:30:08] ERROR: Connection pool to Records Service exhausted",
+            "[14:30:10] ERROR: Dropping incoming requests — queue overflow"
+          ],
+          "data": {
+            "Request Queue": "Tràn (tối đa 5000)",
+            "Connection Pool": "KHAI THÁC (500/500 đang sử dụng)",
+            "Requests Dropped": "1.847 trong thập niên 60 vừa qua",
+            "Rate Limiting": "KHÔNG CÓ CẤU HÌNH",
+            "Retry-After Header": "CHƯA GỬI"
+          },
+          "status": "Cổng bị choáng ngợp bởi lưu lượng truy cập retry. Không có cấu hình rate limiting hoặc backpressure."
+        }
+      },
+      {
+        "id": "records-service",
+        "type": "server",
+        "label": "Bản ghi Service",
+        "status": "thất bại",
+        "position": {
+          "x": 600,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bản ghi Service",
+          "logs": [
+            "[14:29:55] INFO: Database maintenance starting — expect slight latency increase",
+            "[14:30:00] WARN: Response time degraded — avg 800ms (threshold: 500ms)",
+            "[14:30:05] ERROR: Thread pool saturated — 200/200 threads busy",
+            "[14:30:08] ERROR: Request timeout rate 100% — service effectively down",
+            "[14:30:15] ERROR: OOM warning — excessive connection objects in memory"
+          ],
+          "data": {
+            "Status": "KHÔNG PHẢN HỒI",
+            "Thread Pool": "200/200 (bão hòa)",
+            "Avg Response Time": "TIMEOUT (>30s)",
+            "Original Issue": "Bảo trì DB định kỳ - tăng latency gấp 2 lần",
+            "Current Issue": "Khối lượng request gấp 50 lần bình thường từ cơn bão retry"
+          },
+          "status": "Service chỉ bị chậm do bảo trì DB nhưng hiện đã ngừng hoạt động hoàn toàn dưới tải bão retry."
+        }
+      },
+      {
+        "id": "records-db",
+        "type": "database",
+        "label": "Bản ghi Database",
+        "status": "xuống cấp",
+        "position": {
+          "x": 600,
+          "y": 300
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bản ghi Database",
+          "logs": [
+            "[14:29:55] INFO: Index rebuild started on warrants table",
+            "[14:30:00] WARN: Query latency increased during maintenance — expected",
+            "[14:30:06] ERROR: Connection limit reached — 500/500 connections",
+            "[14:30:10] ERROR: New connections refused — too many open connections"
+          ],
+          "data": {
+            "CPU Usage": "100% (45% trước bão)",
+            "Active Connections": "500/500 (tối đa)",
+            "Maintenance Status": "Xây dựng lại Index - hoàn thành 60%",
+            "Query Latency": "TIMEOUT (là 400ms trong quá trình bảo trì)"
+          },
+          "status": "Database đang xử lý bảo trì tốt cho đến khi cơn bão retry bão hòa tất cả các kết nối."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-patrol-gateway",
+        "source": "patrol-app",
+        "target": "api-gateway",
+        "label": "thử lại (âm lượng 50x)",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-gateway-records",
+        "source": "api-gateway",
+        "target": "records-service",
+        "label": "choáng ngợp",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-records-db",
+        "source": "records-service",
+        "target": "records-db",
+        "label": "truy vấn",
+        "animated": false,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Tổng số lần mất điện root cause của Bản ghi Service là bao nhiêu?",
+      "options": [
+        {
+          "id": "rc-4",
+          "text": "Quá nhiều xe tuần tra hoạt động đồng thời, vượt quá tổng giới hạn công suất của hệ thống",
+          "correct": false,
+          "feedback": "200 xe tuần tra tạo ra 600 yêu cầu/phút là nằm trong khả năng bình thường. Hệ thống xử lý tải đó hàng ngày. Vấn đề là chính sách retry của mỗi ô tô đã nhân tốc độ request của nó lên gấp 5 lần hoặc hơn trong thời gian chạy chậm lại, biến tải bình thường thành một cơn bão dữ dội."
+        },
+        {
+          "id": "rc-1",
+          "text": "Hoạt động bảo trì database định kỳ đã gây ra hỏng dữ liệu trong bộ lưu trữ phụ trợ của Bản ghi Service",
+          "correct": false,
+          "feedback": "Việc bảo trì database là một quá trình xây dựng lại index định kỳ và chỉ khiến latency tăng một chút. Dữ liệu không bao giờ bị hỏng. Vấn đề thực sự là khách hàng phản ứng với tình trạng chậm lại bằng các lần thử lại tích cực, ngay lập tức khiến tải tăng vượt xa những gì service có thể xử lý."
+        },
+        {
+          "id": "rc-2",
+          "text": "Những lần thử lại mạnh mẽ ngay lập tức mà không có backoff đã khuếch đại sự chậm lại nhỏ thành tình trạng quá tải nghiêm trọng",
+          "correct": true,
+          "feedback": "Chính xác! Đây là một cơn bão retry cổ điển. Bản ghi Service chỉ chậm (800 mili giây thay vì 200 mili giây), có thể quản lý được. Nhưng 200 khách hàng, mỗi khách hàng thực hiện 5 lần thử lại ngay lập tức mà không có độ trễ đã biến 600 yêu cầu/phút thành 3000+/phút. Mỗi retry hết thời gian chờ sẽ tạo ra nhiều lần thử lại hơn, tạo ra một vòng phản hồi tích cực đã chôn vùi service. Việc chữa bệnh còn tệ hơn cả căn bệnh."
+        },
+        {
+          "id": "rc-3",
+          "text": "Cổng API đã hết memory và bị hỏng do số lượng lớn yêu cầu retry đến từ khách hàng",
+          "correct": false,
+          "feedback": "Cổng API bị quá tải nhưng không gặp sự cố — đó là nạn nhân chứ không phải nguyên nhân. Vấn đề cốt lõi là hành vi retry của khách hàng. Ngay cả với một cổng lớn hơn, cơn bão retry vẫn có thể áp đảo các Bản ghi Service."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Chiến lược tốt nhất để ngăn chặn bão retry là gì?",
+      "options": [
+        {
+          "id": "fix-3",
+          "text": "Tăng kích thước nhóm Bản ghi Service thread từ 200 lên 2000 luồng để xử lý nhiều yêu cầu đến đồng thời hơn",
+          "correct": false,
+          "feedback": "Nhiều chủ đề hơn sẽ trì hoãn sự cố nhưng không ngăn chặn được sự cố. Cơn bão retry tăng theo cấp số nhân - nếu bạn có thể xử lý tải gấp 10 lần thì cơn bão sẽ tăng lên 100 lần. Bạn cần phải giải quyết chính hành vi của retry chứ không phải cố gắng hấp thụ lưu lượng truy cập retry không giới hạn."
+        },
+        {
+          "id": "fix-4",
+          "text": "Thêm load balancer và mở rộng quy mô thành nhiều phiên bản Bản ghi Service để phân phối lưu lượng bão retry đến",
+          "correct": false,
+          "feedback": "Việc mở rộng quy mô giúp tăng tải bình thường, nhưng cơn bão retry là một vòng phản hồi tích cực — nhiều công suất hơn chỉ có nghĩa là sẽ mất nhiều thời gian hơn một chút để áp đảo. Mỗi retry hết thời gian chờ vẫn tạo ra nhiều lần thử lại hơn. Bản sửa lỗi cơ bản phải giải quyết hành vi retry ở cấp độ máy khách."
+        },
+        {
+          "id": "fix-1",
+          "text": "Vô hiệu hóa tất cả logic retry trong máy khách để các yêu cầu không thành công ngay lập tức trả về lỗi cho người dùng và không bao giờ là retry",
+          "correct": false,
+          "feedback": "Việc vô hiệu hóa thử lại hoàn toàn có nghĩa là các lỗi nhất thời (một đốm sáng network nhất thời) sẽ gây ra lỗi vĩnh viễn. Số lần thử lại rất có giá trị — vấn đề là cách chúng được triển khai. Bạn cần thử lại một cách thông minh chứ không phải không thử lại."
+        },
+        {
+          "id": "fix-2",
+          "text": "Triển khai backoff hàm mũ với jitter để các lần thử lại được giãn cách với độ trễ ngẫu nhiên",
+          "correct": true,
+          "feedback": "Chính xác! backoff theo cấp số nhân (đợi 1 giây, rồi 2 giây, rồi 4 giây, v.v.) ngăn chặn bầy sấm sét bằng cách dàn trải số lần thử lại theo thời gian. Việc thêm jitter (biến thể ngẫu nhiên) sẽ ngăn các sóng retry được đồng bộ hóa trong đó tất cả các máy khách retry vào cùng một thời điểm. Kết hợp với số lượng retry tối đa hợp lý, điều này cho phép các vấn đề nhất thời được giải quyết một cách tự nhiên mà không cần khuếch đại tải."
+        }
+      ]
+    }
+  },
+  "conceptId": "retry-strategies",
+  "badge": {
+    "name": "Kẻ săn bão",
+    "icon": "🌪️"
+  }
+}

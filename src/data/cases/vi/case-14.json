@@ -1,0 +1,213 @@
+{
+  "id": "case-14",
+  "number": 14,
+  "title": "Bản ghi ma",
+  "subtitle": "Một hồ sơ tội phạm bị xóa tiếp tục ám ảnh hệ thống",
+  "brief": {
+    "narrative": "Một vụ án cấp cao vừa bị đưa ra khỏi tòa án — và đó là lỗi của Distributia PD. Ba tuần trước, hồ sơ tội phạm của một nghi phạm đã chính thức được xóa theo lệnh của tòa án. Nhóm database đã xác nhận việc xóa khỏi bản ghi chính database. Nhưng các quan chức tại hiện trường vẫn nhìn thấy hồ sơ khi họ tiến hành tra cứu. Nghi phạm đã bị chặn lại ngày hôm qua, cảnh sát nhìn thấy 'tội trọng tội trước đó' trên màn hình của họ và yêu cầu dừng xe một cách không cần thiết. Luật sư của nghi phạm đang nộp đơn khiếu nại về quyền công dân. Làm thế nào một bản ghi đã xóa vẫn xuất hiện? Cảnh sát trưởng Partition cần câu trả lời trước cuộc họp báo, Thám tử.",
+    "symptoms": [
+      "Hồ sơ tội phạm đã được xóa vẫn xuất hiện trong tra cứu của sĩ quan",
+      "Database xác nhận bản ghi đã bị xóa 3 tuần trước",
+      "Nhiều phường báo cáo nhìn thấy hồ sơ ma",
+      "Cache hiển thị TTL trong 30 ngày - bản ghi sẽ không hết hạn trong 9 ngày nữa"
+    ],
+    "objective": "Xác định lý do tại sao bản ghi database đã xóa vẫn được cung cấp cho người dùng và đề xuất chiến lược vô hiệu hóa cache thích hợp."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "records-db",
+        "type": "database",
+        "label": "Bản ghi Database",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hồ sơ tội phạm Database",
+          "logs": [
+            "[3 weeks ago] INFO: DELETE record #CR-8847 executed (court order #2024-1192)",
+            "[3 weeks ago] INFO: Record #CR-8847 confirmed removed from all tables",
+            "[Today] INFO: Query for #CR-8847 returns: NO RECORD FOUND"
+          ],
+          "data": {
+            "Status": "KHỎE MẠNH",
+            "Record #CR-8847": "ĐÃ XÓA (3 tuần trước)",
+            "Deletion Confirmed": "Có - lệnh tòa #2024-1192"
+          },
+          "status": "Database là đúng. Bản ghi đã được xóa đúng cách."
+        }
+      },
+      {
+        "id": "cache-layer",
+        "type": "server",
+        "label": "Redis Cache",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 200
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Lớp Redis Cache",
+          "logs": [
+            "[3 weeks ago] INFO: Cache entry for #CR-8847 created with TTL 30d",
+            "[Today] INFO: Cache HIT for #CR-8847 — serving cached data",
+            "[Today] WARN: No cache invalidation triggered on record deletion",
+            "[Today] INFO: TTL remaining for #CR-8847: 9 days"
+          ],
+          "data": {
+            "Status": "PHỤC VỤ DỮ LIỆU CŨ",
+            "Cache Key": "bản ghi: CR-8847",
+            "Cached Value": "{tên: 'J. Doe', Priors: 'trọng tội', trạng thái: 'đang hoạt động'}",
+            "TTL Remaining": "9 ngày",
+            "Invalidation Policy": "Không có - Chỉ hết hạn TTL"
+          },
+          "status": "Cache vẫn giữ bản ghi đã xóa. Không có sự vô hiệu nào được kích hoạt khi xóa."
+        }
+      },
+      {
+        "id": "api-server",
+        "type": "server",
+        "label": "Tra cứu API",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 100,
+          "y": 350
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Tra cứu bản ghi API",
+          "logs": [
+            "[Today 09:15:00] INFO: Lookup request for #CR-8847",
+            "[Today 09:15:00] INFO: Cache HIT — returning cached result",
+            "[Today 09:15:00] INFO: Database NOT queried (cache served response)"
+          ],
+          "data": {
+            "Cache Hit Rate": "94%",
+            "DB Queries Bypassed": "94% tra cứu",
+            "Invalidation on Write": "KHÔNG ĐƯỢC CẤU HÌNH"
+          },
+          "status": "API phục vụ dữ liệu được lưu trong bộ nhớ đệm mà không kiểm tra xem bản ghi nguồn có còn tồn tại hay không."
+        }
+      },
+      {
+        "id": "officer-terminal",
+        "type": "client",
+        "label": "Cán bộ MDT",
+        "status": "xuống cấp",
+        "position": {
+          "x": 550,
+          "y": 350
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Thiết bị đầu cuối dữ liệu di động",
+          "logs": [
+            "[Today 09:15:01] INFO: Record lookup for suspect returned: PRIOR FELONY",
+            "[Today 09:15:02] WARN: Officer escalated stop based on displayed record"
+          ],
+          "data": {
+            "Displayed Record": "Trọng tội trước đây - HOẠT ĐỘNG",
+            "Actual Record": "ĐÃ XÓA (đã xóa 3 tuần trước)",
+            "Data Source": "Được phục vụ từ cache, không phải database"
+          },
+          "status": "Hiển thị dữ liệu đã lưu trong bộ nhớ đệm cũ không còn tồn tại trong database."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-cache-db",
+        "source": "cache-layer",
+        "target": "records-db",
+        "label": "đọc qua",
+        "animated": false,
+        "style": "normal"
+      },
+      {
+        "id": "e-api-cache",
+        "source": "api-server",
+        "target": "cache-layer",
+        "label": "Tra cứu cache",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-terminal-api",
+        "source": "officer-terminal",
+        "target": "api-server",
+        "label": "tra cứu request",
+        "animated": true,
+        "style": "normal"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của bản ghi đã xóa vẫn xuất hiện trong tra cứu là gì?",
+      "options": [
+        {
+          "id": "rc-2",
+          "text": "cache không bao giờ bị vô hiệu khi bản ghi bị xóa - nó đang cung cấp dữ liệu cũ cho đến khi TTL hết hạn",
+          "correct": true,
+          "feedback": "Chính xác! cache có TTL 30 ngày và không có chính sách vô hiệu khi ghi. Khi bản ghi bị xóa khỏi database, không ai thông báo cho cache. Nó sẽ tiếp tục phục vụ bản ghost thêm 9 ngày nữa. Đây là vấn đề vô hiệu hóa cache cổ điển."
+        },
+        {
+          "id": "rc-3",
+          "text": "Thiết bị đầu cuối của sĩ quan có cache ngoại tuyến cục bộ chưa được làm mới hoặc xóa kể từ phiên trước",
+          "correct": false,
+          "feedback": "Thiết bị đầu cuối tìm nạp dữ liệu từ API trong thời gian thực. Dữ liệu cũ đang được phục vụ bởi lớp Redis cache, không phải thiết bị đầu cuối cục bộ cache. Thiết bị đầu cuối đang hiển thị chính xác những gì API trả về."
+        },
+        {
+          "id": "rc-1",
+          "text": "Lệnh xóa database không thành công mà không gây ra lỗi và bản ghi vẫn tồn tại trên thực tế trong database",
+          "correct": false,
+          "feedback": "Nhật ký database xác nhận bản ghi đã được xóa thành công — việc truy vấn database trực tiếp trả về 'KHÔNG TÌM THẤY BẢN GHI'. Dữ liệu cũ đến từ nơi khác trong hệ thống."
+        },
+        {
+          "id": "rc-4",
+          "text": "Độ trễ database replication đang khiến việc xóa bản ghi chưa được truyền hoàn toàn đến tất cả các nút replica",
+          "correct": false,
+          "feedback": "Việc xóa đã xảy ra 3 tuần trước - độ trễ của replication sẽ được giải quyết trong vòng vài giây hoặc vài phút chứ không phải vài tuần. Bản thân database hiển thị chính xác bản ghi đã bị xóa. Vấn đề là lớp cache."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để tránh hiện tượng ghost record sau khi xóa là gì?",
+      "options": [
+        {
+          "id": "fix-4",
+          "text": "Thêm nút 'xóa tất cả cache' thủ công mà quản trị viên database có thể nhấp vào sau khi thực hiện xóa bản ghi quan trọng",
+          "correct": false,
+          "feedback": "Việc xả cache thủ công dễ xảy ra lỗi và không mở rộng quy mô. Con người sẽ quên. Việc vô hiệu hóa Cache phải được tự động hóa và kích hoạt bởi các hoạt động của database write chứ không phải bằng các quy trình thủ công."
+        },
+        {
+          "id": "fix-1",
+          "text": "Giảm cache TTL từ 30 ngày xuống còn 5 phút để các bản ghi cũ trở nên không hợp lệ nhanh hơn nhiều sau khi thay đổi",
+          "correct": false,
+          "feedback": "TTL ngắn hơn sẽ làm giảm khoảng thời gian ổn định nhưng không loại bỏ được nó. Trong 5 phút sau khi xóa, cảnh sát vẫn sẽ nhìn thấy hồ sơ ma. Đối với các hồ sơ đã bị xóa hợp pháp, ngay cả 5 phút dữ liệu cũ cũng không thể chấp nhận được. Việc vô hiệu hóa hoạt động là cần thiết."
+        },
+        {
+          "id": "fix-2",
+          "text": "Thực hiện vô hiệu hóa cache trên write - tự động xóa hoặc cập nhật các mục cache khi bản ghi database thay đổi",
+          "correct": true,
+          "feedback": "Chính xác! Việc vô hiệu hóa cache ghi qua hoặc ghi sau đảm bảo rằng khi một bản ghi bị xóa (hoặc cập nhật) trong database, mục nhập cache tương ứng sẽ bị vô hiệu ngay lập tức. Bằng cách này, lần tra cứu tiếp theo sẽ bỏ lỡ cache, nhấn database và nhận được kết quả chính xác."
+        },
+        {
+          "id": "fix-3",
+          "text": "Vô hiệu hóa hoàn toàn lớp Redis caching đối với hồ sơ tội phạm để mọi tra cứu luôn tìm nạp dữ liệu mới từ database",
+          "correct": false,
+          "feedback": "Việc vô hiệu hóa cache sẽ giải quyết được vấn đề về độ cũ nhưng sẽ làm tăng đáng kể tải database. Với tỷ lệ trúng cache là 94%, việc loại bỏ cache đồng nghĩa với việc tăng số truy vấn database lên gấp 16 lần. Cách tiếp cận phù hợp là caching thông minh hơn chứ không phải caching."
+        }
+      ]
+    }
+  },
+  "conceptId": "cache-invalidation",
+  "badge": {
+    "name": "Thợ săn Cache",
+    "icon": "👻"
+  }
+}

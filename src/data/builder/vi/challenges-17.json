@@ -1,0 +1,70 @@
+{
+  "id": "builder-17",
+  "number": 17,
+  "title": "Triển khai phân chia lưu lượng truy cập",
+  "subtitle": "Triển khai phiên bản API mới gây ra hành vi không ổn định",
+  "objective": "Xây dựng cấu trúc liên kết triển khai an toàn với mục nhập được kiểm soát và bộ lưu trữ dự phòng linh hoạt.",
+  "constraints": [
+    "Kiểm soát đường đi vào",
+    "Duy trì sự ổn định của đường dẫn cũ",
+    "Duy trì trạng thái an toàn"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "cache",
+    "database",
+    "queue"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Kiểm soát mục nhập",
+      "description": "Load balancer phải ở phía trước bề mặt triển khai API.",
+      "requiredAll": [
+        "client",
+        "loadBalancer",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        },
+        {
+          "from": "loadBalancer",
+          "to": "api"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Tính ổn định Cache",
+      "description": "Cache giúp hấp thụ các lần đọc lặp lại trong quá trình triển khai.",
+      "requiredAll": [
+        "cache"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "cache"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Phần cuối bền vững",
+      "description": "Liên tục triển khai ghi bằng database bền bỉ.",
+      "requiredAll": [
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "database"
+        }
+      ]
+    }
+  ]
+}

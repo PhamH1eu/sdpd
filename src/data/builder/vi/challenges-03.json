@@ -1,0 +1,81 @@
+{
+  "id": "builder-03",
+  "number": 3,
+  "title": "Điều phối tồn đọng",
+  "subtitle": "Thông báo khẩn cấp bị trì hoãn khi tải",
+  "objective": "Thiết kế kiến ​​trúc xử lý dựa trên hàng đợi để luôn phản hồi trong thời gian tăng đột biến.",
+  "constraints": [
+    "Tách API đồng bộ khỏi công việc async nặng",
+    "Sử dụng xử lý phân xuất theo hàng đợi",
+    "Giữ một con đường rõ ràng từ việc tiếp nhận đến sự kiên trì"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "database",
+    "queue",
+    "worker",
+    "cache"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Độ tin cậy đầu vào",
+      "description": "Yêu cầu phía trước có cấp load balancer và API.",
+      "requiredAll": [
+        "client",
+        "loadBalancer",
+        "api"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        },
+        {
+          "from": "loadBalancer",
+          "to": "api"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Điều khiển Backpressure",
+      "description": "Hàng đợi và công nhân nên hấp thụ các đợt bùng phát trước khi kiên trì.",
+      "requiredAll": [
+        "queue",
+        "worker",
+        "database"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "queue"
+        },
+        {
+          "from": "queue",
+          "to": "worker"
+        },
+        {
+          "from": "worker",
+          "to": "database"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Tối ưu hóa Response",
+      "description": "Sử dụng cache để giảm việc tra cứu điều phối lặp lại latency.",
+      "requiredAnyOf": [
+        "cache"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "cache"
+        }
+      ]
+    }
+  ]
+}

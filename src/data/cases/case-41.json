@@ -1,0 +1,172 @@
+{
+  "id": "case-41",
+  "number": 41,
+  "title": "The Counter That Lost Requests",
+  "subtitle": "A million increments produce a smaller number",
+  "brief": {
+    "narrative": "Multiple threads execute read-increment-write on shared state without synchronization. Interleavings cause increments to overwrite each other.",
+    "symptoms": [
+      "Shared Counter metrics diverge from the service-level symptom",
+      "The problem reproduces only under the triggering workload",
+      "Logs contain enough evidence to distinguish cause from consequence"
+    ],
+    "objective": "Identify the root cause, select a production-safe fix, and explain the trade-off."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "client",
+        "type": "client",
+        "label": "Affected Client",
+        "status": "degraded",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "User-visible symptom",
+          "logs": [
+            "A million increments produce a smaller number"
+          ],
+          "data": {
+            "impact": "Requests fail or slow"
+          },
+          "status": "A million increments produce a smaller number"
+        }
+      },
+      {
+        "id": "service",
+        "type": "server",
+        "label": "Application Service",
+        "status": "failed",
+        "position": {
+          "x": 330,
+          "y": 70
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Application evidence",
+          "logs": [
+            "[09:00:00] INFO workload started",
+            "[09:00:10] WARN Shared Counter shows an anomaly",
+            "[09:00:20] WARN A million increments produce a smaller number",
+            "[09:00:30] INFO trace, metrics, and resource state captured in the same evidence window"
+          ],
+          "data": {
+            "observed_impact": "A million increments produce a smaller number",
+            "evidence_window": "30s"
+          },
+          "status": "Correlate logs with resource state to find the root cause."
+        }
+      },
+      {
+        "id": "resource",
+        "type": "database",
+        "label": "Shared Counter",
+        "status": "degraded",
+        "position": {
+          "x": 580,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Shared Counter",
+          "logs": [
+            "Shared Counter metrics diverge from the service-level symptom",
+            "The problem reproduces only under the triggering workload",
+            "Logs contain enough evidence to distinguish cause from consequence"
+          ],
+          "data": {
+            "state": "DEGRADED",
+            "correlated": "true"
+          },
+          "status": "The resource degraded during the same evidence window."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "client-service",
+        "source": "client",
+        "target": "service",
+        "label": "slow/failed request",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "service-resource",
+        "source": "service",
+        "target": "resource",
+        "label": "constrained path",
+        "animated": true,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Which root cause explains all of the evidence?",
+      "options": [
+        {
+          "id": "rc-wrong-1",
+          "text": "An unbounded retained-reference cache caused a memory leak.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-2",
+          "text": "Memory pressure caused virtual-memory thrashing.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-wrong-3",
+          "text": "A socket/file-descriptor leak exhausted the per-process limit.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "rc-correct",
+          "text": "A data race on a non-atomic shared counter caused lost increments.",
+          "correct": true,
+          "feedback": "Correct. Correctness depends on all possible interleavings, not the one seen in a local test. Locks add contention and require disciplined scope."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Which fix is safest for production?",
+      "options": [
+        {
+          "id": "fix-wrong-2",
+          "text": "Reduce working sets, cap concurrency/cache memory, add RAM only after measurement, and alert on major faults and swap activity.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-wrong-3",
+          "text": "Close resources with context managers/finally, reuse bounded client pools, expose descriptor metrics, and keep a deliberate ulimit.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        },
+        {
+          "id": "fix-correct",
+          "text": "Use an atomic primitive or lock around the minimal critical section, or remove shared mutable state through partitioning/message passing.",
+          "correct": true,
+          "feedback": "Correct. Correctness depends on all possible interleavings, not the one seen in a local test. Locks add contention and require disciplined scope."
+        },
+        {
+          "id": "fix-wrong-1",
+          "text": "Bound the cache with size/TTL, remove entries at lifecycle completion, and compare heap profiles by retained path.",
+          "correct": false,
+          "feedback": "This choice does not explain the complete evidence or leaves the underlying correctness/reliability problem intact."
+        }
+      ]
+    }
+  },
+  "conceptId": "thread-race-condition",
+  "badge": {
+    "name": "The Counter That Lost Requests",
+    "icon": "🏁"
+  }
+}

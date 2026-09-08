@@ -84,20 +84,20 @@ function validateChallenge(entry, locale) {
   }
 }
 
-function validateParity(challengesEn, challengesPtBR) {
-  assert(challengesEn.length === challengesPtBR.length, `Locale mismatch: en has ${challengesEn.length}, pt-BR has ${challengesPtBR.length}`);
+function validateParity(challengesEn, localizedChallenges, locale) {
+  assert(challengesEn.length === localizedChallenges.length, `Locale mismatch: en has ${challengesEn.length}, ${locale} has ${localizedChallenges.length}`);
 
   for (let i = 0; i < challengesEn.length; i += 1) {
     const en = challengesEn[i].payload;
-    const pt = challengesPtBR[i].payload;
+    const localized = localizedChallenges[i].payload;
 
-    assert(en.id === pt.id, `Locale mismatch at index ${i}: id ${en.id} != ${pt.id}`);
-    assert(en.number === pt.number, `Locale mismatch for ${en.id}: number ${en.number} != ${pt.number}`);
-    assert(en.availableComponents.join(',') === pt.availableComponents.join(','), `Locale mismatch for ${en.id}: availableComponents differ`);
-    assert(en.concepts.length === pt.concepts.length, `Locale mismatch for ${en.id}: concept count differs`);
+    assert(en.id === localized.id, `Locale mismatch at index ${i}: id ${en.id} != ${localized.id}`);
+    assert(en.number === localized.number, `Locale mismatch for ${en.id}: number ${en.number} != ${localized.number}`);
+    assert(en.availableComponents.join(',') === localized.availableComponents.join(','), `Locale mismatch for ${en.id}: availableComponents differ`);
+    assert(en.concepts.length === localized.concepts.length, `Locale mismatch for ${en.id}: concept count differs`);
 
     for (let j = 0; j < en.concepts.length; j += 1) {
-      assert(en.concepts[j].id === pt.concepts[j].id, `Locale mismatch for ${en.id}: concept id differs at position ${j}`);
+      assert(en.concepts[j].id === localized.concepts[j].id, `Locale mismatch for ${en.id}: concept id differs at position ${j}`);
     }
   }
 }
@@ -105,13 +105,16 @@ function validateParity(challengesEn, challengesPtBR) {
 function main() {
   const challengesEn = readChallenges('en');
   const challengesPtBR = readChallenges('pt-BR');
+  const challengesVi = readChallenges('vi');
 
   for (const entry of challengesEn) validateChallenge(entry, 'en');
   for (const entry of challengesPtBR) validateChallenge(entry, 'pt-BR');
+  for (const entry of challengesVi) validateChallenge(entry, 'vi');
 
-  validateParity(challengesEn, challengesPtBR);
+  validateParity(challengesEn, challengesPtBR, 'pt-BR');
+  validateParity(challengesEn, challengesVi, 'vi');
 
-  console.log(`Builder challenge validation passed for ${challengesEn.length} challenge pairs.`);
+  console.log(`Builder challenge validation passed for ${challengesEn.length} challenges across 3 locales.`);
 }
 
 main();

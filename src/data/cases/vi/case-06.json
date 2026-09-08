@@ -1,0 +1,230 @@
+{
+  "id": "case-06",
+  "number": 6,
+  "title": "Lệnh xung đột",
+  "subtitle": "Hai người lãnh đạo, hai nhiệm vụ, một sĩ quan rất bối rối",
+  "brief": {
+    "narrative": "Distributia PD chạy thiết lập replication nhiều lãnh đạo để cả khu vực Trung tâm thành phố và Cảng có thể chỉ định trường hợp một cách độc lập ngay cả khi network giữa chúng chậm. Tối nay, Thám tử Reyes ở Downtown và Trung sĩ Okonkwo ở Harbor đều giao Vụ án số 2290 - một vụ trộm đồ trang sức nổi tiếng - cho các sĩ quan khác nhau. Sĩ quan Park được giao nhiệm vụ ở Downtown, trong khi sĩ quan Chen nhận vụ án ở Harbor. Cả hai sĩ quan đều có mặt tại hiện trường vụ án và bắt đầu các cuộc điều tra riêng biệt, trái ngược nhau. Các nhân chứng bối rối, chuỗi bằng chứng rối rắm và Thuyền trưởng muốn biết chuyện này xảy ra như thế nào.",
+    "symptoms": [
+      "Trường hợp #2290 được giao cho hai sĩ quan khác nhau ở hai khu vực khác nhau",
+      "Cả hai sĩ quan đều đến hiện trường vụ án với kế hoạch điều tra trái ngược nhau",
+      "Hệ thống quản lý hồ sơ hiển thị những người được giao khác nhau tùy thuộc vào khu vực bạn ở query",
+      "Độ trễ của Replication giữa cơ sở dữ liệu Downtown và Harbor là 45 giây"
+    ],
+    "objective": "Hiểu cách replication đa lãnh đạo gây ra xung đột write và xác định chiến lược tốt nhất để xử lý xung đột trong hệ thống này."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "db-downtown",
+        "type": "database",
+        "label": "Trung tâm DB (Leader)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Trung tâm thành phố Database (Leader)",
+          "logs": [
+            "[19:42:10] INFO: WRITE — Case #2290 assigned to Officer Park by Det. Reyes",
+            "[19:42:10] INFO: Write accepted locally, queued for replication to Harbor",
+            "[19:42:55] INFO: Received replication event from Harbor: Case #2290 assigned to Officer Chen",
+            "[19:42:55] ERROR: WRITE CONFLICT — Case #2290 has two different assignees",
+            "[19:42:55] WARN: Conflict resolution policy: LAST-WRITE-WINS (by timestamp)",
+            "[19:42:56] INFO: Harbor write timestamp 19:42:12 > Downtown write timestamp 19:42:10 — Harbor write wins",
+            "[19:42:56] WARN: Officer Park's assignment silently dropped"
+          ],
+          "data": {
+            "Role": "LEADER (thiết lập nhiều lãnh đạo)",
+            "Case #2290 Assignee (local)": "Sĩ quan Park (BỊ VIẾT)",
+            "Case #2290 Assignee (after conflict resolution)": "Sĩ quan Chen",
+            "Conflict Resolution": "Lần ghi cuối cùng (dấu thời gian)",
+            "Replication Lag to Harbor": "45 giây",
+            "Conflicts Today": "7"
+          },
+          "status": "Đã phát hiện xung đột Write. Độ phân giải LWW âm thầm bỏ nhiệm vụ ở Downtown."
+        }
+      },
+      {
+        "id": "db-harbor",
+        "type": "database",
+        "label": "Cảng DB (Leader)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 550,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cảng Database (Leader)",
+          "logs": [
+            "[19:42:12] INFO: WRITE — Case #2290 assigned to Officer Chen by Sgt. Okonkwo",
+            "[19:42:12] INFO: Write accepted locally, queued for replication to Downtown",
+            "[19:42:57] INFO: Received replication event from Downtown: Case #2290 assigned to Officer Park",
+            "[19:42:57] ERROR: WRITE CONFLICT — Case #2290 has two different assignees",
+            "[19:42:57] WARN: Conflict resolution policy: LAST-WRITE-WINS (by timestamp)",
+            "[19:42:58] INFO: Harbor write timestamp 19:42:12 > Downtown write timestamp 19:42:10 — Harbor write wins"
+          ],
+          "data": {
+            "Role": "LEADER (thiết lập nhiều lãnh đạo)",
+            "Case #2290 Assignee": "Sĩ quan Chen",
+            "Conflict Resolution": "Lần ghi cuối cùng (dấu thời gian)",
+            "Replication Lag to Downtown": "45 giây",
+            "Conflicts Today": "7"
+          },
+          "status": "Xung đột Write được giải quyết thông qua LWW. Cảng write được bảo tồn, Khu trung tâm write bị loại bỏ."
+        }
+      },
+      {
+        "id": "precinct-downtown",
+        "type": "client",
+        "label": "Khu trung tâm thành phố",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 300
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Nhà ga trung tâm thành phố",
+          "logs": [
+            "[19:42:10] INFO: Det. Reyes assigned Case #2290 to Officer Park — confirmed",
+            "[19:42:15] INFO: Officer Park dispatched to crime scene",
+            "[19:43:00] WARN: Case #2290 assignee changed to Officer Chen (conflict resolution)",
+            "[19:43:00] ERROR: Officer Park already en route — no notification sent"
+          ],
+          "data": {
+            "Case #2290 Displayed Assignee": "Sĩ quan Chen (đổi từ Park)",
+            "Officer Park Status": "Trên đường đến hiện trường vụ án (không biết về việc phân công lại)",
+            "Det. Reyes Notified": "KHÔNG - ghi đè im lặng"
+          },
+          "status": "Det. Nhiệm vụ của Reyes đã bị âm thầm ghi đè bằng cách giải quyết xung đột. Không có cảnh báo nào được đưa ra."
+        }
+      },
+      {
+        "id": "precinct-harbor",
+        "type": "client",
+        "label": "Khu vực bến cảng",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 550,
+          "y": 300
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Nhà ga Harbor Precinct",
+          "logs": [
+            "[19:42:12] INFO: Sgt. Okonkwo assigned Case #2290 to Officer Chen — confirmed",
+            "[19:42:18] INFO: Officer Chen dispatched to crime scene"
+          ],
+          "data": {
+            "Case #2290 Displayed Assignee": "Sĩ quan Chen",
+            "Officer Chen Status": "Trên đường đến hiện trường vụ án"
+          },
+          "status": "Nhiệm vụ của Harbor được duy trì bằng cách giải quyết xung đột LWW."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-dt-harbor-repl",
+        "source": "db-downtown",
+        "target": "db-harbor",
+        "label": "async replication",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-harbor-dt-repl",
+        "source": "db-harbor",
+        "target": "db-downtown",
+        "label": "async replication",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-dt-precinct",
+        "source": "db-downtown",
+        "target": "precinct-downtown",
+        "label": "đọc/ghi",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-harbor-precinct",
+        "source": "db-harbor",
+        "target": "precinct-harbor",
+        "label": "đọc/ghi",
+        "animated": true,
+        "style": "normal"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của các bài tập trường hợp xung đột là gì?",
+      "options": [
+        {
+          "id": "rc-3",
+          "text": "Det. Reyes và Thượng sĩ. Okonkwo lẽ ra phải thiết lập một giao thức liên lạc phối hợp qua điện thoại trước khi thực hiện bất kỳ nhiệm vụ đồng thời nào để ngăn chặn xung đột database write",
+          "correct": false,
+          "feedback": "Sự phối hợp của con người không phải là một giải pháp đáng tin cậy ở quy mô lớn. Hệ thống phải ngăn chặn hoặc xử lý đúng cách việc ghi đồng thời. Nếu hệ thống cho phép ghi xung đột một cách im lặng thì đó là sự cố thiết kế hệ thống chứ không phải lỗi của con người."
+        },
+        {
+          "id": "rc-1",
+          "text": "Độ trễ replication 45 giây giữa hai đầu là quá mức và cần được giảm càng nhiều càng tốt để dữ liệu được đồng bộ hóa nhanh hơn, tránh xung đột giữa các thao tác write đồng thời",
+          "correct": false,
+          "feedback": "Việc giảm độ trễ replication sẽ giúp ích, nhưng với replication đa đầu, bất kỳ độ trễ nào khác 0 đều có thể tạo ra xung đột. Ngay cả ở độ trễ 1ms, hai lần ghi xảy ra trong cửa sổ đó sẽ xung đột. Vấn đề cơ bản là replication đa lãnh đạo vốn đã cho phép ghi xung đột đồng thời."
+        },
+        {
+          "id": "rc-4",
+          "text": "Chiến lược giải quyết xung đột ghi cuối cùng được triển khai trong database có một lỗi phần mềm nghiêm trọng trong logic so sánh dấu thời gian của đồng hồ bên trong trong replication process",
+          "correct": false,
+          "feedback": "LWW đã hoạt động như thiết kế - nó đã chọn write có dấu thời gian muộn hơn. Vấn đề là bản thân LWW là một chiến lược thua lỗ: nó âm thầm loại bỏ một write mà không thông báo cho bất kỳ ai. Đối với các nhiệm vụ vụ án, mất write đồng nghĩa với việc mất nhiệm vụ của một sĩ quan mà không cần thông báo."
+        },
+        {
+          "id": "rc-2",
+          "text": "replication đa lãnh đạo cho phép cả hai cơ sở dữ liệu chấp nhận ghi độc lập, do đó việc ghi đồng thời vào cùng một bản ghi sẽ tạo ra xung đột cần được giải quyết sau đó",
+          "correct": true,
+          "feedback": "Chính xác! Trong replication nhiều đường dẫn, mỗi leader chấp nhận việc ghi một cách độc lập và sao chép chúng một cách không đồng bộ sang các đường dẫn đầu khác. Khi hai nhà lãnh đạo sửa đổi cùng một bản ghi trước khi replication bắt kịp, xung đột write sẽ xảy ra. Đây là trade-off vốn có của thiết lập nhiều chỉ huy: bạn nhận được availability và latency thấp hơn để ghi, nhưng bạn phải xử lý xung đột. Chiến lược LWW âm thầm loại bỏ Det. Nhiệm vụ của Reyes - một kết quả nguy hiểm đối với những dữ liệu quan trọng."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách tiếp cận tốt nhất để xử lý xung đột write trong hệ thống nhiều người lãnh đạo này là gì?",
+      "options": [
+        {
+          "id": "fix-2",
+          "text": "Triển khai giải quyết xung đột ở cấp ứng dụng để phát hiện xung đột và đưa chúng tới supervisor để giải quyết thủ công",
+          "correct": true,
+          "feedback": "Chính xác! Đối với dữ liệu quan trọng như bài tập tình huống, cách tiếp cận tốt nhất là phát hiện xung đột và hiển thị chúng cho người dùng thay vì âm thầm giải quyết chúng. Khi phát hiện xung đột, hệ thống sẽ gắn cờ xung đột đó và hiển thị cả hai phiên bản cho supervisor để supervisor có thể đưa ra quyết định đúng đắn. Đây là cách CRDT và các hàm hợp nhất tùy chỉnh hoạt động trong thực tế — logic ứng dụng quyết định cách xử lý xung đột dựa trên kiến ​​thức về miền."
+        },
+        {
+          "id": "fix-4",
+          "text": "Thêm cơ chế khóa toàn cầu phân tán để chỉ một khu vực có thể sửa đổi bản ghi trường hợp cụ thể tại bất kỳ thời điểm nào",
+          "correct": false,
+          "feedback": "lock toàn cầu trên các trung tâm dữ liệu đã phá vỡ mục đích của replication đa lãnh đạo — nó gây ra các vấn đề về latency và availability mà bạn đang cố gắng tránh. Nếu lock service bị hỏng thì không ai có thể làm được write. Phát hiện và giải quyết xung đột là một cách tiếp cận tốt hơn nhằm duy trì lợi ích của nhiều nhà lãnh đạo."
+        },
+        {
+          "id": "fix-1",
+          "text": "Chuyển sang replication lãnh đạo đơn cho tất cả các nhiệm vụ trường hợp để chỉ khu vực leader chính mới có thể chấp nhận các hoạt động write",
+          "correct": false,
+          "feedback": "Một nhà lãnh đạo loại bỏ xung đột write nhưng hy sinh availability mà nhiều nhà lãnh đạo cung cấp. Nếu network của leader bị hỏng thì không khu vực bầu cử nào có thể phân công các trường hợp. Một cách tiếp cận tốt hơn sẽ duy trì lợi ích của nhiều nhà lãnh đạo trong khi xử lý xung đột một cách hợp lý."
+        },
+        {
+          "id": "fix-3",
+          "text": "Tiếp tục sử dụng giải pháp xung đột ghi cuối cùng thắng nhưng thêm đồng hồ được đồng bộ hóa NTP chính xác hơn để cải thiện độ chính xác của dấu thời gian",
+          "correct": false,
+          "feedback": "Dấu thời gian tốt hơn làm cho LWW mang tính quyết định hơn, nhưng vấn đề cốt lõi vẫn tồn tại: một write bị loại bỏ một cách âm thầm. Đối với dữ liệu quan trọng như bài tập tình huống, việc âm thầm thả write là không thể chấp nhận được bất kể write nào thắng."
+        }
+      ]
+    }
+  },
+  "conceptId": "multi-leader-replication",
+  "badge": {
+    "name": "Giải quyết xung đột",
+    "icon": "⚔️"
+  }
+}

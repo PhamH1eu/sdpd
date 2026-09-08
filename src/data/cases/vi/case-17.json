@@ -1,0 +1,220 @@
+{
+  "id": "case-17",
+  "number": 17,
+  "title": "Thực đơn cũ",
+  "subtitle": "CDN phục vụ danh sách Truy nã gắt gao đã lỗi thời vài giờ sau khi cập nhật",
+  "brief": {
+    "narrative": "Một kẻ chạy trốn nguy hiểm đã bị bắt vào lúc 6 giờ sáng và đội thám tử đã ngay lập tức cập nhật danh sách Truy nã gắt gao nhất trên trang web công khai của Distributia PD. Nhưng bây giờ đã là buổi trưa và người dân khắp thành phố vẫn đang nhìn thấy danh sách cũ có kẻ chạy trốn bị bắt trên đó. Những lời khuyên tràn ngập dành cho một người đã bị giam giữ, làm lãng phí thời gian của điều tra viên. Máy chủ gốc có danh sách chính xác nhưng các nút biên CDN trên Distributia vẫn đang phân phát phiên bản đã lưu trong bộ nhớ đệm từ hôm qua. Tiêu đề kiểm soát bộ đệm của CDN được đặt thành max-age=86400 (24 giờ) không có cơ chế lọc. Cảnh sát trưởng Partition cần công chúng xem thông tin chính xác NGAY BÂY GIỜ, Thám tử.",
+    "symptoms": [
+      "Trang Truy nã gắt gao nhất hiển thị kẻ chạy trốn bị bắt 6 giờ sau khi bị loại khỏi nguồn gốc",
+      "Các nút biên CDN phục vụ phiên bản được lưu trong bộ nhớ đệm từ ngày hôm trước",
+      "Máy chủ gốc có nội dung cập nhật chính xác",
+      "Những lời khuyên sai tràn ngập về nghi phạm đã bị bắt"
+    ],
+    "objective": "Xác định lý do tại sao CDN cung cấp nội dung cũ và đề xuất chiến lược để cập nhật CDN cache kịp thời."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "origin-server",
+        "type": "server",
+        "label": "Máy chủ gốc",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Máy chủ web gốc",
+          "logs": [
+            "[06:02:00] INFO: Most Wanted list updated — fugitive #MW-2241 removed",
+            "[06:02:01] INFO: New content deployed successfully",
+            "[06:02:02] WARN: No CDN purge/invalidation triggered",
+            "[12:00:00] INFO: Origin serving correct updated list"
+          ],
+          "data": {
+            "Content Version": "v2024-1547 (cập nhật 06:02 hôm nay)",
+            "Fugitive #MW-2241": "ĐÃ XÓA (đã chụp)",
+            "CDN Purge API": "Không tích hợp",
+            "Cache-Control Header": "tuổi tối đa=86400 (24 giờ)"
+          },
+          "status": "Nội dung gốc là chính xác nhưng CDN không được thông báo về bản cập nhật."
+        }
+      },
+      {
+        "id": "cdn-edge-north",
+        "type": "server",
+        "label": "CDN Edge (Bắc)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 220
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "CDN Edge Node — Quận Bắc",
+          "logs": [
+            "[Yesterday 08:00] INFO: Cached Most Wanted page (TTL: 24h)",
+            "[Today 12:00] INFO: Serving cached version — TTL remaining: 20h",
+            "[Today 12:00] INFO: No purge request received"
+          ],
+          "data": {
+            "Cached Version": "v2024-1546 (STALE - ngày hôm qua)",
+            "Fugitive #MW-2241": "VẪN HIỂN THỊ (nên xóa)",
+            "Cache TTL Remaining": "20 giờ",
+            "Purge Endpoint": "Có sẵn nhưng không bao giờ được gọi"
+          },
+          "status": "Phục vụ nội dung cũ. Cache sẽ không làm mới trong 20 giờ nữa."
+        }
+      },
+      {
+        "id": "cdn-edge-south",
+        "type": "server",
+        "label": "CDN Edge (Miền Nam)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 600,
+          "y": 220
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "CDN Edge Node — Quận Nam",
+          "logs": [
+            "[Yesterday 09:30] INFO: Cached Most Wanted page (TTL: 24h)",
+            "[Today 12:00] INFO: Serving cached version — TTL remaining: 21.5h"
+          ],
+          "data": {
+            "Cached Version": "v2024-1546 (STALE - ngày hôm qua)",
+            "Fugitive #MW-2241": "VẪN HIỂN THỊ",
+            "Cache TTL Remaining": "21,5 giờ"
+          },
+          "status": "Cung cấp nội dung cũ mà không có cơ chế vô hiệu hóa."
+        }
+      },
+      {
+        "id": "citizens",
+        "type": "client",
+        "label": "Công dân",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 380
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Công dân",
+          "logs": [
+            "[12:00:00] INFO: Citizen reports seeing captured fugitive on Most Wanted",
+            "[12:05:00] INFO: 47 false tips received for fugitive #MW-2241"
+          ],
+          "data": {
+            "Tips for Captured Fugitive": "47 (tất cả lãng phí)",
+            "Content Seen": "Phiên bản cũ của ngày hôm qua",
+            "Served By": "Các nút cạnh CDN (không phải gốc)"
+          },
+          "status": "Công dân nhìn thấy danh sách Truy nã gắt gao nhất đã lỗi thời từ CDN cache."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-cdn-north-origin",
+        "source": "cdn-edge-north",
+        "target": "origin-server",
+        "label": "không xác nhận lại",
+        "animated": false,
+        "style": "normal"
+      },
+      {
+        "id": "e-cdn-south-origin",
+        "source": "cdn-edge-south",
+        "target": "origin-server",
+        "label": "không xác nhận lại",
+        "animated": false,
+        "style": "normal"
+      },
+      {
+        "id": "e-citizens-north",
+        "source": "citizens",
+        "target": "cdn-edge-north",
+        "label": "nội dung cũ",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-citizens-south",
+        "source": "citizens",
+        "target": "cdn-edge-south",
+        "label": "nội dung cũ",
+        "animated": true,
+        "style": "slow"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của CDN cung cấp nội dung lỗi thời là gì?",
+      "options": [
+        {
+          "id": "rc-4",
+          "text": "Trình duyệt của công dân là caching trang cũ cục bộ trong trình duyệt cache của họ và cần thực hiện làm mới cứng",
+          "correct": false,
+          "feedback": "Ngay cả khi người dân khó làm mới trình duyệt của họ, các nút biên CDN vẫn sẽ phục vụ phiên bản cũ. Vấn đề nằm ở lớp CDN chứ không phải lớp trình duyệt."
+        },
+        {
+          "id": "rc-1",
+          "text": "Máy chủ gốc không cập nhật chính xác tệp danh sách Truy nã gắt gao nhất trong công việc cập nhật nội dung lúc 6 giờ sáng",
+          "correct": false,
+          "feedback": "Máy chủ gốc được cập nhật chính xác lúc 6 giờ sáng. Nhấn vào nguồn gốc trực tiếp sẽ hiển thị danh sách chính xác. Vấn đề là các nút cạnh CDN có bản sao được lưu trong bộ nhớ đệm riêng và không biết nguồn gốc đã thay đổi."
+        },
+        {
+          "id": "rc-2",
+          "text": "Kiểm soát bộ đệm CDN được đặt thành 24 giờ mà không có cơ chế lọc hoặc vô hiệu hóa - các nút cạnh sẽ không tìm nạp nội dung mới cho đến khi TTL hết hạn",
+          "correct": true,
+          "feedback": "Chính xác! CDN lưu trữ nội dung trong 24 giờ (max-age=86400) và không tích hợp thanh lọc. Khi nội dung thay đổi ở nguồn gốc, không có cách nào để yêu cầu các nút biên CDN loại bỏ các bản sao được lưu trong bộ nhớ đệm của chúng. Đây là một cạm bẫy phổ biến của CDN caching — các TTL dài cần được ghép nối với các API thanh lọc/vô hiệu hóa."
+        },
+        {
+          "id": "rc-3",
+          "text": "Các nút biên CDN đang gặp phải một lỗi nội bộ khiến chúng bỏ qua các tiêu đề kiểm soát bộ đệm từ nguồn, ngăn báo cáo hiển thị dữ liệu chính xác.",
+          "correct": false,
+          "feedback": "CDN đang hoạt động chính xác như được định cấu hình — nó tuân thủ hoàn hảo TTL 24 giờ. Vấn đề là 24 giờ là quá dài đối với nội dung thay đổi thường xuyên khi không có cơ chế thanh lọc."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để đảm bảo nội dung CDN luôn được cập nhật khi nguồn gốc thay đổi là gì?",
+      "options": [
+        {
+          "id": "fix-1",
+          "text": "Đặt CDN cache TTL về 0 để mọi request luôn bỏ qua CDN và tìm nạp nội dung mới từ nguồn",
+          "correct": false,
+          "feedback": "TTL bằng 0 sẽ phá hủy toàn bộ mục đích của CDN. Mọi request sẽ tấn công máy chủ gốc, loại bỏ các lợi ích về hiệu suất và khả năng mở rộng. Mục tiêu là cache tích cực nhưng vô hiệu hóa một cách thông minh."
+        },
+        {
+          "id": "fix-2",
+          "text": "Tích hợp CDN cache thanh lọc vào quy trình cập nhật nội dung - tự động vô hiệu hóa CDN cache khi nội dung thay đổi về nguồn gốc",
+          "correct": true,
+          "feedback": "Chính xác! API thanh lọc/vô hiệu hóa CDN cho phép bạn chủ động xóa nội dung được lưu trong bộ nhớ đệm khi bạn biết nội dung đó đã thay đổi. Kết hợp với các URL được phiên bản hoặc TTL ngắn hơn cho nội dung động, điều này mang lại cho bạn hiệu suất của CDN caching với sự mới mẻ của nội dung do nguồn cung cấp."
+        },
+        {
+          "id": "fix-3",
+          "text": "Giảm CDN TTL từ 24 giờ xuống còn 5 phút để các nút biên tìm nạp nội dung cập nhật từ nguồn thường xuyên hơn",
+          "correct": false,
+          "feedback": "TTL 5 phút giúp giảm độ cứng nhưng tăng tải gốc đáng kể (mỗi cạnh node tải lại sau mỗi 5 phút). Đối với trang Truy nã gắt gao nhất, 5 phút dữ liệu cũ vẫn có thể có vấn đề. Cách tiếp cận thanh lọc khi cập nhật mang lại cả sự mới mẻ và hiệu quả."
+        },
+        {
+          "id": "fix-4",
+          "text": "Bỏ qua hoàn toàn CDN cho trang Truy nã gắt gao nhất và phân phát nó trực tiếp từ máy chủ gốc tới mọi công dân",
+          "correct": false,
+          "feedback": "Xóa CDN caching cho các trang phổ biến có nghĩa là máy chủ gốc xử lý trực tiếp tất cả lưu lượng truy cập, làm mất đi các lợi ích về hiệu suất và phân phối địa lý của CDN. Tốt hơn là sử dụng CDN với chiến lược vô hiệu hóa phù hợp."
+        }
+      ]
+    }
+  },
+  "conceptId": "cdn-caching",
+  "badge": {
+    "name": "Chỉ huy CDN",
+    "icon": "🌐"
+  }
+}

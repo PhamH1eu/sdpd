@@ -1,0 +1,257 @@
+{
+  "id": "case-26",
+  "number": 26,
+  "title": "Bẫy Timeout",
+  "subtitle": "service xuôi dòng chậm sẽ kích hoạt thời gian chờ xếp tầng trên toàn bộ hệ thống",
+  "brief": {
+    "narrative": "Mọi hệ thống trong Distributia dường như không hoạt động. Ứng dụng di động của sĩ quan hiển thị 'Service Không khả dụng.' Bảng điều khiển điều phối bị đóng băng. Việc tra cứu bản ghi trả về lỗi timeout. Nhưng bảng điều khiển giám sát cho thấy tất cả các máy chủ đều đang chạy về mặt kỹ thuật - không có gì bị hỏng. Vấn đề còn nghiêm trọng hơn: Phân tích pháp y Service (Service C) đang chạy chậm do công việc hàng loạt nặng. Điều phối Service (B) gọi Pháp y và chờ đợi. Cổng di động (A) gọi Dispatch và chờ. Mỗi request vào hệ thống sẽ bắt đầu một chuỗi chờ đợi và cuối cùng sẽ hết thời gian chờ. Giám đốc Partition đang gặp sự cố ngừng hoạt động toàn bộ hệ thống mà không có dịch vụ nào bị lỗi.",
+    "symptoms": [
+      "Tất cả các dịch vụ hướng tới người dùng đều trả về lỗi timeout hoặc 'Service Không khả dụng'",
+      "Không có dịch vụ nào thực sự gặp sự cố - tất cả đều đang chạy và chấp nhận kết nối",
+      "Thời gian Response đã tăng từ 200 mili giây lên hơn 30 giây trên tất cả các điểm cuối",
+      "Cơ quan điều tra service đang xử lý các yêu cầu chậm hơn 100 lần so với bình thường"
+    ],
+    "objective": "Xác định lý do tại sao một service chậm lại có thể khiến toàn bộ hệ thống ngừng hoạt động và đề xuất chiến lược để hạn chế bán kính vụ nổ."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "mobile-app",
+        "type": "client",
+        "label": "Ứng dụng di động sĩ quan",
+        "status": "thất bại",
+        "position": {
+          "x": 80,
+          "y": 180
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Ứng dụng di động sĩ quan",
+          "logs": [
+            "[19:00:01] INFO: Request to Mobile Gateway — /api/dispatch",
+            "[19:00:31] ERROR: Request timed out after 30,000ms",
+            "[19:00:32] ERROR: Showing 'Service Unavailable' to user",
+            "[19:00:35] INFO: Retry attempt 1...",
+            "[19:01:05] ERROR: Retry timed out after 30,000ms"
+          ],
+          "data": {
+            "Status": "LỖI TIMEOUT",
+            "Timeout Setting": "30 giây",
+            "Requests in Flight": "0 (tất cả đã hết thời gian)",
+            "Error Rate": "100%"
+          },
+          "status": "Tất cả các yêu cầu tới cổng đều hết thời gian chờ. Cảnh sát không thể sử dụng ứng dụng."
+        }
+      },
+      {
+        "id": "gateway",
+        "type": "server",
+        "label": "Cổng di động (Service A)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 270,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cổng di động (Service A)",
+          "logs": [
+            "[19:00:01] INFO: Received request — calling Dispatch Service",
+            "[19:00:01] INFO: Waiting for Dispatch Service response...",
+            "[19:00:26] ERROR: Dispatch Service response timeout (25,000ms)",
+            "[19:00:26] ERROR: Returning 504 Gateway Timeout to client",
+            "[19:00:26] WARN: Thread pool: 200/200 threads blocked waiting on Dispatch"
+          ],
+          "data": {
+            "Status": "GIẢM GIÁ (tất cả các chủ đề bị chặn)",
+            "Thread Pool": "200/200 đang sử dụng",
+            "Timeout to Service B": "25.000 mili giây",
+            "Circuit Breaker": "Chưa được định cấu hình",
+            "Avg Response Time": "25.000ms (bình thường: 150ms)"
+          },
+          "status": "Tất cả 200 chủ đề đều bị chặn chờ Điều phối Service. Không có circuit breaker nào được cấu hình để bị lỗi nhanh."
+        }
+      },
+      {
+        "id": "dispatch",
+        "type": "server",
+        "label": "Điều phối Service (Service B)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 460,
+          "y": 180
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Điều phối Service (Service B)",
+          "logs": [
+            "[19:00:01] INFO: Received request — calling Forensics Service",
+            "[19:00:01] INFO: Waiting for Forensics Service response...",
+            "[19:00:21] ERROR: Forensics Service response timeout (20,000ms)",
+            "[19:00:21] ERROR: Returning 504 to Gateway",
+            "[19:00:21] WARN: Thread pool: 150/150 threads blocked waiting on Forensics"
+          ],
+          "data": {
+            "Status": "GIẢM GIÁ (tất cả các chủ đề bị chặn)",
+            "Thread Pool": "150/150 đang sử dụng",
+            "Timeout to Service C": "20.000 mili giây",
+            "Circuit Breaker": "Chưa được định cấu hình",
+            "Avg Response Time": "20.000ms (bình thường: 100ms)"
+          },
+          "status": "Tất cả 150 chủ đề bị chặn đang chờ điều tra. Truyền bá sự chậm chạp ngược dòng tới Cổng."
+        }
+      },
+      {
+        "id": "forensics",
+        "type": "server",
+        "label": "Pháp y Service (Service C)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 650,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Phân tích pháp y Service (Service C)",
+          "logs": [
+            "[18:45:00] INFO: Started batch DNA analysis job — 50,000 samples",
+            "[18:45:01] WARN: Batch job consuming 95% CPU",
+            "[19:00:01] WARN: API request received but processing at 1/100th normal speed",
+            "[19:00:18] INFO: Request processed in 18,200ms (normal: 50ms)"
+          ],
+          "data": {
+            "Status": "ĐANG CHẠY (quá tải)",
+            "CPU Usage": "95% (công việc hàng loạt)",
+            "API Response Time": "18.200ms (bình thường: 50ms)",
+            "Batch Job": "Phân tích DNA - 50.000 mẫu",
+            "Request Queue": "847 đang chờ xử lý"
+          },
+          "status": "Một tác vụ hàng loạt đang tiêu tốn 95% CPU, khiến phản hồi của API chậm hơn 100 lần. Vẫn đang chạy - không bị lỗi."
+        }
+      },
+      {
+        "id": "forensics-db",
+        "type": "database",
+        "label": "Pháp y Database",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 650,
+          "y": 300
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Pháp y Database",
+          "logs": [
+            "[18:45:00] INFO: Batch query load increased",
+            "[19:00:00] INFO: Query response times normal"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Query Latency": "5ms (bình thường)",
+            "Connections": "50"
+          },
+          "status": "Database vẫn ổn. Nút thắt là Pháp y service CPU, không phải database."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-app-gateway",
+        "source": "mobile-app",
+        "target": "gateway",
+        "label": "HTTP (timeout 30s)",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-gateway-dispatch",
+        "source": "gateway",
+        "target": "dispatch",
+        "label": "HTTP (timeout 25s)",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-dispatch-forensics",
+        "source": "dispatch",
+        "target": "forensics",
+        "label": "HTTP (timeout 20s)",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-forensics-db",
+        "source": "forensics",
+        "target": "forensics-db",
+        "label": "truy vấn",
+        "animated": true,
+        "style": "normal"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Tại sao service service chậm lại làm cho toàn bộ hệ thống ngừng hoạt động?",
+      "options": [
+        {
+          "id": "rc-2",
+          "text": "Độ chậm của Service C tăng dần lên: Khối B chờ trên C, khối A chờ B và tất cả các nhóm thread đều lấp đầy các yêu cầu chờ — hết thời gian chờ xếp tầng mà không có bộ ngắt mạch sẽ hỏng nhanh",
+          "correct": true,
+          "feedback": "Chính xác! Đây là lỗi timeout xếp tầng. Service C chậm (không bị hỏng), do đó tất cả các luồng của B đều chờ C. Sau đó, khối luồng của A đang chờ B. Không có bộ ngắt mạch, mỗi service giữ các luồng của nó làm con tin trong toàn bộ thời lượng timeout. Toàn bộ chuỗi cuộc gọi trở thành một chuỗi các luồng bị chặn và hết thời gian chờ, khiến hệ thống có vẻ ngừng hoạt động hoàn toàn mặc dù về mặt kỹ thuật mọi service đều đang chạy."
+        },
+        {
+          "id": "rc-3",
+          "text": "network partition đang ngăn cản các vi dịch vụ kết nối và liên lạc với nhau về mặt vật lý",
+          "correct": false,
+          "feedback": "Các dịch vụ có thể kết nối và gửi yêu cầu - chúng chỉ chờ phản hồi trong một thời gian rất dài. Đây là sự cố latency, không phải sự cố kết nối."
+        },
+        {
+          "id": "rc-1",
+          "text": "Pháp y database bị quá tải nghiêm trọng và khiến tất cả các truy vấn của ServiceC quay trở lại chậm",
+          "correct": false,
+          "feedback": "Pháp y database đang hoạt động bình thường với 5ms query latency. Điểm nghẽn là CPU của Forensics service đang bị sử dụng bởi công việc hàng loạt."
+        },
+        {
+          "id": "rc-4",
+          "text": "Giá trị timeout 30 giây của ứng dụng di động quá ngắn và đang cắt bỏ các yêu cầu chậm hợp pháp",
+          "correct": false,
+          "feedback": "30 giây đã là một khoảng thời gian cực kỳ dài đối với request đối với người dùng. Vấn đề không phải là giá trị timeout — mà là các dịch vụ chặn vô thời hạn các cuộc gọi xuôi dòng thay vì không thực hiện được nhanh khi phần phụ thuộc chậm."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để ngăn service chậm làm hỏng toàn bộ hệ thống là gì?",
+      "options": [
+        {
+          "id": "fix-4",
+          "text": "Thực hiện tất cả các lệnh gọi HTTP liên dịch vụ hoàn toàn không đồng bộ bằng cách sử dụng hàng đợi sự kiện để các dịch vụ không bao giờ chặn các phản hồi xuôi dòng",
+          "correct": false,
+          "feedback": "Async gọi trợ giúp về việc sử dụng thread nhưng không tự mình giải quyết tầng timeout. Bạn vẫn cần bộ ngắt mạch để ngừng gửi yêu cầu đến service chậm và hết thời gian chờ để giới hạn thời gian bạn chờ response."
+        },
+        {
+          "id": "fix-1",
+          "text": "Tăng tất cả các giá trị timeout xuôi dòng để các dịch vụ có nhiều thời gian hơn để kiên nhẫn chờ phản hồi phụ thuộc chậm",
+          "correct": false,
+          "feedback": "Thời gian chờ lâu hơn khiến vấn đề trở nên tồi tệ hơn — các chuỗi thậm chí còn bị chặn lâu hơn và người dùng còn phải chờ đợi nhiều hơn. Hệ thống cần phải hỏng nhanh chứ không phải đợi lâu hơn."
+        },
+        {
+          "id": "fix-2",
+          "text": "Thêm bộ ngắt mạch giúp phát hiện các phần phụ thuộc chậm và hỏng nhanh, đồng thời đặt thời gian chờ linh hoạt và sử dụng các vách ngăn để cách ly nhóm thread cho mỗi phần phụ thuộc",
+          "correct": true,
+          "feedback": "Chính xác! Bộ ngắt mạch phát hiện khi service xuôi dòng chậm/không hoạt động và thực hiện các cuộc gọi ngắn mạch ngay lập tức bằng response dự phòng. Thời gian chờ linh hoạt (ví dụ: 2 giây chứ không phải 20) sẽ nhanh chóng giải phóng các chuỗi. Vách ngăn cách ly các nhóm thread để một phần phụ thuộc chậm không thể sử dụng tất cả các luồng. Cùng với nhau, các mẫu này chứa bán kính vụ nổ của service chậm."
+        },
+        {
+          "id": "fix-3",
+          "text": "Ngăn không cho công việc điều tra hàng loạt chạy trên cùng một máy chủ với điều tra service API",
+          "correct": false,
+          "feedback": "Công việc hàng loạt là một trường hợp sử dụng hợp lệ. Vấn đề không phải là việc điều tra service đôi khi bị chậm — mà là các dịch vụ ngược tuyến không có cách nào để xử lý sự phụ thuộc chậm một cách khéo léo. Mọi service đều có thể bị chậm vì bất kỳ lý do gì."
+        }
+      ]
+    }
+  },
+  "conceptId": "cascading-timeouts",
+  "badge": {
+    "name": "Trình thuần hóa Timeout",
+    "icon": "⏳"
+  }
+}

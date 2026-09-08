@@ -1,0 +1,228 @@
+{
+  "id": "case-03",
+  "number": 3,
+  "title": "Bằng chứng bị mất",
+  "subtitle": "16 bức ảnh hiện trường vụ án biến mất trong không khí",
+  "brief": {
+    "narrative": "Đội pháp y đã tải lên 47 bức ảnh hiện trường vụ án từ vụ giết người ba người trên Đại lộ số 5. Hệ thống quản lý bằng chứng đã xác nhận tất cả 47 lượt tải lên. Nhưng sáng nay khi thám tử Latency đi xem xét chứng cứ thì hệ thống chỉ có 31 bức ảnh. 16 bức ảnh đã biến mất - bao gồm cả những bức ảnh phân tích vết máu quan trọng. Máy chủ leader bị sập lúc 3 giờ sáng đêm qua và follower đã được thăng chức để tiếp quản. Có điều gì đó đã xảy ra ở giữa. Đây là một vụ giết người, thám tử. Chúng ta không thể mất bằng chứng.",
+    "symptoms": [
+      "47 bức ảnh đã được leader database đăng tải và ghi nhận",
+      "Máy chủ Leader gặp sự cố lúc 3:00 sáng do mất điện",
+      "Follower được tự động thăng cấp lên leader mới lúc 3:01 sáng",
+      "leader mới (follower cũ) chỉ có 31 trong số 47 ảnh",
+      "16 ảnh bị mất vĩnh viễn — không có trên bất kỳ máy chủ nào"
+    ],
+    "objective": "Xác định lý do tại sao 16 ảnh bị mất trong failover và đề xuất cách ngăn ngừa mất dữ liệu trong các lỗi leader trong tương lai."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "forensics",
+        "type": "client",
+        "label": "Đội pháp y",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 100,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Thiết bị đầu cuối tải lên pháp y",
+          "logs": [
+            "[22:00:00] INFO: Uploading 47 evidence photos...",
+            "[22:00:15] INFO: Photo 1/47 — acknowledged by leader",
+            "[22:01:30] INFO: Photo 31/47 — acknowledged by leader",
+            "[22:01:45] INFO: Photo 32/47 — acknowledged by leader",
+            "[22:03:00] INFO: Photo 47/47 — acknowledged by leader",
+            "[22:03:01] INFO: All 47 photos uploaded successfully ✓"
+          ],
+          "data": {
+            "Total Uploaded": "47 bức ảnh",
+            "All Acknowledged": "Đúng",
+            "Upload Completed": "22:03:01"
+          },
+          "status": "Tất cả 47 bức ảnh đã được leader tải lên và xác nhận."
+        }
+      },
+      {
+        "id": "db-leader",
+        "type": "database",
+        "label": "Leader DB (bị lỗi)",
+        "status": "thất bại",
+        "position": {
+          "x": 400,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Leader Database cũ",
+          "logs": [
+            "[22:00:15] INFO: Received photo 1, writing to disk, replicating async",
+            "[22:01:30] INFO: Received photo 31, writing to disk, replicating async",
+            "[22:01:45] INFO: Received photo 32, writing to disk — replication QUEUED",
+            "[22:03:00] INFO: Received photo 47, writing to disk — replication QUEUED",
+            "[22:03:01] INFO: All 47 photos stored locally",
+            "[03:00:00] FATAL: Power failure detected",
+            "[03:00:00] FATAL: Server shutting down — 16 photos not yet replicated"
+          ],
+          "data": {
+            "Status": "NGOẠI TUYẾN (mất điện)",
+            "Photos Stored Locally": "47",
+            "Photos Replicated to Follower": "31",
+            "Photos NOT Replicated": "16 (ảnh 32-47)",
+            "Replication Mode": "KHÔNG ĐỒNG BỘ"
+          },
+          "status": "Đã gặp sự cố trước khi sao chép ảnh 32-47 sang follower."
+        }
+      },
+      {
+        "id": "db-follower",
+        "type": "database",
+        "label": "Follower → Leader mới",
+        "status": "xuống cấp",
+        "position": {
+          "x": 400,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Follower (Được thăng cấp lên Leader)",
+          "logs": [
+            "[22:00:16] INFO: Replicated photo 1 from leader",
+            "[22:01:31] INFO: Replicated photo 31 from leader",
+            "[22:01:32] INFO: Waiting for more replication events...",
+            "[03:00:01] WARN: Leader heartbeat lost",
+            "[03:00:01] INFO: Initiating automatic failover",
+            "[03:00:02] INFO: Promoted to LEADER role",
+            "[03:00:02] WARN: Last replicated photo: #31. Photos 32-47 never received."
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN (được thăng cấp lên leader)",
+            "Photos Available": "31 trên 47",
+            "Missing Photos": "16 (ảnh 32-47)",
+            "Replication Mode Was": "KHÔNG ĐỒNG BỘ",
+            "Data Loss": "CÓ - 16 mặt hàng bị mất vĩnh viễn"
+          },
+          "status": "Được thăng hạng lên leader nhưng thiếu 16 bức ảnh chưa bao giờ được sao chép."
+        }
+      },
+      {
+        "id": "detective",
+        "type": "client",
+        "label": "Det. Latency",
+        "status": "xuống cấp",
+        "position": {
+          "x": 650,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Thiết bị đầu cuối của thám tử Latency",
+          "logs": [
+            "[08:00:00] INFO: Querying evidence for Case #5AVE-2024",
+            "[08:00:01] INFO: Connected to new leader (former follower)",
+            "[08:00:01] WARN: Only 31 photos found. Expected 47.",
+            "[08:00:02] ERROR: Missing photos include blood spatter analysis shots"
+          ],
+          "data": {
+            "Expected Photos": "47",
+            "Available Photos": "31",
+            "Missing": "16 bức ảnh bằng chứng quan trọng"
+          },
+          "status": "Bằng chứng không đầy đủ. 16 ảnh bị mất trong failover."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-forensics-leader",
+        "source": "forensics",
+        "target": "db-leader",
+        "label": "tải lên (47 ảnh)",
+        "animated": false,
+        "style": "normal"
+      },
+      {
+        "id": "e-leader-follower",
+        "source": "db-leader",
+        "target": "db-follower",
+        "label": "async replication (31 trên 47)",
+        "animated": false,
+        "style": "slow"
+      },
+      {
+        "id": "e-follower-detective",
+        "source": "db-follower",
+        "target": "detective",
+        "label": "query (31 ảnh)",
+        "animated": true,
+        "style": "normal"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Tại sao 16 trong số 47 bức ảnh bị mất?",
+      "options": [
+        {
+          "id": "rc-3",
+          "text": "Asynchronous replication cho phép leader xác nhận việc ghi trước khi sao chép chúng - khi leader gặp sự cố, dữ liệu không được sao chép sẽ bị mất",
+          "correct": true,
+          "feedback": "Chính xác! Với async replication, leader xác nhận write ngay khi nó được lưu trữ cục bộ mà không cần đợi follower xác nhận. Ảnh 32-47 được lưu trữ trên leader và được xác nhận cho khách hàng, nhưng chưa được gửi đến follower. Khi leader gặp sự cố, 16 bức ảnh đó chỉ tồn tại trên máy chủ bị lỗi — biến mất vĩnh viễn."
+        },
+        {
+          "id": "rc-1",
+          "text": "Quá trình tải lên của nhóm pháp y bị gián đoạn giữa chừng và không phải tất cả 47 bức ảnh đều được truyền đầy đủ đến máy chủ trước khi phiên kết thúc",
+          "correct": false,
+          "feedback": "Nhật ký tải lên hiển thị rõ ràng tất cả 47 ảnh đã được leader tải lên và xác nhận. Quá trình tải lên hoàn tất thành công lúc 22:03."
+        },
+        {
+          "id": "rc-4",
+          "text": "network partition đã cắt đứt kết nối giữa leader và follower, chặn tất cả lưu lượng truy cập replication cho đến khi partition tự giải quyết",
+          "correct": false,
+          "feedback": "Nhật ký replication hiển thị ảnh 1-31 đã được sao chép thành công. Các bức ảnh còn lại đã được xếp hàng đợi - leader chỉ đơn giản là chưa gửi chúng trước khi gặp sự cố. Đây là bản chất của async replication, không phải vấn đề của network."
+        },
+        {
+          "id": "rc-2",
+          "text": "follower database đã hết dung lượng lưu trữ được phân bổ và bắt đầu từ chối dữ liệu ảnh đến do giới hạn dung lượng disk",
+          "correct": false,
+          "feedback": "follower đã lưu trữ thành công 31 bức ảnh mà nó nhận được. Vấn đề là 16 bức ảnh chưa bao giờ được gửi tới nó - chúng vẫn được xếp hàng đợi cho replication trên leader khi nó gặp sự cố."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Hệ thống bằng chứng nên được thay đổi như thế nào để ngăn ngừa mất dữ liệu trong failover?",
+      "options": [
+        {
+          "id": "fix-2",
+          "text": "Thêm follower thứ hai để tăng số lượng mục tiêu replication và cải thiện khả năng có ít nhất một bản sao sống sót sau sự cố",
+          "correct": false,
+          "feedback": "Nếu cả hai người theo dõi đều sử dụng async replication thì follower thứ hai không đảm bảo dữ liệu sẽ được sao chép trước khi xảy ra sự cố. Bạn có thể có hai người theo dõi thiếu cùng một dữ liệu. Giải pháp là synchronous replication chứ không phải thêm người theo dõi async."
+        },
+        {
+          "id": "fix-3",
+          "text": "Tăng tốc độ replication throughput để dữ liệu được gửi đến follower nhanh hơn và cửa sổ không bị sao chép càng nhỏ càng tốt",
+          "correct": false,
+          "feedback": "async replication nhanh hơn làm giảm khả năng mất dữ liệu nhưng không loại bỏ được nó. Ngay cả với độ trễ 1 giây, nếu leader gặp sự cố không đúng lúc, bạn sẽ mất dữ liệu. Đối với dữ liệu quan trọng, bạn cần có sự đảm bảo — đó là những gì synchronous replication cung cấp."
+        },
+        {
+          "id": "fix-4",
+          "text": "Tắt hoàn toàn failover tự động - giữ hệ thống ngoại tuyến và đợi leader trực tuyến trở lại trước khi tiếp tục hoạt động",
+          "correct": false,
+          "feedback": "Điều này sẽ khôi phục dữ liệu (nếu disk tồn tại), nhưng với chi phí là availability. Hệ thống sẽ ngoại tuyến cho đến khi leader được sửa chữa, quá trình này có thể mất hàng giờ hoặc hàng ngày. Cách tiếp cận tốt hơn là đồng bộ hóa replication, đảm bảo follower luôn có dữ liệu VÀ có thể tiếp quản ngay lập tức."
+        },
+        {
+          "id": "fix-1",
+          "text": "Sử dụng synchronous replication cho dữ liệu quan trọng - leader đợi follower xác nhận trước khi thừa nhận write",
+          "correct": true,
+          "feedback": "Chính xác! Với replication đồng bộ (đồng bộ), leader không xác nhận write cho đến khi có ít nhất một follower xác nhận rằng nó đã nhận được dữ liệu. Điều này đảm bảo rằng nếu leader gặp sự cố thì follower có tất cả dữ liệu được xác nhận. trade-off cao hơn write latency, nhưng đối với dữ liệu bằng chứng quan trọng, durability quan trọng hơn tốc độ."
+        }
+      ]
+    }
+  },
+  "conceptId": "sync-vs-async-replication",
+  "badge": {
+    "name": "Người bảo vệ dữ liệu",
+    "icon": "🔒"
+  }
+}

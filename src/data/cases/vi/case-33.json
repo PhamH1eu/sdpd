@@ -1,0 +1,229 @@
+{
+  "id": "case-33",
+  "number": 33,
+  "title": "Bộ giới hạn tỷ lệ",
+  "subtitle": "Một sự tích hợp làm ngập hệ thống, nhấn chìm mọi người khác",
+  "brief": {
+    "narrative": "Distributia PD gần đây đã tích hợp với Lệnh truy nã Liên bang Database — một thắng lợi lớn cho sự hợp tác giữa các khu vực pháp lý. Việc tích hợp hoạt động thông qua Cổng bảo đảm API, mà cả năm khu vực đều sử dụng để kiểm tra các lệnh bắt giữ của liên bang trong quá trình dừng và bắt giữ giao thông. Mọi thứ đều ổn trong quá trình thử nghiệm với một số yêu cầu. Nhưng sáng nay, Phân khu 3 đã triển khai một hệ thống kiểm tra lý lịch tự động truy vấn Cổng lệnh cho từng người trong hồ sơ của họ — tất cả 140.000 người trong số họ — trong một công việc hàng loạt xử lý 500 yêu cầu mỗi giây. Cổng lệnh truy nã không có rate limiting. Trong vòng vài phút, API bị quá tải đến mức Phân khu 1, 2, 4 và 5 không thể thực hiện kiểm tra lệnh. Cảnh sát tại hiện trường đang thực hiện các lệnh dừng giao thông và bắt giữ mà không biết liệu người này có lệnh liên bang hay không. Sĩ quan Shield từ Phân khu 1 vừa thả một nghi phạm trong một lần dừng xe thường lệ, người mà cô ấy không hề biết, đang có lệnh truy nã liên bang có hiệu lực về tội cướp có vũ trang. Công việc hàng loạt từ một khu vực đã độc chiếm một nguồn tài nguyên được chia sẻ, làm cạn kiệt mọi khu vực khác.",
+    "symptoms": [
+      "Thời gian Warrant Gateway API response vượt quá 30 giây (thông thường là 200ms)",
+      "Các khu vực 1, 2, 4 và 5 báo cáo lỗi kiểm tra lệnh bảo đảm - hết thời gian chờ đối với tất cả các yêu cầu",
+      "Phân khu 3 đang gửi 500 yêu cầu/giây thông qua công việc hàng loạt tự động",
+      "Tổng số API throughput đã bị sập — phục vụ ít yêu cầu hơn trước khi công việc hàng loạt bắt đầu"
+    ],
+    "objective": "Xác định sự vắng mặt của rate limiting đã cho phép một consumer độc quyền một API được chia sẻ như thế nào và xác định chiến lược rate limiting chính xác để đảm bảo quyền truy cập công bằng."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "precinct-3",
+        "type": "client",
+        "label": "Phường 3 (làm việc theo đợt)",
+        "status": "xuống cấp",
+        "position": {
+          "x": 80,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Phân khu 3 — Hệ thống kiểm tra lý lịch tự động",
+          "logs": [
+            "[08:00:00] INFO: Starting batch warrant check — 140,000 records queued",
+            "[08:00:01] INFO: Sending 500 requests/second to Warrant Gateway",
+            "[08:00:30] INFO: 15,000 records checked — 0 throttle errors",
+            "[08:01:00] WARN: Response times increasing — 2s average (was 200ms)",
+            "[08:02:00] WARN: Response times now 15s — but no rate limit errors received",
+            "[08:03:00] INFO: 45,000 records checked — continuing at full speed"
+          ],
+          "data": {
+            "Request Rate": "500/giây (không giới hạn)",
+            "Records To Process": "140.000",
+            "Rate Limit Received": "KHÔNG - không có giới hạn nào được thực thi",
+            "Job Priority": "Lô nền - không nhạy cảm với thời gian",
+            "Impact Awareness": "Không có - không có phản hồi nào cho thấy các khu vực khác bị ảnh hưởng"
+          },
+          "status": "Công việc hàng loạt chạy ở tốc độ tối đa mà không có phản hồi rate limiting. Không biết rằng các khu vực khác đang đói khát."
+        }
+      },
+      {
+        "id": "other-precincts",
+        "type": "client",
+        "label": "Phường 1,2,4,5",
+        "status": "thất bại",
+        "position": {
+          "x": 80,
+          "y": 300
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Phân khu 1, 2, 4, 5 — Hoạt động hiện trường",
+          "logs": [
+            "[08:01:15] INFO: [P1] Officer Shield — warrant check for traffic stop suspect",
+            "[08:01:45] ERROR: [P1] Warrant Gateway timeout — 30s — returning NO DATA",
+            "[08:01:46] WARN: [P1] Officer Shield releasing suspect — no warrant data available",
+            "[08:02:00] ERROR: [P2] Warrant check failed — timeout",
+            "[08:02:10] ERROR: [P4] Warrant check failed — timeout",
+            "[08:02:30] ERROR: [P5] Warrant check failed — 3 consecutive timeouts"
+          ],
+          "data": {
+            "Combined Request Rate": "~20/giây (hoạt động tại hiện trường bình thường)",
+            "Success Rate": "0% (tất cả thời gian chờ)",
+            "Officers In Field": "340 (trên 4 khu vực)",
+            "Warrant Checks Failed": "127 trong 5 phút qua",
+            "Safety Risk": "CAO - nghi phạm được thả mà không có dữ liệu lệnh bắt"
+          },
+          "status": "Tất cả bốn khu vực đều không thể tiến hành kiểm tra lệnh. Cảnh sát dừng xe mà không có thông tin an toàn quan trọng."
+        }
+      },
+      {
+        "id": "warrant-gateway",
+        "type": "server",
+        "label": "Cổng lệnh truy nã API",
+        "status": "thất bại",
+        "position": {
+          "x": 400,
+          "y": 180
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cổng lệnh truy nã API",
+          "logs": [
+            "[08:00:00] INFO: Incoming request rate: ~20/sec (normal)",
+            "[08:00:01] WARN: Request rate spike — 520/sec",
+            "[08:00:30] WARN: Thread pool 95% utilized — 190/200 threads busy",
+            "[08:01:00] ERROR: Thread pool exhausted — 200/200 threads busy",
+            "[08:01:00] ERROR: Request queue overflow — dropping requests",
+            "[08:01:00] WARN: Rate limiting: NOT CONFIGURED"
+          ],
+          "data": {
+            "Max Throughput": "200 yêu cầu/giây",
+            "Current Inbound": "520 yêu cầu/giây",
+            "Rate Limiting": "KHÔNG CÓ",
+            "Per-Client Quotas": "KHÔNG CÓ",
+            "Priority Queues": "KHÔNG CÓ",
+            "Precinct 3 Share": "96% tất cả các yêu cầu",
+            "Other Precincts Share": "4% tổng số yêu cầu"
+          },
+          "status": "API choáng ngợp. Không có rate limiting, không có hạn ngạch cho mỗi khách hàng, không có sự phân biệt mức độ ưu tiên."
+        }
+      },
+      {
+        "id": "federal-db",
+        "type": "database",
+        "label": "Giấy chứng nhận liên bang DB",
+        "status": "xuống cấp",
+        "position": {
+          "x": 650,
+          "y": 180
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Lệnh liên bang Database",
+          "logs": [
+            "[08:00:30] WARN: Query rate exceeding recommended threshold",
+            "[08:01:00] WARN: Connection pool 90% utilized",
+            "[08:01:30] ERROR: Query latency 5x normal — resource contention"
+          ],
+          "data": {
+            "Connection Pool": "180/200 (90% — chủ yếu là truy vấn Phân khu 3)",
+            "Query Latency": "1,2 giây (bình thường: 50ms)",
+            "Recommended Rate": "100 truy vấn/giây",
+            "Actual Rate": "Hơn 500 truy vấn/giây"
+          },
+          "status": "Database đang chịu tải nặng từ các truy vấn hàng loạt không được điều chỉnh."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-p3-gateway",
+        "source": "precinct-3",
+        "target": "warrant-gateway",
+        "label": "500 yêu cầu/giây (không giới hạn)",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-others-gateway",
+        "source": "other-precincts",
+        "target": "warrant-gateway",
+        "label": "20 yêu cầu/giây (bị đói)",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-gateway-db",
+        "source": "warrant-gateway",
+        "target": "federal-db",
+        "label": "choáng ngợp",
+        "animated": true,
+        "style": "slow"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause trong số bốn khu vực mất quyền truy cập vào lệnh kiểm tra là gì?",
+      "options": [
+        {
+          "id": "rc-3",
+          "text": "Cổng lệnh truy nã không có hạn ngạch rate limiting hoặc mỗi khách hàng, cho phép một consumer độc quyền API được chia sẻ và bỏ đói tất cả những người khác",
+          "correct": true,
+          "feedback": "Chính xác! Nếu không có rate limiting, Warrant Gateway sẽ xử lý tất cả các yêu cầu một cách bình đẳng trên cơ sở ai đến trước được phục vụ trước. Lũ lụt 500 yêu cầu/giây của Phân khu 3 tiêu thụ 96% công suất của API, để lại tàn dư cho bốn phân khu còn lại. Đây là vấn đề về 'hàng xóm ồn ào' — mức sử dụng của một người thuê làm giảm service đối với tất cả những người thuê khác. Rate limiting với hạn ngạch cho mỗi khách hàng đảm bảo quyền truy cập công bằng vào các tài nguyên được chia sẻ."
+        },
+        {
+          "id": "rc-1",
+          "text": "Công việc kiểm tra lệnh hàng loạt của Phân khu 3 là độc hại và lẽ ra không được triển khai nếu không có sự phê duyệt trước của quản lý thay đổi, khiến hệ thống bị lỗi",
+          "correct": false,
+          "feedback": "Công việc hàng loạt của Phân khu 3 là một trường hợp sử dụng hợp pháp - kiểm tra lý lịch theo lệnh của liên bang. Công việc không độc hại; nó chỉ đơn giản là tiêu thụ một nguồn tài nguyên không giới hạn mà không bị ràng buộc. Nếu không có giới hạn tốc độ, bất kỳ khách hàng nào cũng có thể vô tình độc chiếm API. Hệ thống phải tự bảo vệ mình khỏi điều này, không nên dựa vào việc khách hàng có hành vi tốt hay không."
+        },
+        {
+          "id": "rc-2",
+          "text": "Cơ sở hạ tầng Database của Lệnh liên bang quá chậm và không đủ mạnh để xử lý khối lượng request hiện tại từ các khu vực bầu cử",
+          "correct": false,
+          "feedback": "database sẽ xử lý tốt tải bình thường 20 yêu cầu/giây. Ngay cả 500 yêu cầu/giây của Phân khu 3 cũng có thể quản lý được nếu được xếp hàng và điều tiết đúng cách. Vấn đề là cổng API không có cơ chế kiểm soát luồng, do đó âm lượng thô không được điều chỉnh sẽ đè bẹp cả cổng và database."
+        },
+        {
+          "id": "rc-4",
+          "text": "Nhóm thread của Warrant Gateway quá nhỏ và cần được tăng quy mô đáng kể để xử lý tải cao điểm từ tất cả các khu vực",
+          "correct": false,
+          "feedback": "Nhóm thread lớn hơn sẽ tăng công suất thô, nhưng nếu không có rate limiting, Phân khu 3 cũng sẽ tiêu thụ thêm công suất. Nếu bạn thêm 1000 luồng, tác vụ hàng loạt sẽ vui vẻ sử dụng tất cả 1000 luồng. Rate limiting là điều cần thiết để đảm bảo phân phối công bằng bất kỳ dung lượng nào tồn tại."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách tiếp cận tốt nhất để ngăn chặn một consumer độc quyền API là gì?",
+      "options": [
+        {
+          "id": "fix-4",
+          "text": "Đặt hàng đợi tin nhắn FIFO trước Cổng lệnh truy nã để tất cả các yêu cầu khu vực được xử lý theo thứ tự đến",
+          "correct": false,
+          "feedback": "Hàng đợi FIFO không có rate limiting vẫn cho phép Phân khu 3 lấp đầy hàng đợi với 500 yêu cầu/giây, đẩy các yêu cầu của các phân khu bầu cử khác về phía sau. Độ sâu của hàng đợi sẽ tăng lên vô hạn và các nhân viên hiện trường sẽ phải chờ đợi hàng chục nghìn yêu cầu theo đợt. Bạn cần hạn ngạch cho mỗi khách hàng để đảm bảo quyền truy cập công bằng."
+        },
+        {
+          "id": "fix-1",
+          "text": "Chặn và từ chối vĩnh viễn tất cả các công việc kiểm tra lệnh hàng loạt tự động, yêu cầu nhân viên phải gửi từng tờ séc một cách thủ công",
+          "correct": false,
+          "feedback": "Chặn các trường hợp sử dụng hợp pháp không phải là câu trả lời. Kiểm tra bảo hành hàng loạt rất có giá trị - bạn chỉ cần điều tiết chúng. Chiến lược rate limiting tốt cho phép các công việc hàng loạt chạy ở tốc độ được kiểm soát mà không ảnh hưởng đến hoạt động thời gian thực."
+        },
+        {
+          "id": "fix-2",
+          "text": "Triển khai rate limiting cho mỗi khách hàng với hạn ngạch — mỗi khu vực được chia sẻ công bằng, với mức độ ưu tiên cao hơn cho các yêu cầu trường theo thời gian thực so với các hoạt động hàng loạt",
+          "correct": true,
+          "feedback": "Chính xác! rate limiting cho mỗi khách hàng (ví dụ: sử dụng nhóm mã thông báo hoặc thuật toán cửa sổ trượt) đảm bảo mỗi khu vực bầu cử nhận được hạn ngạch công bằng. Các bậc ưu tiên bổ sung thêm một khía cạnh khác: các yêu cầu hiện trường theo thời gian thực (sự an toàn của sĩ quan) có mức độ ưu tiên cao hơn so với các công việc hàng loạt ở chế độ nền. Bằng cách này, công việc hàng loạt của Phân khu 3 diễn ra ở tốc độ bền vững (ví dụ: 50 yêu cầu/giây thay vì 500), trong khi các nhân viên hiện trường trên tất cả các phân khu nhận được phản hồi dưới giây. Rate limiting bảo vệ tài nguyên được chia sẻ khỏi vấn đề ồn ào của hàng xóm."
+        },
+        {
+          "id": "fix-3",
+          "text": "Mở rộng Cổng bảo đảm theo chiều ngang bằng cách thêm nhiều phiên bản hơn để xử lý mọi ổ request từ bất kỳ máy khách khu vực bầu cử nào",
+          "correct": false,
+          "feedback": "Việc thay đổi quy mô sẽ hỗ trợ về dung lượng, nhưng nếu không có rate limiting, một khách hàng luôn có thể mở rộng quy mô yêu cầu của họ cho phù hợp. Ngoài ra, Chứng chỉ Liên bang Database có những giới hạn riêng mà bạn không thể kiểm soát. Rate limiting rất cần thiết cho dù bạn mở rộng quy mô đến đâu — đó là về sự công bằng và bảo vệ chứ không chỉ về năng lực."
+        }
+      ]
+    }
+  },
+  "conceptId": "rate-limiting",
+  "badge": {
+    "name": "Đánh giá người giám hộ",
+    "icon": "🚦"
+  }
+}

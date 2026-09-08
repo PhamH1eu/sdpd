@@ -1,0 +1,222 @@
+{
+  "id": "case-20",
+  "number": 20,
+  "title": "Đường ống dự phòng",
+  "subtitle": "Hàng đợi điều phối tràn khi consumer service gặp sự cố âm thầm",
+  "brief": {
+    "narrative": "Hệ thống điều phối khẩn cấp của Distributia đã ngừng hoạt động. Các cảnh sát đang báo cáo rằng các nhiệm vụ tội phạm mới vẫn chưa được thực hiện - xe tuần tra đang không hoạt động trong khi các cuộc gọi 911 dồn dập. Hàng đợi điều phối, thường xử lý hàng trăm nhiệm vụ mỗi phút, đã tăng lên hơn 50.000 tin nhắn đang chờ xử lý. Phía producer (trung tâm cuộc gọi) liên tục đưa ra các lệnh điều động mới, nhưng đầu bên kia không tiêu thụ gì cả. Cảnh sát trưởng Partition rất tức giận - bọn tội phạm đang trốn thoát trong khi các sĩ quan chờ đợi nhiệm vụ không bao giờ đến.",
+    "symptoms": [
+      "Nhiệm vụ điều động đã ngừng đến các đơn vị tuần tra 45 phút trước",
+      "Độ sâu hàng đợi tin nhắn đã tăng từ ~100 lên hơn 50.000 tin nhắn",
+      "Tổng đài vẫn có thể gửi lệnh điều động mới mà không gặp lỗi",
+      "Mức sử dụng Memory trên hàng đợi broker đang đạt đến mức quan trọng"
+    ],
+    "objective": "Xác định lý do tại sao đường dẫn điều phối được sao lưu và đề xuất cách khắc phục để khôi phục luồng cũng như ngăn chặn các cuộc khủng hoảng backpressure trong tương lai."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "call-center",
+        "type": "client",
+        "label": "Trung tâm cuộc gọi (Producer)",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 100,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Tổng đài Producer",
+          "logs": [
+            "[03:15:01] INFO: Dispatch order #48,221 published to queue",
+            "[03:15:02] INFO: Dispatch order #48,222 published to queue",
+            "[03:15:02] INFO: Publish rate: 12 msgs/sec",
+            "[03:15:03] WARN: Queue broker reporting high memory usage"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Publish Rate": "12 tin nhắn/giây",
+            "Messages Sent (last hour)": "43.200",
+            "Errors": "0"
+          },
+          "status": "Producer đang hoạt động bình thường. Tin nhắn đang được broker chấp nhận."
+        }
+      },
+      {
+        "id": "queue-broker",
+        "type": "server",
+        "label": "Hàng đợi điều phối Broker",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hàng đợi điều phối Broker",
+          "logs": [
+            "[02:30:00] INFO: Consumer 'patrol-dispatcher' disconnected",
+            "[02:30:01] WARN: No active consumers on queue 'dispatch-orders'",
+            "[02:45:00] WARN: Queue depth exceeded 10,000 messages",
+            "[03:00:00] WARN: Queue depth exceeded 30,000 messages",
+            "[03:15:00] CRITICAL: Memory usage at 91% — queue depth 50,412",
+            "[03:15:01] WARN: Approaching max memory limit, may start dropping messages"
+          ],
+          "data": {
+            "Status": "xuống cấp",
+            "Queue Depth": "50.412 tin nhắn",
+            "Active Consumers": "0",
+            "Memory Usage": "91%",
+            "Max Memory": "4 GB",
+            "Backpressure Policy": "Không có cấu hình nào"
+          },
+          "status": "Hàng đợi đang đầy mà không có người tiêu dùng nào sử dụng nó. Không có cơ chế backpressure nào được cấu hình."
+        }
+      },
+      {
+        "id": "consumer-service",
+        "type": "server",
+        "label": "Điều phối viên tuần tra (Consumer)",
+        "status": "thất bại",
+        "position": {
+          "x": 600,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Điều phối viên tuần tra Consumer",
+          "logs": [
+            "[02:29:55] ERROR: OutOfMemoryError in message handler",
+            "[02:29:56] ERROR: Unhandled exception — process crashing",
+            "[02:29:57] FATAL: Consumer process terminated (exit code 137)",
+            "[02:29:57] INFO: No automatic restart policy configured"
+          ],
+          "data": {
+            "Status": "ĐÃ SỰ LỖI",
+            "Last Active": "02:29:57",
+            "Restart Policy": "Không có",
+            "Messages Processed Before Crash": "5.102"
+          },
+          "status": "Consumer bị lỗi do OutOfMemoryError 45 phút trước. Không có chính sách khởi động lại được áp dụng."
+        }
+      },
+      {
+        "id": "patrol-units",
+        "type": "client",
+        "label": "Đơn vị tuần tra",
+        "status": "xuống cấp",
+        "position": {
+          "x": 600,
+          "y": 280
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Đơn vị tuần tra",
+          "logs": [
+            "[02:30:05] WARN: No new dispatch orders received",
+            "[02:45:00] WARN: Still no dispatch orders — 15 min gap",
+            "[03:15:00] WARN: Officers idle for 45 minutes, no assignments"
+          ],
+          "data": {
+            "Status": "nhàn rỗi",
+            "Active Patrols": "24",
+            "Pending Assignments": "0",
+            "Last Assignment Received": "02:29:55"
+          },
+          "status": "Không có lệnh điều động nào đến. Các quan chức đang nhàn rỗi và không được phân công."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-cc-broker",
+        "source": "call-center",
+        "target": "queue-broker",
+        "label": "công bố đơn đặt hàng",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-broker-consumer",
+        "source": "queue-broker",
+        "target": "consumer-service",
+        "label": "tiêu thụ đơn đặt hàng",
+        "animated": false,
+        "style": "broken"
+      },
+      {
+        "id": "e-consumer-patrols",
+        "source": "consumer-service",
+        "target": "patrol-units",
+        "label": "phân công tuần tra",
+        "animated": false,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của bản sao lưu đường ống điều phối là gì?",
+      "options": [
+        {
+          "id": "rc-1",
+          "text": "Hệ thống trung tâm cuộc gọi đang tạo ra các tin nhắn gửi đi với tốc độ quá nhanh khiến hàng đợi không thể xử lý được",
+          "correct": false,
+          "feedback": "Tốc độ producer là 12 tin nhắn/giây là bình thường. Vấn đề là không có người tiêu dùng nào đang xếp hàng chờ - consumer service bị lỗi và không bao giờ khởi động lại."
+        },
+        {
+          "id": "rc-2",
+          "text": "consumer service bị lỗi và không có chính sách khởi động lại, vì vậy các tin nhắn chồng chất lên nhau mà không xử lý được chúng — lỗi backpressure",
+          "correct": true,
+          "feedback": "Chính xác! Điều phối viên tuần tra consumer đã gặp sự cố cách đây 45 phút và không có chính sách khởi động lại tự động. Với việc producer vẫn đang xuất bản và không có người tiêu dùng nào thoát khỏi hàng đợi, các tin nhắn sẽ chồng chất lên nhau không giới hạn. Hệ thống này thiếu bất kỳ cơ chế backpressure nào để làm chậm quá trình sản xuất khi người tiêu dùng không thể theo kịp."
+        },
+        {
+          "id": "rc-3",
+          "text": "Bản thân hàng đợi broker đã hết memory và đã ngừng nhận bất kỳ tin nhắn gửi đến mới nào",
+          "correct": false,
+          "feedback": "broker ở mức 91% memory nhưng vẫn chưa dừng lại - nó vẫn chấp nhận tin nhắn. Vấn đề thực sự là không có consumer nào làm cạn hàng đợi. Sự cố memory là một triệu chứng của sự cố backpressure, không phải nguyên nhân."
+        },
+        {
+          "id": "rc-4",
+          "text": "network partition đã tách biệt vật lý tin nhắn broker khỏi các mục tiêu phân công đơn vị tuần tra",
+          "correct": false,
+          "feedback": "Các đơn vị tuần tra không kết nối trực tiếp với broker - consumer service thì có. Nhật ký của consumer cho thấy nó bị lỗi do OutOfMemoryError chứ không phải do sự cố network."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để ngăn chặn việc sao lưu đường ống này trong tương lai là gì?",
+      "options": [
+        {
+          "id": "fix-3",
+          "text": "Yêu cầu tổng đài write điều động lệnh trực tiếp đến các đơn vị tuần tra, loại bỏ hàng đợi làm trung gian",
+          "correct": false,
+          "feedback": "Việc xóa hàng đợi sẽ loại bỏ tình trạng đệm giúp xử lý lưu lượng truy cập tăng đột biến. Hàng đợi là một lựa chọn kiến ​​trúc tốt — nó chỉ cần các điều khiển backpressure thích hợp và khả năng phục hồi consumer."
+        },
+        {
+          "id": "fix-2",
+          "text": "Tăng dung lượng memory của broker lên 64 GB để có thể đệm thêm tin nhắn chưa xử lý mà không bị hết",
+          "correct": false,
+          "feedback": "Nhiều memory hơn chỉ làm trì hoãn vấn đề - nếu người tiêu dùng không hoạt động, hàng đợi cuối cùng sẽ lấp đầy bất kỳ số lượng memory nào. Bạn cần backpressure để ngăn chặn sự tăng trưởng không giới hạn và đảm bảo người tiêu dùng vẫn tồn tại."
+        },
+        {
+          "id": "fix-1",
+          "text": "Triển khai các điều khiển backpressure: tự động khởi động lại người tiêu dùng, đặt giới hạn kích thước hàng đợi và làm chậm quá trình sản xuất khi hàng đợi đầy",
+          "correct": true,
+          "feedback": "Chính xác! Chiến lược backpressure phù hợp bao gồm: (1) tự động khởi động lại người tiêu dùng bị lỗi, (2) đặt độ sâu hàng đợi tối đa để ngăn chặn sự tăng trưởng không giới hạn và (3) báo hiệu cho nhà sản xuất chậm lại khi người tiêu dùng không thể theo kịp. Điều này ngăn cản hệ thống vượt khỏi tầm kiểm soát."
+        },
+        {
+          "id": "fix-4",
+          "text": "Định cấu hình tin nhắn gửi để tự động hết hạn và bị xóa khỏi hàng đợi nếu không được sử dụng trong vòng 5 phút",
+          "correct": false,
+          "feedback": "Bỏ lệnh điều động có nghĩa là các cuộc gọi khẩn cấp bị mất hoàn toàn. Bạn cần backpressure để quản lý luồng chứ không phải việc hết hạn tin nhắn âm thầm loại bỏ các bài tập quan trọng."
+        }
+      ]
+    }
+  },
+  "conceptId": "backpressure",
+  "badge": {
+    "name": "Van áp suất",
+    "icon": "🔧"
+  }
+}

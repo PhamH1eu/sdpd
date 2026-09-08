@@ -1,0 +1,215 @@
+{
+  "id": "case-12",
+  "number": 12,
+  "title": "Giới hạn dọc",
+  "subtitle": "Máy chủ phân tích tội phạm đạt mức trần phần cứng",
+  "brief": {
+    "narrative": "Bộ phận Phân tích Tội phạm Distributia đang gặp khủng hoảng. Máy chủ phân tích hàng đầu của họ — chịu trách nhiệm thu thập dữ liệu về mô hình tội phạm trên tất cả các quận — đã được nâng cấp lên loại phần cứng mạnh nhất mà tiền có thể mua được: 128 lõi, RAM 1TB, hoạt động tốt. Nhưng vẫn chưa đủ. Thời gian Response cho các truy vấn về xu hướng tội phạm đã tăng lên 45 giây và quá trình xử lý hàng loạt báo cáo sự cố qua đêm hiện mất 14 giờ thay vì 3. Nhà cung cấp cho biết không có máy nào lớn hơn. Cảnh sát trưởng Partition muốn biết tại sao việc sử dụng thêm phần cứng vào vấn đề không hiệu quả và giải pháp thực sự là gì, Thám tử.",
+    "symptoms": [
+      "Truy vấn phân tích tội phạm mất hơn 45 giây mặc dù phần cứng đã đạt mức tối đa",
+      "Mức sử dụng CPU được ghim ở mức 98% trong giờ cao điểm",
+      "Xử lý hàng loạt qua đêm đã tăng từ 3 giờ lên 14 giờ",
+      "Nhà cung cấp phần cứng xác nhận không có bản nâng cấp dọc nào nữa"
+    ],
+    "objective": "Xác định lý do tại sao phương pháp tiếp cận một máy chủ đã đạt đến giới hạn và đề xuất kiến ​​trúc có thể mở rộng ra ngoài một máy."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "analytics-server",
+        "type": "server",
+        "label": "Máy chủ phân tích",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Máy chủ phân tích tội phạm",
+          "logs": [
+            "[08:15:01] WARN: CPU utilization at 98%",
+            "[08:15:02] WARN: Memory usage at 94% (961GB/1024GB)",
+            "[08:15:10] WARN: Query queue depth: 847 pending",
+            "[08:15:22] ERROR: Query timeout for district-7 trend analysis (>45s)",
+            "[08:15:30] INFO: No horizontal scaling configured — single node only"
+          ],
+          "data": {
+            "CPU Cores": "128 (tất cả bão hòa)",
+            "RAM": "1024 GB (đã sử dụng 94%)",
+            "Status": "TỐI ĐA",
+            "Pending Queries": "847",
+            "Avg Query Time": "45,2 giây",
+            "Max Vertical Upgrade": "Đã ở mức tối đa"
+          },
+          "status": "Phần cứng máy chủ được tối đa hóa tối đa. Không thể mở rộng quy mô theo chiều dọc nữa."
+        }
+      },
+      {
+        "id": "district-api",
+        "type": "server",
+        "label": "Cổng API của quận",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 220
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cổng API của quận",
+          "logs": [
+            "[08:15:05] WARN: Upstream analytics server response slow",
+            "[08:15:12] WARN: 312 requests queued waiting for analytics",
+            "[08:15:25] ERROR: Client timeouts increasing"
+          ],
+          "data": {
+            "Status": "CHẬM",
+            "Queued Requests": "312",
+            "Upstream Targets": "1 (chỉ máy chủ phân tích)"
+          },
+          "status": "Chỉ có một mục tiêu phân tích ngược dòng. Không thể phân phối tải."
+        }
+      },
+      {
+        "id": "precinct-dashboard",
+        "type": "client",
+        "label": "Bảng điều khiển khu vực",
+        "status": "xuống cấp",
+        "position": {
+          "x": 100,
+          "y": 380
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Khách hàng của Bảng điều khiển Phân khu",
+          "logs": [
+            "[08:16:00] WARN: Dashboard loading time > 40s",
+            "[08:16:15] ERROR: Crime trend widget timed out"
+          ],
+          "data": {
+            "Active Users": "85",
+            "Avg Load Time": "42 giây",
+            "Timeout Rate": "34%"
+          },
+          "status": "Trang tổng quan cực kỳ chậm do tắc nghẽn máy chủ phân tích."
+        }
+      },
+      {
+        "id": "batch-processor",
+        "type": "client",
+        "label": "Bộ xử lý hàng loạt",
+        "status": "xuống cấp",
+        "position": {
+          "x": 600,
+          "y": 380
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bộ xử lý hàng loạt qua đêm",
+          "logs": [
+            "[00:00:01] INFO: Nightly batch started",
+            "[14:12:33] WARN: Batch still running — expected completion in 3h",
+            "[14:12:34] WARN: Competing with daytime queries for CPU"
+          ],
+          "data": {
+            "Batch Duration": "14h 12m (mục tiêu: 3h)",
+            "Records Processed": "12,4 triệu",
+            "Status": "CHẠY PHÍA SAU"
+          },
+          "status": "Công việc hàng loạt cạnh tranh tài nguyên trên một máy chủ."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-api-analytics",
+        "source": "district-api",
+        "target": "analytics-server",
+        "label": "truy vấn",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-dashboard-api",
+        "source": "precinct-dashboard",
+        "target": "district-api",
+        "label": "yêu cầu",
+        "animated": true,
+        "style": "slow"
+      },
+      {
+        "id": "e-batch-analytics",
+        "source": "batch-processor",
+        "target": "analytics-server",
+        "label": "công việc hàng loạt",
+        "animated": true,
+        "style": "slow"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Vấn đề về hiệu suất của máy chủ phân tích root cause là gì?",
+      "options": [
+        {
+          "id": "rc-4",
+          "text": "Bộ xử lý hàng loạt được lên lịch chạy trong giờ cao điểm và phải được chuyển sang thời gian bảo trì ngoài giờ cao điểm",
+          "correct": false,
+          "feedback": "Việc sắp xếp lại công việc hàng loạt có thể giúp giảm bớt tạm thời nhưng vấn đề cốt lõi là một máy không thể xử lý tổng khối lượng công việc. Công việc hàng loạt đã tăng từ 3h lên 14h — giờ đây nó chồng chéo với lưu lượng truy cập ban ngày bất kể nó bắt đầu vào thời điểm nào."
+        },
+        {
+          "id": "rc-1",
+          "text": "Các thành phần phần cứng vật lý của máy chủ bị lỗi và không hoạt động theo thông số kỹ thuật chính thức",
+          "correct": false,
+          "feedback": "Phần cứng đang hoạt động bình thường — đơn giản là nó đang ở công suất tối đa. Máy chủ đang sử dụng toàn bộ 128 lõi và gần như toàn bộ 1TB RAM như thiết kế."
+        },
+        {
+          "id": "rc-2",
+          "text": "Hệ thống đã đạt đến giới hạn mở rộng theo chiều dọc — không thể nâng cấp thêm một máy nào để đáp ứng nhu cầu",
+          "correct": true,
+          "feedback": "Chính xác! Chia tỷ lệ theo chiều dọc (thêm CPU/RAM vào một máy) có trần cứng. Khi bạn đã sử dụng tối đa máy chủ lớn nhất hiện có, con đường duy nhất phía trước là mở rộng quy mô theo chiều ngang — phân phối khối lượng công việc trên nhiều máy."
+        },
+        {
+          "id": "rc-3",
+          "text": "Các truy vấn SQL cung cấp năng lượng cho bảng điều khiển phân tích được tối ưu hóa kém và yêu cầu lập chỉ mục và điều chỉnh thích hợp",
+          "correct": false,
+          "feedback": "Mặc dù tối ưu hóa query có thể hữu ích nhưng vấn đề cơ bản là tất cả công việc đều tập trung vào một máy duy nhất đã đạt đến giới hạn phần cứng. Ngay cả các truy vấn được tối ưu hóa hoàn hảo vẫn sẽ làm bão hòa một máy chủ ở quy mô này."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để mở rộng quy mô hệ thống phân tích vượt quá giới hạn hiện tại là gì?",
+      "options": [
+        {
+          "id": "fix-3",
+          "text": "Giảm tổng khối lượng dữ liệu tội phạm được lưu trữ và giữ lại để giảm tải xử lý tổng thể trên hệ thống",
+          "correct": false,
+          "feedback": "Xóa dữ liệu để phù hợp với giới hạn phần cứng là một giải pháp tồi. Bộ phận phân tích cần dữ liệu lịch sử để phân tích xu hướng. Kiến trúc phải mở rộng quy mô để đáp ứng nhu cầu dữ liệu chứ không phải ngược lại."
+        },
+        {
+          "id": "fix-2",
+          "text": "Chờ sự ra mắt của thế hệ phần cứng máy chủ tiếp theo cung cấp nhiều lõi CPU hơn và dung lượng RAM lớn hơn",
+          "correct": false,
+          "feedback": "Điều này chỉ đá cái lon xuống đường. Ngay cả khi có một chiếc máy lớn hơn, nhu cầu cuối cùng cũng sẽ tăng nhanh hơn. Chia tỷ lệ theo chiều ngang cung cấp một lộ trình bền vững không phụ thuộc vào các thế hệ phần cứng."
+        },
+        {
+          "id": "fix-1",
+          "text": "Triển khai chia tỷ lệ theo chiều ngang - thêm nhiều máy chủ phân tích phía sau load balancer để phân phối khối lượng công việc",
+          "correct": true,
+          "feedback": "Chính xác! Chia tỷ lệ theo chiều ngang (mở rộng quy mô) sẽ thêm nhiều máy hơn để chia sẻ tải. load balancer phân phối truy vấn trên nhiều máy chủ phân tích và xử lý hàng loạt có thể chạy trên các nút chuyên dụng. Không giống như chia tỷ lệ dọc, chia tỷ lệ ngang không có giới hạn cố định — bạn có thể tiếp tục thêm máy."
+        },
+        {
+          "id": "fix-4",
+          "text": "Viết lại công cụ phân tích bằng ngôn ngữ lập trình nhanh hơn để đạt được hiệu suất cao hơn từ phần cứng hiện có",
+          "correct": false,
+          "feedback": "Ngay cả một chương trình được tối ưu hóa hoàn hảo cũng chỉ có thể sử dụng 100% tài nguyên của một máy — đó chính xác là tình trạng hiện tại của chúng tôi. Điểm nghẽn nằm ở kiến ​​trúc của một máy chứ không phải ở hiệu quả của phần mềm."
+        }
+      ]
+    }
+  },
+  "conceptId": "horizontal-scaling",
+  "badge": {
+    "name": "Kiến trúc sư quy mô",
+    "icon": "📐"
+  }
+}

@@ -1,0 +1,225 @@
+{
+  "id": "case-32",
+  "number": 32,
+  "title": "Thất bại Saga",
+  "subtitle": "Đặt chỗ process đã quên cách hoàn tác các lỗi của nó",
+  "brief": {
+    "narrative": "Một vụ triệt phá ma túy lớn tại Distributia PD đã thu hút 15 nghi phạm cùng một lúc. Hệ thống đặt chỗ bắt đầu hoạt động ở tốc độ cao, xử lý từng vụ bắt giữ thông qua quy trình ba bước: Bước 1 — tạo bản ghi vụ bắt giữ trong Vụ bắt giữ Service, Bước 2 — tạo số đặt chỗ trong Đặt chỗ Service, Bước 3 — chỉ định một ô lưu giữ trong Phân công ô Service. Nghi phạm số 7 hoàn thành tốt Bước 1 và 2, nhưng Bước 3 không thành công — Phân công ô Service đã hết các ô có sẵn (đã đạt dung lượng). Hệ thống đưa ra một lỗi và bỏ cuộc. Nhưng đây là thảm họa: hồ sơ bắt giữ từ Bước 1 vẫn tồn tại và mã số đặt chỗ từ Bước 2 đã được chỉ định. Nghi phạm số 7 hiện là một hồn ma trong hệ thống - chính thức bị bắt và bị giam giữ, nhưng không được đưa vào phòng giam. Việc bắt giữ không thể được xử lý lại vì số đặt chỗ đã được sử dụng. Không thể xóa bản ghi theo cách thủ công vì nó được đánh dấu là một vụ bắt giữ đang diễn ra. Trong khi đó, số lượng ô hiển thị hết dung lượng, nhưng một trong những ô 'bị chiếm giữ' đó đã được phân bổ trước cho Nghi phạm số 7 và thực tế là trống. Trung sĩ Saga đang nhìn chằm chằm vào một chiếc transaction chưa hoàn thiện một nửa, không có cơ chế quay lui và không có đường tiến về phía trước.",
+    "symptoms": [
+      "Nghi phạm số 7 có hồ sơ bắt giữ và số đặt chỗ nhưng không có phòng giam",
+      "Chạy lại đăng ký không thành công - số đăng ký đã được phân bổ",
+      "Dung lượng ô hiển thị đã đầy nhưng một ô dành riêng lại trống về mặt vật lý",
+      "Không có hành động bồi thường hoặc khôi phục nào xảy ra sau thất bại ở Bước 3"
+    ],
+    "objective": "Xác định lý do tại sao distributed process nhiều bước lại để dữ liệu ở trạng thái không nhất quán và xác định mẫu chính xác để quản lý các giao dịch phân tán trong thời gian dài."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "booking-orchestrator",
+        "type": "server",
+        "label": "Người điều phối đặt chỗ",
+        "status": "thất bại",
+        "position": {
+          "x": 350,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Người điều phối đặt chỗ",
+          "logs": [
+            "[21:15:00] INFO: Starting booking saga for Suspect #7 (Arrest ID: A-2847)",
+            "[21:15:01] INFO: Step 1 — Arrest Service → CREATE arrest record → SUCCESS",
+            "[21:15:02] INFO: Step 2 — Booking Service → ASSIGN booking number → SUCCESS (BK-90441)",
+            "[21:15:03] INFO: Step 3 — Cell Assignment → ASSIGN cell → FAILED (capacity exceeded)",
+            "[21:15:03] ERROR: Step 3 failed. No compensating transactions defined.",
+            "[21:15:03] ERROR: Saga aborted — system left in inconsistent state",
+            "[21:15:03] ERROR: Manual intervention required for Arrest A-2847, Booking BK-90441"
+          ],
+          "data": {
+            "Saga Status": "THẤT ​​BẠI - TRẠNG THÁI KHÔNG ĐỒNG NHẤT",
+            "Steps Completed": "2 trên 3",
+            "Steps Rolled Back": "0 trên 2 (KHÔNG CÓ HÀNH ĐỘNG BỒI THƯỜNG ĐƯỢC XÁC ĐỊNH)",
+            "Orphaned Records": "Bắt giữ A-2847, Đặt chỗ BK-90441",
+            "Rollback Strategy": "KHÔNG THỰC HIỆN"
+          },
+          "status": "Saga thất bại ở Bước 3 nhưng không có giao dịch đền bù nào để hoàn tác Bước 1 và 2."
+        }
+      },
+      {
+        "id": "arrest-service",
+        "type": "server",
+        "label": "Bắt giữ Service",
+        "status": "xuống cấp",
+        "position": {
+          "x": 80,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Bắt giữ Service",
+          "logs": [
+            "[21:15:01] INFO: Created arrest record A-2847 for Suspect #7",
+            "[21:15:01] INFO: Status: ACTIVE — awaiting booking",
+            "[21:15:04] WARN: Arrest A-2847 still in ACTIVE state — no booking completion received",
+            "[21:20:00] WARN: Arrest A-2847 stuck in ACTIVE for 5 minutes — no rollback requested"
+          ],
+          "data": {
+            "Arrest ID": "A-2847",
+            "Suspect": "#7",
+            "Status": "HOẠT ĐỘNG (không thể xóa hoặc xử lý lại)",
+            "Compensating Action": "KHÔNG ĐƯỢC XÁC ĐỊNH",
+            "Expected Next Step": "Xác nhận đặt phòng (chưa bao giờ đến)"
+          },
+          "status": "Bản ghi bắt giữ tồn tại và được đánh dấu là HOẠT ĐỘNG. Không có hành động bồi thường để làm mất hiệu lực nó."
+        }
+      },
+      {
+        "id": "booking-service",
+        "type": "server",
+        "label": "Đặt chỗ Service",
+        "status": "xuống cấp",
+        "position": {
+          "x": 350,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Đặt chỗ Service",
+          "logs": [
+            "[21:15:02] INFO: Assigned booking number BK-90441 to Arrest A-2847",
+            "[21:15:02] INFO: Status: ALLOCATED — awaiting cell assignment",
+            "[21:15:05] WARN: Booking BK-90441 — no cell assignment confirmation received",
+            "[21:20:00] WARN: Booking BK-90441 stuck in ALLOCATED for 5 minutes"
+          ],
+          "data": {
+            "Booking Number": "BK-90441",
+            "Linked Arrest": "A-2847",
+            "Status": "ĐÃ CẤP PHÁT (chặn việc sử dụng lại số này)",
+            "Compensating Action": "KHÔNG ĐƯỢC XÁC ĐỊNH",
+            "Expected Next Step": "Phân công ô (không bao giờ đến)"
+          },
+          "status": "Số lượng đặt phòng được phân bổ nhưng không bao giờ hoàn thành. Số không thể được sử dụng lại hoặc phát hành."
+        }
+      },
+      {
+        "id": "cell-assignment",
+        "type": "server",
+        "label": "Phân công ô",
+        "status": "thất bại",
+        "position": {
+          "x": 620,
+          "y": 250
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Phân công ô Service",
+          "logs": [
+            "[21:15:03] INFO: Cell assignment request for Booking BK-90441",
+            "[21:15:03] ERROR: All holding cells at capacity (48/48 occupied)",
+            "[21:15:03] ERROR: Cell assignment FAILED — no available cells",
+            "[21:15:03] INFO: Note: Cell #12 was pre-reserved for BK-90441 but reservation failed on final commit"
+          ],
+          "data": {
+            "Capacity": "48/48 (gồm 1 ma đặt trước)",
+            "Cell #12": "Dành riêng cho BK-90441 nhưng về mặt vật lý RỖNG",
+            "Assignment Status": "THẤT ​​BẠI",
+            "Compensating Action": "KHÔNG ĐƯỢC XÁC ĐỊNH"
+          },
+          "status": "Chuyển nhượng không thành công nhưng có một mục đặt trước sẽ không được giải phóng."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-orch-arrest",
+        "source": "booking-orchestrator",
+        "target": "arrest-service",
+        "label": "Bước 1: THÀNH CÔNG",
+        "animated": false,
+        "style": "normal"
+      },
+      {
+        "id": "e-orch-booking",
+        "source": "booking-orchestrator",
+        "target": "booking-service",
+        "label": "Bước 2: THÀNH CÔNG",
+        "animated": false,
+        "style": "normal"
+      },
+      {
+        "id": "e-orch-cell",
+        "source": "booking-orchestrator",
+        "target": "cell-assignment",
+        "label": "Bước 3: THẤT BẠI",
+        "animated": false,
+        "style": "broken"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "root cause của dữ liệu không nhất quán sau khi đặt chỗ không thành công là gì?",
+      "options": [
+        {
+          "id": "rc-4",
+          "text": "Người điều phối đăng ký phải kiểm tra trước toàn diện ô availability trên tất cả các cơ sở trước khi bắt đầu bất kỳ bước nào của process",
+          "correct": false,
+          "feedback": "Việc kiểm tra trước availability có ích nhưng không giải quyết được vấn đề cơ bản. Một ô có thể lấp đầy giữa phần kiểm tra và bài tập (race condition). Bất kỳ bước nào trong distributed process đều có thể thất bại bất cứ lúc nào. Bạn phải lập kế hoạch cho thất bại và chuẩn bị sẵn các hành động đền bù - đó là mô hình Saga."
+        },
+        {
+          "id": "rc-1",
+          "text": "Cell Mission Service có một lỗi phần mềm nội bộ khiến nó báo cáo sai dung lượng lưu giữ là đã đầy, ngay cả khi có sẵn các ô",
+          "correct": false,
+          "feedback": "Vấn đề về dung lượng là một lỗi chính đáng - các ô thực sự đã đầy (với một bản đặt trước ma). Vấn đề thực sự không phải là Bước 3 thất bại. Thất bại được mong đợi trong các hệ thống phân tán. Vấn đề là không có hành động đền bù nào để hoàn tác Bước 1 và 2 khi Bước 3 thất bại."
+        },
+        {
+          "id": "rc-2",
+          "text": "distributed transaction nhiều bước không có hành động bù đắp (khôi phục saga), do đó, lỗi giữa chừng sẽ khiến các bước đã hoàn thành ở trạng thái không nhất quán",
+          "correct": true,
+          "feedback": "Chính xác! Trong hệ thống phân tán, bạn không thể sử dụng ACID transaction truyền thống trên nhiều dịch vụ. Mẫu Saga giải quyết vấn đề này bằng cách xác định các hành động đền bù cho từng bước: nếu Bước 3 không thành công, hãy thực hiện 'hoàn tác Bước 2' (giải phóng số đặt chỗ) và sau đó 'hoàn tác Bước 1' (vô hiệu hóa bản ghi bắt giữ). Nếu không có các giao dịch đền bù này, một lỗi xảy ra ở bất kỳ đâu trong chuỗi sẽ khiến dữ liệu trở nên mồ côi, không nhất quán và cần phải can thiệp thủ công."
+        },
+        {
+          "id": "rc-3",
+          "text": "Tất cả ba dịch vụ sẽ chia sẻ một database tập trung duy nhất để ACID transaction tiêu chuẩn có thể khôi phục mọi thứ, tự động ngăn chặn mọi sự không nhất quán về trạng thái",
+          "correct": false,
+          "feedback": "database được chia sẻ sẽ cho phép một ACID transaction duy nhất, nhưng nó làm mất đi mục đích của vi dịch vụ (triển khai, mở rộng quy mô và quyền sở hữu độc lập). Trong kiến ​​trúc microservice, mỗi service sở hữu dữ liệu của nó. Mẫu Saga là giải pháp tiêu chuẩn để duy trì consistency trên các ranh giới service."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách tiếp cận tốt nhất để xử lý lỗi trong quy trình phân tán nhiều bước là gì?",
+      "options": [
+        {
+          "id": "fix-2",
+          "text": "Sử dụng giao thức cam kết hai pha (2PC) để đảm bảo cả ba dịch vụ độc lập cam kết đồng bộ hoặc hủy bỏ các thay đổi của chúng cùng nhau",
+          "correct": false,
+          "feedback": "Cam kết hai giai đoạn cung cấp tính nguyên tử nhưng có nhược điểm nghiêm trọng trong vi dịch vụ: nó yêu cầu tất cả người tham gia phải sẵn sàng đồng thời, giữ khóa trên các dịch vụ trong giai đoạn chuẩn bị (chặn) và lỗi điều phối viên có thể khiến người tham gia bị mắc kẹt trong trạng thái đã chuẩn bị. Saga được ưu tiên sử dụng trong kiến ​​trúc microservice vì chúng có khả năng phục hồi tốt hơn và không yêu cầu khóa dịch vụ chéo."
+        },
+        {
+          "id": "fix-1",
+          "text": "Triển khai mẫu Saga với các giao dịch bù đắp - mỗi bước xác định một hành động hoàn tác sẽ được thực thi nếu bước sau không thành công",
+          "correct": true,
+          "feedback": "Chính xác! Mẫu Saga chia transaction phân tán thành một chuỗi các giao dịch cục bộ, mỗi giao dịch có một hành động bù đắp. Nếu Bước 3 (gán ô) không thành công, người điều phối sẽ tự động kích hoạt: 'bồi thường Bước 2' (giải phóng số đăng ký BK-90441) và 'bồi thường Bước 1' (vô hiệu hóa bản ghi bắt giữ A-2847). Điều này đảm bảo hệ thống trở lại trạng thái nhất quán. Saga có thể được điều phối (điều phối viên trung tâm) hoặc được dàn dựng (theo sự kiện) và chúng là mẫu tiêu chuẩn cho các giao dịch phân tán trong kiến ​​trúc microservice."
+        },
+        {
+          "id": "fix-3",
+          "text": "Thêm logic retry theo cấp số nhân tự động để nếu Bước 3 không thành công, bộ điều phối sẽ liên tục thử lại cho đến khi có ô tù",
+          "correct": false,
+          "feedback": "Việc thử lại vô thời hạn là một vấn đề — nếu không có ô nào khả dụng trong nhiều giờ thì sao? Trong khi đó, hồ sơ bắt giữ và đặt chỗ đang trong tình trạng lấp lửng. Việc thử lại rất hữu ích đối với các lỗi nhất thời, nhưng đối với các lỗi logic nghiệp vụ (không có dung lượng), bạn cần bù đắp các giao dịch để hoàn tác một phần công việc một cách rõ ràng."
+        },
+        {
+          "id": "fix-4",
+          "text": "Dự trữ trước tất cả các nguồn lực cần thiết — vị trí bắt giữ, số đặt chỗ và phòng giam - trước khi cố gắng thực hiện bất kỳ bước tiếp theo nào",
+          "correct": false,
+          "feedback": "Việc đặt trước có ích nhưng không loại bỏ được vấn đề — việc đặt trước có thể không thành công, tài nguyên dành riêng có thể hết hạn hoặc process có thể bị lỗi giữa các lần đặt trước. Bạn vẫn cần có những hành động đền bù khi có sự cố xảy ra. Mẫu Saga xử lý tất cả các tình huống thất bại một cách có hệ thống."
+        }
+      ]
+    }
+  },
+  "conceptId": "sagas",
+  "badge": {
+    "name": "Bậc thầy Saga",
+    "icon": "📜"
+  }
+}

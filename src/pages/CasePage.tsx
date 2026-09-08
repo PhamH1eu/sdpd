@@ -97,7 +97,7 @@ export function CasePage() {
 
       {/* Diagram area */}
       <div className={`flex-1 min-h-[300px] ${mobileTab === 'diagram' ? '' : 'max-lg:hidden'}`}>
-        <SystemDiagram caseData={caseData} onNodeClick={setInspectedNode} />
+        <SystemDiagram key={mobileTab} caseData={caseData} onNodeClick={setInspectedNode} />
       </div>
 
       {/* Right panel */}

@@ -1,0 +1,222 @@
+{
+  "id": "case-24",
+  "number": 24,
+  "title": "Kho lưu trữ bị hỏng",
+  "subtitle": "Bằng chứng bị hỏng nhưng không ai biết thiệt hại xảy ra ở đâu",
+  "brief": {
+    "narrative": "Một phần bằng chứng kỹ thuật số quan trọng — một tệp video giám sát — đã được gửi qua quy trình xử lý bằng chứng của Distributia. Nó đi qua cổng tải lên, service chuyển mã và kho lưu trữ bằng chứng. Khi nhóm pháp y cố gắng mở tệp, nó đã bị hỏng hoàn toàn - rác không thể phát được. Nhân viên nộp hồ sơ ban đầu thề rằng tập tin vẫn ổn khi được tải lên. Ba dịch vụ đã chạm vào tệp và không có dịch vụ nào thực hiện kiểm tra tính toàn vẹn. Phiên tòa sẽ diễn ra trong 48 giờ và bằng chứng quan trọng của bên công tố đã bị hủy hoại. Trưởng Partition cần biết tham nhũng xảy ra ở đâu và cách ngăn chặn nó.",
+    "symptoms": [
+      "Tệp video bằng chứng bị hỏng và không thể phát được trong kho lưu trữ",
+      "Tệp gốc đã được xác minh đang hoạt động tại thời điểm tải lên",
+      "Ba dịch vụ đã xử lý tệp: cổng tải lên, bộ chuyển mã và kho lưu trữ",
+      "Không có tổng kiểm tra service được tính toán hoặc xác minh trong quá trình truyền"
+    ],
+    "objective": "Xác định vị trí bằng chứng bị sai sót trong quy trình và đề xuất các biện pháp kiểm soát xác minh tính toàn vẹn."
+  },
+  "diagram": {
+    "nodes": [
+      {
+        "id": "officer-upload",
+        "type": "client",
+        "label": "Thiết bị đầu cuối tải lên của sĩ quan",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 80,
+          "y": 180
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Thiết bị đầu cuối tải lên của sĩ quan",
+          "logs": [
+            "[11:00:00] INFO: Officer uploaded evidence file 'surveillance_cam7.mp4'",
+            "[11:00:00] INFO: File size: 2.4 GB",
+            "[11:00:01] INFO: Upload started to gateway",
+            "[11:00:45] INFO: Upload complete — 200 OK from gateway"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "File": "giám sát_cam7.mp4",
+            "File Size": "2,4GB",
+            "Checksum at Upload": "Không được tính toán",
+            "Upload Status": "Thành công"
+          },
+          "status": "Tệp được tải lên thành công nhưng không có tổng kiểm tra nào được tính toán tại nguồn để xác minh sau."
+        }
+      },
+      {
+        "id": "upload-gateway",
+        "type": "server",
+        "label": "Cổng tải lên",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 270,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Cổng tải lên",
+          "logs": [
+            "[11:00:01] INFO: Receiving file 'surveillance_cam7.mp4'",
+            "[11:00:45] INFO: File received, size: 2.4 GB",
+            "[11:00:45] INFO: No integrity check configured — forwarding to transcoder",
+            "[11:00:46] INFO: File forwarded to Transcoding Service"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "Integrity Check": "TÀN TẬT",
+            "Checksum Verification": "Không có",
+            "Files Processed Today": "342"
+          },
+          "status": "Cổng chấp nhận và chuyển tiếp tệp mà không cần tính toán hoặc xác minh tổng kiểm tra."
+        }
+      },
+      {
+        "id": "transcoder",
+        "type": "server",
+        "label": "Chuyển mã Service",
+        "status": "xuống cấp",
+        "position": {
+          "x": 460,
+          "y": 180
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Chuyển mã Service",
+          "logs": [
+            "[11:00:47] INFO: Received file for transcoding",
+            "[11:01:30] WARN: Memory pressure during transcode — swapping to disk",
+            "[11:02:15] WARN: Transcode buffer overflow — partial frame data lost",
+            "[11:02:45] INFO: Transcode 'complete' — output written",
+            "[11:02:45] INFO: No integrity check on output — forwarding to vault"
+          ],
+          "data": {
+            "Status": "xuống cấp",
+            "Memory Usage": "97%",
+            "Swap Usage": "4,2GB",
+            "Transcode Errors": "tràn bộ đệm (mất một phần khung)",
+            "Output Integrity Check": "TÀN TẬT"
+          },
+          "status": "Service đã hết memory trong quá trình chuyển mã, gây tràn bộ đệm và mất dữ liệu. Không có kiểm tra tính toàn vẹn đầu ra phát hiện tham nhũng."
+        }
+      },
+      {
+        "id": "evidence-vault",
+        "type": "database",
+        "label": "Hầm lưu trữ bằng chứng",
+        "status": "khỏe mạnh",
+        "position": {
+          "x": 650,
+          "y": 50
+        },
+        "inspectable": true,
+        "inspectData": {
+          "title": "Hầm lưu trữ bằng chứng",
+          "logs": [
+            "[11:02:46] INFO: Storing file 'surveillance_cam7_transcoded.mp4'",
+            "[11:02:50] INFO: File stored successfully",
+            "[11:02:50] INFO: No checksum verification performed on ingest"
+          ],
+          "data": {
+            "Status": "TRỰC TUYẾN",
+            "File Stored": "giám sát_cam7_transcoded.mp4",
+            "Stored File Size": "2,1 GB (nhỏ hơn bản gốc - đáng ngờ)",
+            "Ingest Checksum": "Không được tính toán",
+            "Storage Integrity": "Tệp được chấp nhận mà không cần xác minh"
+          },
+          "status": "Vault đã lưu trữ tệp mà không xác minh tính toàn vẹn của nó. Tệp bị hỏng đã được chấp nhận nguyên trạng."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-officer-gateway",
+        "source": "officer-upload",
+        "target": "upload-gateway",
+        "label": "tải tập tin lên",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-gateway-transcode",
+        "source": "upload-gateway",
+        "target": "transcoder",
+        "label": "chuyển tiếp tập tin",
+        "animated": true,
+        "style": "normal"
+      },
+      {
+        "id": "e-transcode-vault",
+        "source": "transcoder",
+        "target": "evidence-vault",
+        "label": "lưu trữ đã chuyển mã",
+        "animated": true,
+        "style": "slow"
+      }
+    ]
+  },
+  "diagnosis": {
+    "rootCause": {
+      "question": "Hồ sơ bằng chứng bị hỏng ở đâu và tại sao nó không bị bắt?",
+      "options": [
+        {
+          "id": "rc-4",
+          "text": "Mất gói Network trong quá trình chuyển TCP giữa cổng tải lên và chuyển mã service đã làm hỏng tệp",
+          "correct": false,
+          "feedback": "TCP đảm bảo delivery theo thứ tự và truyền lại các gói bị mất. Truyền Network qua TCP không âm thầm làm hỏng dữ liệu. Nhật ký bộ chuyển mã hiển thị nguyên nhân thực tế: áp suất memory và tràn bộ đệm trong quá trình xử lý."
+        },
+        {
+          "id": "rc-1",
+          "text": "Tệp bằng chứng đã bị hỏng khi viên chức đăng nó từ camera trên cơ thể lên cổng tải lên",
+          "correct": false,
+          "feedback": "Nhân viên đã xác minh rằng tệp đang hoạt động trước khi tải lên và quá trình tải lên đã hoàn tất mà không có lỗi. Tham nhũng đã xảy ra ở hạ lưu trong đường ống."
+        },
+        {
+          "id": "rc-2",
+          "text": "service chuyển mã đã làm hỏng tệp trong khi memory tràn và không có service nào trong đường dẫn thực hiện kiểm tra tính toàn vẹn để phát hiện hoặc ngăn chặn nó",
+          "correct": true,
+          "feedback": "Chính xác! Quá trình chuyển mã service đã gặp phải áp lực memory và tràn bộ đệm, gây ra mất dữ liệu một phần khung hình — làm hỏng video. Vấn đề sâu xa hơn là không có service nào trong toàn bộ đường dẫn tính toán hoặc xác minh tổng kiểm tra. Nếu không kiểm tra tính toàn vẹn tại mỗi điểm chuyển giao, lỗi sẽ không bị phát hiện cho đến khi ai đó cố gắng sử dụng tệp."
+        },
+        {
+          "id": "rc-3",
+          "text": "Bộ lưu trữ vật lý disk của kho bằng chứng có các thành phần xấu âm thầm làm hỏng tệp video trong quá trình hoạt động write",
+          "correct": false,
+          "feedback": "Nhật ký vault hiển thị write thành công. Tệp đã bị hỏng khi đến nơi — hãy lưu ý kích thước tệp nhỏ hơn đáng ngờ (2,1 GB so với 2,4 GB ban đầu). Bộ chuyển mã bị mất dữ liệu trước khi vault nhận được nó."
+        }
+      ]
+    },
+    "fix": {
+      "question": "Cách khắc phục tốt nhất để ngăn chặn tham nhũng bằng chứng không bị phát hiện trong tương lai là gì?",
+      "options": [
+        {
+          "id": "fix-3",
+          "text": "Cung cấp nhiều RAM hơn đáng kể cho service chuyển mã để nó không còn gặp áp lực memory hoặc tràn bộ đệm",
+          "correct": false,
+          "feedback": "Nhiều memory hơn giúp khắc phục lỗi cụ thể này nhưng không bảo vệ khỏi các lỗi trong tương lai, lỗi disk hoặc các nguồn tham nhũng khác. Tổng kiểm tra tính toàn vẹn bảo vệ khỏi mọi hình thức tham nhũng bất kể nguyên nhân."
+        },
+        {
+          "id": "fix-4",
+          "text": "Yêu cầu hai sĩ quan tải lên độc lập cùng một tệp bằng chứng và so sánh thủ công các kết quả đầu ra video",
+          "correct": false,
+          "feedback": "Đây là cách thủ công, dễ xảy ra lỗi và làm tăng gấp đôi công việc. Tổng kiểm tra tự động đạt được cùng một mục tiêu (phát hiện tham nhũng) một cách đáng tin cậy và ở mọi giai đoạn mà không cần sự can thiệp của con người."
+        },
+        {
+          "id": "fix-1",
+          "text": "Tính toán tổng kiểm tra khi tải lên và xác minh nó ở mọi giai đoạn quy trình, từ chối các tệp không khớp và cảnh báo cho người vận hành",
+          "correct": true,
+          "feedback": "Chính xác! Tính toàn vẹn dữ liệu từ đầu đến cuối yêu cầu tính toán tổng kiểm tra (ví dụ: SHA-256) tại nguồn và xác minh nó ở mọi điểm chuyển giao. Nếu đầu ra của bộ chuyển mã không khớp với tính toàn vẹn mong đợi, hệ thống có thể từ chối nó ngay lập tức và cảnh báo cho người vận hành — thay vì âm thầm truyền dữ liệu bị hỏng xuống phía dưới."
+        },
+        {
+          "id": "fix-2",
+          "text": "Loại bỏ hoàn toàn bước chuyển mã và lưu trữ tệp video gốc của máy ảnh gốc mà không cần xử lý",
+          "correct": false,
+          "feedback": "Điều này tránh được lỗi chuyển mã cụ thể nhưng không giải quyết được vấn đề chung. Bất kỳ service nào cũng có thể làm hỏng dữ liệu — bạn cần kiểm tra tính toàn vẹn ở mọi giai đoạn chứ không chỉ xóa các giai đoạn."
+        }
+      ]
+    }
+  },
+  "conceptId": "data-integrity",
+  "badge": {
+    "name": "Thanh tra liêm chính",
+    "icon": "✅"
+  }
+}

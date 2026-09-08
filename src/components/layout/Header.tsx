@@ -9,6 +9,8 @@ import { Button } from "../common/Button";
 import { MobileMenu } from "./MobileMenu";
 import { ResetProgressButton } from "./ResetProgressButton";
 import { AccountSection } from "../account/AccountSection";
+import { LocaleSelector } from "./LocaleSelector";
+import { useAllCases } from "../../hooks/useCase";
 
 function ShieldIcon() {
   return (
@@ -71,8 +73,8 @@ function GearIcon() {
 }
 
 export function Header() {
-  const { rank, completedCases, toggleGuide, guideOpen, locale, setLocale } =
-    useGameState();
+  const { rank, completedCases, toggleGuide, guideOpen } = useGameState();
+  const cases = useAllCases();
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -111,16 +113,10 @@ export function Header() {
           </div>
           <span className="text-noir-500">|</span>
           <span className="font-mono text-noir-500 text-xs">
-            {completedCases}/33 {t("header.cases")}
+            {completedCases}/{cases.length} {t("header.cases")}
           </span>
         </div>
-        <button
-          onClick={() => setLocale(locale === "en" ? "pt-BR" : "en")}
-          aria-label={locale === "en" ? t("header.localeToggle.toPt") : t("header.localeToggle.toEn")}
-          className="text-xs font-mono text-noir-400 hover:text-amber-400 transition-colors px-1.5 py-0.5 rounded border border-noir-600/40 hover:border-amber-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
-        >
-          {locale === "en" ? "PT" : "EN"}
-        </button>
+        <LocaleSelector compact />
         <Link to="/daily">
           <Button variant="ghost" className="text-xs font-mono">
             {t("header.daily")}
@@ -129,6 +125,16 @@ export function Header() {
         <Link to="/chaos">
           <Button variant="ghost" className="text-xs font-mono">
             {t("header.chaos")}
+          </Button>
+        </Link>
+        <Link to="/builder">
+          <Button variant="ghost" className="text-xs font-mono">
+            {t("header.builder")}
+          </Button>
+        </Link>
+        <Link to="/interview">
+          <Button variant="ghost" className="text-xs font-mono">
+            {t("header.interview")}
           </Button>
         </Link>
         <Link to="/notebook" className="relative">

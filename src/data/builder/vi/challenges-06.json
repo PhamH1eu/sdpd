@@ -1,0 +1,71 @@
+{
+  "id": "builder-06",
+  "number": 6,
+  "title": "Kiểm soát lũ hàng đợi",
+  "subtitle": "Quá trình nhập xảy ra sự cố khi lưu lượng truy cập tăng vọt",
+  "objective": "Tách việc nhập dữ liệu khỏi quá trình xử lý và ngăn tình trạng quá tải hàng đợi do các API bị đình trệ.",
+  "constraints": [
+    "Giữ API phản hồi nhanh",
+    "Sử dụng xử lý theo hàng đợi",
+    "Lưu trữ kết quả đã xử lý"
+  ],
+  "availableComponents": [
+    "client",
+    "loadBalancer",
+    "api",
+    "queue",
+    "worker",
+    "database",
+    "cache"
+  ],
+  "concepts": [
+    {
+      "id": "c1",
+      "title": "Xâm nhập Isolation",
+      "description": "API nên bàn giao công việc để xếp hàng nhanh chóng.",
+      "requiredAll": [
+        "api",
+        "queue"
+      ],
+      "preferredConnections": [
+        {
+          "from": "api",
+          "to": "queue"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "title": "Đường ống Worker",
+      "description": "Công nhân nên thoát hàng đợi và duy trì kết quả.",
+      "requiredAll": [
+        "worker"
+      ],
+      "preferredConnections": [
+        {
+          "from": "queue",
+          "to": "worker"
+        },
+        {
+          "from": "worker",
+          "to": "database"
+        }
+      ]
+    },
+    {
+      "id": "c3",
+      "title": "Cửa trước an toàn",
+      "description": "Bảo vệ tầng API với máy khách -> Định tuyến load balancer.",
+      "requiredAll": [
+        "client",
+        "loadBalancer"
+      ],
+      "preferredConnections": [
+        {
+          "from": "client",
+          "to": "loadBalancer"
+        }
+      ]
+    }
+  ]
+}
